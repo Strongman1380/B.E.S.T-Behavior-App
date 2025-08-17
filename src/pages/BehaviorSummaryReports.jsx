@@ -1,0 +1,150 @@
+import { useState, useEffect } from "react";
+import { Student } from "@/api/entities";
+import { BehaviorSummary } from "@/api/entities";
+import { Settings } from "@/api/entities";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, ArrowRight, Users, FileText } from "lucide-react";
+import { Toaster, toast } from 'sonner';
+
+import StudentList from "../components/behavior-summary/StudentList";
+import SummaryForm from "../components/behavior-summary/SummaryForm";
+
+export default function BehaviorSummaryReports() {
+  const [students, setStudents] = useState([]);
+  const [summaries, setSummaries] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isStudentListOpen, setIsStudentListOpen] = useState(false);
+
+  useEffect(() => { loadData(); }, []);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [studentsData, summariesData, settingsData] = await Promise.all([
+        Student.filter({ active: true }),
+        BehaviorSummary.list('-date_range_end'),
+        Settings.list()
+      ]);
+      setStudents(studentsData);
+      setSummaries(summariesData);
+      setSettings(settingsData[0] || null);
+    } catch (error) {
+      toast.error("Failed to load data.");
+      console.error("Load data error:", error);
+    }
+    setIsLoading(false);
+  };
+
+  const saveSummary = async (formData) => {
+    const studentId = students[currentStudentIndex]?.id;
+    if (!studentId) return;
+
+    setIsSaving(true);
+    try {
+      const existingSummary = summaries.find(s => s.student_id === studentId);
+      
+      if (existingSummary) {
+        await BehaviorSummary.update(existingSummary.id, formData);
+        console.log("Updated existing summary for student:", students[currentStudentIndex].student_name);
+      } else {
+        await BehaviorSummary.create({ student_id: studentId, ...formData });
+        console.log("Created new summary for student:", students[currentStudentIndex].student_name);
+      }
+      
+      toast.success(`${students[currentStudentIndex].student_name}'s behavior summary saved!`);
+      
+      // Update local state
+      const updatedSummaries = existingSummary 
+        ? summaries.map(s => s.id === existingSummary.id ? { ...s, ...formData } : s)
+        : [...summaries, { id: Date.now(), student_id: studentId, ...formData }];
+      
+      setSummaries(updatedSummaries);
+      
+    } catch (error) {
+      toast.error("Failed to save behavior summary.");
+      console.error("Save summary error:", error);
+    }
+    setIsSaving(false);
+  };
+
+  const handleSelectStudent = (index) => {
+    setCurrentStudentIndex(index);
+    setIsStudentListOpen(false);
+  };
+
+  const currentStudent = students[currentStudentIndex];
+  const currentSummary = currentStudent ? summaries.find(s => s.student_id === currentStudent.id) : null;
+  const navigateStudent = (dir) => setCurrentStudentIndex(p => Math.max(0, Math.min(p + dir, students.length - 1)));
+
+  if (isLoading) return <div className="flex h-screen items-center justify-center">Loading Behavior Summary Reports...</div>;
+
+  return (
+    <div className="flex h-screen bg-slate-50">
+      <Toaster richColors />
+      {isStudentListOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsStudentListOpen(false)}></div>}
+      
+      <div className={`fixed inset-y-0 left-0 z-30 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isStudentListOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <StudentList students={students} summaries={summaries} currentIndex={currentStudentIndex} onSelectStudent={handleSelectStudent} />
+      </div>
+
+      <main className="flex-1 flex flex-col overflow-y-auto">
+        {!currentStudent ? (
+          <div className="flex-1 flex items-center justify-center text-center p-4">
+            <div>
+              <FileText className="w-16 h-16 mx-auto text-slate-300 mb-4" />
+              <h2 className="text-xl font-bold text-slate-800">No Students Found</h2>
+              <p className="text-slate-500">Add students from the main dashboard to begin creating behavior summaries.</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <header className="bg-white p-4 border-b border-slate-200 sticky top-0 z-10">
+              <div className="flex items-center justify-between md:hidden">
+                <Button onClick={() => setIsStudentListOpen(true)} variant="outline" size="icon">
+                  <Users className="w-5 h-5" />
+                </Button>
+                <div className="text-center">
+                  <h2 className="text-lg font-bold text-slate-900 truncate">{currentStudent.student_name}</h2>
+                  <p className="text-sm text-slate-500">Student {currentStudentIndex + 1} of {students.length}</p>
+                </div>
+                <div className="w-9 h-9" />
+              </div>
+              <div className="hidden md:flex items-center justify-between">
+                <Button onClick={() => navigateStudent(-1)} disabled={currentStudentIndex === 0} variant="outline">
+                  <ArrowLeft className="w-4 h-4 mr-2" /> Previous
+                </Button>
+                <div className="text-center">
+                  <h2 className="text-xl font-bold text-slate-900">{currentStudent.student_name} - Behavior Summary</h2>
+                  <p className="text-sm text-slate-500">Student {currentStudentIndex + 1} of {students.length}</p>
+                </div>
+                <Button onClick={() => navigateStudent(1)} disabled={currentStudentIndex === students.length - 1} variant="outline">
+                  Next <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+              <div className="flex md:hidden items-center justify-between mt-4 gap-2">
+                <Button onClick={() => navigateStudent(-1)} disabled={currentStudentIndex === 0} variant="outline" className="flex-1">
+                  <ArrowLeft className="w-4 h-4 mr-2" /> Prev
+                </Button>
+                <Button onClick={() => navigateStudent(1)} disabled={currentStudentIndex === students.length - 1} variant="outline" className="flex-1">
+                  Next <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </header>
+            <div className="p-4 md:p-8 flex-1">
+              <SummaryForm 
+                key={`${currentStudent.id}-${currentSummary?.id || 'new'}`} 
+                summary={currentSummary} 
+                settings={settings} 
+                onSave={saveSummary} 
+                isSaving={isSaving} 
+              />
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}

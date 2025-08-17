@@ -1,0 +1,22 @@
+{
+  "name": "Bright Track - Student Behavior Tracking",
+  "short_name": "Bright Track",
+  "description": "Student behavior tracking and evaluation system",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "lang": "en-US",
+  "scope": "/",
+  "prefer_related_applications": false
+}
