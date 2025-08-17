@@ -7,7 +7,7 @@ The application is currently running in **demo mode** with localStorage for fast
 - **Project Name**: best education monitor app
 - **Project ID**: best-education-monitor-app  
 - **Project Number**: 477438965464
-- **Web API Key**: AIzaSyArGffi5o6pJA6F3_aGKpcxR4jhM9JQ3Vc
+- **Web API Key**: [REDACTED - Get from Firebase Console]
 
 ## Missing Information Needed
 To complete the Firebase setup, you need to get the **complete App ID** from your Firebase Console.
@@ -29,7 +29,7 @@ Once you have the complete App ID, update the `.env` file:
 
 ```env
 # Firebase Configuration - Complete setup
-VITE_FIREBASE_API_KEY=AIzaSyArGffi5o6pJA6F3_aGKpcxR4jhM9JQ3Vc
+VITE_FIREBASE_API_KEY=YOUR_API_KEY_FROM_FIREBASE_CONSOLE
 VITE_FIREBASE_AUTH_DOMAIN=best-education-monitor-app.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=best-education-monitor-app
 VITE_FIREBASE_STORAGE_BUCKET=best-education-monitor-app.appspot.com
