@@ -71,3 +71,6 @@ npm run setup-firebase
 **Provider**: Firebase Authentication
 **Methods**: Google sign-in and phone authentication
 **Configuration**: Environment variables in .env file
+
+## Testing
+**targetFramework**: Playwright

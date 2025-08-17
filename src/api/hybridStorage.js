@@ -278,6 +278,32 @@ class HybridEntity {
   isUsingFirebase() {
     return this.useFirebase;
   }
+
+  // Clear all data for this entity
+  async clearAll() {
+    const storage = this.getStorageEntity();
+    try {
+      // Get all records first
+      const allRecords = await storage.list();
+      
+      // Delete each record
+      await Promise.all(allRecords.map(record => storage.delete(record.id)));
+      
+      // Also clear from localStorage if using PostgreSQL, SQLite or Firebase
+      if (this.usePostgres || this.useSQLite || this.useFirebase) {
+        const localRecords = this.localEntity.list();
+        localRecords.forEach(record => this.localEntity.delete(record.id));
+      }
+      
+      return true;
+    } catch (error) {
+      console.warn(`${this.usePostgres ? 'PostgreSQL' : this.useSQLite ? 'SQLite' : 'Firebase'} clearAll failed for ${this.entityName}, using localStorage:`, error);
+      // Fallback to clearing localStorage
+      const localRecords = this.localEntity.list();
+      localRecords.forEach(record => this.localEntity.delete(record.id));
+      return true;
+    }
+  }
 }
 
 // Create hybrid entities

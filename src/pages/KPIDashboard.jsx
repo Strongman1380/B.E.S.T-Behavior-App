@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Student, DailyEvaluation, IncidentReport, BehaviorSummary } from "@/api/entities";
+import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,11 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, TrendingDown, Users, AlertTriangle, Smile, 
-  Calendar, Target, Award, Activity, BarChart3, RefreshCw, Download
+  Calendar, Target, Award, Activity, BarChart3, RefreshCw, Download, Trash2
 } from "lucide-react";
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, parseISO } from "date-fns";
 import { toast } from 'sonner';
+import ClearDataDialog from "@/components/kpi/ClearDataDialog";
 
 const COLORS = ['#3B82F6', '#EF4444', '#F59E0B', '#10B981', '#8B5CF6', '#F97316', '#06B6D4', '#84CC16'];
 
@@ -32,9 +33,11 @@ export default function KPIDashboard() {
   const [evaluations, setEvaluations] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [behaviorSummaries, setBehaviorSummaries] = useState([]);
+  const [contactLogs, setContactLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState('7'); // days
   const [selectedStudent, setSelectedStudent] = useState('all');
+  const [showClearDataDialog, setShowClearDataDialog] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -50,17 +53,19 @@ export default function KPIDashboard() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [studentsData, evaluationsData, incidentsData, summariesData] = await Promise.all([
+      const [studentsData, evaluationsData, incidentsData, summariesData, contactsData] = await Promise.all([
         Student.filter({ active: true }),
         DailyEvaluation.list('date'),
         IncidentReport.list('incident_date'),
-        BehaviorSummary.list('date_range_start')
+        BehaviorSummary.list('date_range_start'),
+        ContactLog.list('contact_date')
       ]);
       
       setStudents(studentsData);
       setEvaluations(evaluationsData);
       setIncidents(incidentsData);
       setBehaviorSummaries(summariesData);
+      setContactLogs(contactsData);
     } catch (error) {
       console.error("Error loading KPI data:", error);
       toast.error("Failed to load KPI data.");
@@ -390,6 +395,38 @@ export default function KPIDashboard() {
     toast.success('KPI data exported successfully!');
   };
 
+  // Clear all data
+  const clearAllData = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Clear all data entities
+      await Promise.all([
+        DailyEvaluation.clearAll(),
+        IncidentReport.clearAll(),
+        BehaviorSummary.clearAll(),
+        ContactLog.clearAll()
+      ]);
+      
+      // Reload data to refresh the UI
+      await loadData();
+      
+      toast.success('All data has been cleared successfully!');
+    } catch (error) {
+      console.error("Error clearing data:", error);
+      toast.error("Failed to clear data. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
+  // Get data count for the clear dialog
+  const getDataCount = () => ({
+    evaluations: evaluations.length,
+    incidents: incidents.length,
+    summaries: behaviorSummaries.length,
+    contacts: contactLogs.length
+  });
+
   const behaviorTrendData = getBehaviorTrendData();
   const incidentStats = getIncidentStats();
   const ratingDistribution = getRatingDistribution();
@@ -433,6 +470,16 @@ export default function KPIDashboard() {
                 <Download className="w-4 h-4 mr-2" />
                 <span className="hidden sm:inline">Export Data</span>
                 <span className="sm:hidden">Export</span>
+              </Button>
+              <Button 
+                onClick={() => setShowClearDataDialog(true)} 
+                variant="outline" 
+                className="h-10 sm:h-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                disabled={isLoading}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Clear Data</span>
+                <span className="sm:hidden">Clear</span>
               </Button>
               <Button onClick={loadData} variant="outline" disabled={isLoading} className="h-10 sm:h-auto">
                 <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
@@ -874,6 +921,14 @@ export default function KPIDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Clear Data Dialog */}
+        <ClearDataDialog
+          open={showClearDataDialog}
+          onOpenChange={setShowClearDataDialog}
+          onClearData={clearAllData}
+          dataCount={getDataCount()}
+        />
       </div>
     </div>
   );
