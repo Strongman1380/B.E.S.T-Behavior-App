@@ -6,14 +6,13 @@ alwaysApply: true
 # Bright Track Information
 
 ## Summary
-Bright Track is a standalone student behavior tracking application built with React and Vite. It allows educators to track student behavior, create daily evaluations, generate reports, and visualize progress. The app can run completely independently using local browser storage, with optional Firebase integration for authentication and cloud storage.
+Bright Track is a standalone student behavior tracking application built with React and Vite. It allows educators to track student behavior, create daily evaluations, generate reports, and visualize progress. The app requires PostgreSQL database storage and runs without authentication - providing direct access to all features.
 
 ## Structure
 - **src/**: Main source code directory containing React components, contexts, and utilities
-  - **api/**: API clients for Firebase and local storage
-  - **components/**: UI components organized by feature (auth, behavior, contacts, etc.)
-  - **contexts/**: React context providers (AuthContext)
-  - **database/**: SQLite database configuration, schema, and connection utilities
+  - **api/**: PostgreSQL storage API and database clients
+  - **components/**: UI components organized by feature (behavior, contacts, etc.)
+  - **database/**: PostgreSQL database schema and model definitions
   - **pages/**: React components for different application pages/routes
   - **utils/**: Utility functions and helpers
 - **public/**: Static assets and manifest file
@@ -28,8 +27,7 @@ Bright Track is a standalone student behavior tracking application built with Re
 ## Dependencies
 **Main Dependencies**:
 - React 18.2.0 with React Router 7.2.0
-- Firebase 12.1.0 for authentication and cloud storage
-- Better-SQLite3 12.2.0 for local database
+- PostgreSQL (pg 8.16.3) for database storage
 - Radix UI components for accessible UI elements
 - TailwindCSS for styling
 - Recharts 2.15.4 for data visualization
@@ -46,31 +44,30 @@ Bright Track is a standalone student behavior tracking application built with Re
 # Install dependencies
 npm install
 
+# Set up PostgreSQL database connection in .env file
+# Copy .env.example to .env and configure DATABASE_URL
+
 # Development server
 npm run dev
 
 # Production build
 npm run build
-
-# Firebase setup (optional)
-npm run setup-firebase
 ```
 
 ## Database
-**Type**: SQLite (better-sqlite3)
-**Schema**: SQL schema defined in src/database/schema.sql
+**Type**: PostgreSQL (required)
+**Schema**: SQL schema defined in src/database/postgres-schema.sql
 **Tables**: students, daily_evaluations, contact_logs, incident_reports, settings
-**Connection**: Managed through src/database/connection.js
+**Connection**: Managed through src/api/postgresClient.js
 
 ## Storage Options
-**Local Storage**: Browser localStorage for offline usage
-**Cloud Storage**: Optional Firebase Firestore integration
-**Hybrid Storage**: Configurable through src/api/hybridStorage.js
+**Primary Storage**: PostgreSQL database (required)
+**Configuration**: Environment variables for database connection
+**API**: Simplified storage API in src/api/storage.js
 
 ## Authentication
-**Provider**: Firebase Authentication
-**Methods**: Google sign-in and phone authentication
-**Configuration**: Environment variables in .env file
+**Status**: No authentication required - application runs without login
+**Access**: Direct access to all features without user accounts
 
 ## Testing
 **targetFramework**: Playwright

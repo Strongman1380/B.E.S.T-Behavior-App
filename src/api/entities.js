@@ -1,4 +1,4 @@
-// Hybrid Storage API - Uses Firebase for multi-user sync, localStorage as fallback
+// PostgreSQL Storage API - Uses PostgreSQL only
 import { 
   Student,
   DailyEvaluation,
@@ -9,7 +9,7 @@ import {
   User,
   getStorageType,
   initializeSampleData
-} from './hybridStorage';
+} from './storage';
 
 // Initialize sample data on first load
 initializeSampleData();
@@ -17,6 +17,8 @@ initializeSampleData();
 // Log which storage system is being used
 getStorageType().then(type => {
   console.log(`Bright Track using ${type} for data storage`);
+}).catch(error => {
+  console.error('Storage initialization failed:', error);
 });
 
 export {

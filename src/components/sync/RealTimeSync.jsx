@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react';
 import { getStorageType } from '@/api/entities';
 import { Badge } from '@/components/ui/badge';
-import { Wifi, WifiOff, Cloud, HardDrive, Users, RefreshCw } from 'lucide-react';
+import { Cloud, Users } from 'lucide-react';
 
 export default function RealTimeSync() {
-  const [storageType, setStorageType] = useState(getStorageType());
+  const [storageType, setStorageType] = useState('postgresql');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lastSync, setLastSync] = useState(new Date());
 
   useEffect(() => {
+    // Verify PostgreSQL connection
+    getStorageType().then(type => {
+      setStorageType(type);
+    }).catch(error => {
+      console.error('PostgreSQL connection failed:', error);
+      setStorageType('error');
+    });
+
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
@@ -28,26 +36,33 @@ export default function RealTimeSync() {
   }, []);
 
   const getSyncStatus = () => {
-    if (storageType === 'firebase' && isOnline) {
+    if (storageType === 'postgresql' && isOnline) {
       return {
         icon: <Cloud className="w-3 h-3" />,
-        text: 'Multi-User Sync',
+        text: 'PostgreSQL',
         color: 'bg-green-100 text-green-800 border-green-200',
-        description: 'Real-time collaboration enabled'
+        description: 'Connected to PostgreSQL database'
       };
-    } else if (storageType === 'firebase' && !isOnline) {
+    } else if (storageType === 'postgresql' && !isOnline) {
       return {
-        icon: <WifiOff className="w-3 h-3" />,
-        text: 'Offline Mode',
+        icon: <Cloud className="w-3 h-3" />,
+        text: 'PostgreSQL (Offline)',
         color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        description: 'Changes will sync when online'
+        description: 'PostgreSQL connection unavailable'
+      };
+    } else if (storageType === 'error') {
+      return {
+        icon: <Cloud className="w-3 h-3" />,
+        text: 'Database Error',
+        color: 'bg-red-100 text-red-800 border-red-200',
+        description: 'PostgreSQL connection failed'
       };
     } else {
       return {
-        icon: <HardDrive className="w-3 h-3" />,
-        text: 'Local Only',
-        color: 'bg-blue-100 text-blue-800 border-blue-200',
-        description: 'Data stored locally on this device'
+        icon: <Cloud className="w-3 h-3" />,
+        text: 'PostgreSQL',
+        color: 'bg-green-100 text-green-800 border-green-200',
+        description: 'Connected to PostgreSQL database'
       };
     }
   };
@@ -61,10 +76,10 @@ export default function RealTimeSync() {
         {status.text}
       </Badge>
       
-      {storageType === 'firebase' && (
+      {storageType === 'postgresql' && (
         <div className="flex items-center gap-1 text-xs text-slate-500">
           <Users className="w-3 h-3" />
-          <span>Shared</span>
+          <span>Database</span>
         </div>
       )}
     </div>
