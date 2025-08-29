@@ -3,6 +3,9 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// Import database initialization
+import { initializeDatabase, initializeSchema } from './src/database/postgres.js';
+
 // Import database models
 import { Student, DailyEvaluation, ContactLog, IncidentReport, Settings } from './src/database/models/index.js';
 
@@ -11,6 +14,24 @@ const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Database initialization
+let databaseReady = false;
+let databaseError = null;
+
+async function initializeApp() {
+  try {
+    console.log('🔄 Initializing PostgreSQL database...');
+    await initializeDatabase();
+    await initializeSchema();
+    databaseReady = true;
+    console.log('✅ Database initialized successfully');
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error.message);
+    databaseError = error.message;
+    // Continue without database - app will show error message
+  }
+}
 
 // Middleware
 app.use(cors());
@@ -21,8 +42,36 @@ app.use(express.static(join(__dirname, 'dist')));
 
 // API Routes
 
+// Database status endpoint
+app.get('/api/status', (req, res) => {
+  res.json({
+    database: {
+      ready: databaseReady,
+      error: databaseError,
+      type: 'PostgreSQL'
+    },
+    server: {
+      status: 'running',
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development'
+    }
+  });
+});
+
+// Middleware to check database status for data endpoints
+const requireDatabase = (req, res, next) => {
+  if (!databaseReady) {
+    return res.status(503).json({ 
+      error: 'Database not available', 
+      details: databaseError || 'Database initialization failed',
+      suggestion: 'Please check your DATABASE_URL environment variable and ensure PostgreSQL is accessible'
+    });
+  }
+  next();
+};
+
 // Students
-app.get('/api/students', async (req, res) => {
+app.get('/api/students', requireDatabase, async (req, res) => {
   try {
     const students = await Student.list();
     res.json(students);
@@ -31,7 +80,7 @@ app.get('/api/students', async (req, res) => {
   }
 });
 
-app.get('/api/students/:id', async (req, res) => {
+app.get('/api/students/:id', requireDatabase, async (req, res) => {
   try {
     const student = await Student.get(req.params.id);
     if (!student) {
@@ -43,7 +92,7 @@ app.get('/api/students/:id', async (req, res) => {
   }
 });
 
-app.post('/api/students', async (req, res) => {
+app.post('/api/students', requireDatabase, async (req, res) => {
   try {
     const student = await Student.create(req.body);
     res.status(201).json(student);
@@ -52,7 +101,7 @@ app.post('/api/students', async (req, res) => {
   }
 });
 
-app.put('/api/students/:id', async (req, res) => {
+app.put('/api/students/:id', requireDatabase, async (req, res) => {
   try {
     const student = await Student.update(req.params.id, req.body);
     res.json(student);
@@ -61,7 +110,7 @@ app.put('/api/students/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/students/:id', async (req, res) => {
+app.delete('/api/students/:id', requireDatabase, async (req, res) => {
   try {
     await Student.delete(req.params.id);
     res.status(204).send();
@@ -71,7 +120,7 @@ app.delete('/api/students/:id', async (req, res) => {
 });
 
 // Daily Evaluations
-app.get('/api/evaluations', async (req, res) => {
+app.get('/api/evaluations', requireDatabase, async (req, res) => {
   try {
     const evaluations = await DailyEvaluation.list();
     res.json(evaluations);
@@ -80,7 +129,7 @@ app.get('/api/evaluations', async (req, res) => {
   }
 });
 
-app.get('/api/evaluations/student/:studentId', async (req, res) => {
+app.get('/api/evaluations/student/:studentId', requireDatabase, async (req, res) => {
   try {
     const evaluations = await DailyEvaluation.getByStudent(req.params.studentId);
     res.json(evaluations);
@@ -89,7 +138,7 @@ app.get('/api/evaluations/student/:studentId', async (req, res) => {
   }
 });
 
-app.post('/api/evaluations', async (req, res) => {
+app.post('/api/evaluations', requireDatabase, async (req, res) => {
   try {
     const evaluation = await DailyEvaluation.create(req.body);
     res.status(201).json(evaluation);
@@ -99,7 +148,7 @@ app.post('/api/evaluations', async (req, res) => {
 });
 
 // Contact Logs
-app.get('/api/contact-logs', async (req, res) => {
+app.get('/api/contact-logs', requireDatabase, async (req, res) => {
   try {
     const logs = await ContactLog.list();
     res.json(logs);
@@ -108,7 +157,7 @@ app.get('/api/contact-logs', async (req, res) => {
   }
 });
 
-app.post('/api/contact-logs', async (req, res) => {
+app.post('/api/contact-logs', requireDatabase, async (req, res) => {
   try {
     const log = await ContactLog.create(req.body);
     res.status(201).json(log);
@@ -118,7 +167,7 @@ app.post('/api/contact-logs', async (req, res) => {
 });
 
 // Incident Reports
-app.get('/api/incident-reports', async (req, res) => {
+app.get('/api/incident-reports', requireDatabase, async (req, res) => {
   try {
     const reports = await IncidentReport.list();
     res.json(reports);
@@ -127,7 +176,7 @@ app.get('/api/incident-reports', async (req, res) => {
   }
 });
 
-app.post('/api/incident-reports', async (req, res) => {
+app.post('/api/incident-reports', requireDatabase, async (req, res) => {
   try {
     const report = await IncidentReport.create(req.body);
     res.status(201).json(report);
@@ -137,7 +186,7 @@ app.post('/api/incident-reports', async (req, res) => {
 });
 
 // Settings
-app.get('/api/settings', async (req, res) => {
+app.get('/api/settings', requireDatabase, async (req, res) => {
   try {
     const settings = await Settings.list();
     res.json(settings);
@@ -146,7 +195,7 @@ app.get('/api/settings', async (req, res) => {
   }
 });
 
-app.put('/api/settings/:id', async (req, res) => {
+app.put('/api/settings/:id', requireDatabase, async (req, res) => {
   try {
     const settings = await Settings.update(req.params.id, req.body);
     res.json(settings);
@@ -179,7 +228,22 @@ app.get('*', (req, res) => {
   res.sendFile(join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Bright Track server running on http://localhost:${PORT}`);
-  console.log(`📊 Using SQLite database for data storage`);
+// Initialize database and start server
+async function startServer() {
+  await initializeApp();
+  
+  app.listen(PORT, () => {
+    console.log(`🚀 Bright Track server running on http://localhost:${PORT}`);
+    if (databaseReady) {
+      console.log(`✅ PostgreSQL database connected and ready`);
+    } else {
+      console.log(`❌ PostgreSQL database not available: ${databaseError}`);
+      console.log(`💡 Please check your DATABASE_URL environment variable`);
+    }
+  });
+}
+
+startServer().catch(error => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
 });
