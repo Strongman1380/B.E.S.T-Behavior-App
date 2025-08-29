@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "server": "node server.js",
-    "dev:full": "concurrently \"npm run server\" \"npm run dev\""
+    "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
+    "vercel-build": "vite build",
+    "start": "node server.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.2",
