@@ -9,6 +9,9 @@ import { initializeDatabase, initializeSchema } from './src/database/postgres.js
 // Import database models
 import { Student, DailyEvaluation, ContactLog, IncidentReport, Settings } from './src/database/models/index.js';
 
+// Import sample data initialization
+import { initializeSampleData } from './src/api/entities.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -24,6 +27,11 @@ async function initializeApp() {
     console.log('🔄 Initializing PostgreSQL database...');
     await initializeDatabase();
     await initializeSchema();
+    
+    // Initialize sample data if database is empty
+    console.log('🔄 Checking for sample data...');
+    await initializeSampleData();
+    
     databaseReady = true;
     console.log('✅ Database initialized successfully');
   } catch (error) {

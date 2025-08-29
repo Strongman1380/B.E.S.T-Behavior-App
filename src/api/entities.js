@@ -11,15 +11,8 @@ import {
   initializeSampleData
 } from './storage';
 
-// Initialize sample data on first load
-initializeSampleData();
-
-// Log which storage system is being used
-getStorageType().then(type => {
-  console.log(`Bright Track using ${type} for data storage`);
-}).catch(error => {
-  console.error('Storage initialization failed:', error);
-});
+// Note: Sample data initialization is now handled by the server
+// and only occurs when the database is properly configured
 
 export {
   Student,
@@ -29,5 +22,6 @@ export {
   BehaviorSummary,
   IncidentReport,
   User,
-  getStorageType
+  getStorageType,
+  initializeSampleData
 };

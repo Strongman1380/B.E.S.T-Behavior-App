@@ -4,7 +4,6 @@ import Pages from "@/pages/index.jsx"
 import { Toaster } from "@/components/ui/toaster"
 import ErrorBoundary from './components/auth/ErrorBoundary'
 import DatabaseError from './components/DatabaseError'
-import '@/utils/dataManager' // Initialize data manager
 
 function App() {
   const [databaseStatus, setDatabaseStatus] = useState({ loading: true, ready: false, error: null });

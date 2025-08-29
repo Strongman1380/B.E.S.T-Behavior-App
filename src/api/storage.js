@@ -16,20 +16,42 @@ class PostgreSQLEntity {
     this.postgresEntity = postgresEntity;
     this.entityName = entityName;
     this.listeners = new Set();
-    
-    // Initialize storage
-    this.initializeStorage();
+    this.isAvailable = null; // Will be checked when needed
+    this.initializationPromise = null;
   }
 
   async initializeStorage() {
-    // Check PostgreSQL availability
-    this.isAvailable = await isPostgresAvailable();
-    
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = (async () => {
+      try {
+        // Check PostgreSQL availability
+        this.isAvailable = await isPostgresAvailable();
+        
+        if (!this.isAvailable) {
+          throw new Error(`PostgreSQL is not available for ${this.entityName}. Please configure your database connection.`);
+        }
+        
+        console.log(`${this.entityName} using: PostgreSQL`);
+        return true;
+      } catch (error) {
+        this.isAvailable = false;
+        throw error;
+      }
+    })();
+
+    return this.initializationPromise;
+  }
+
+  async ensureInitialized() {
+    if (this.isAvailable === null) {
+      await this.initializeStorage();
+    }
     if (!this.isAvailable) {
       throw new Error(`PostgreSQL is not available for ${this.entityName}. Please configure your database connection.`);
     }
-    
-    console.log(`${this.entityName} using: PostgreSQL`);
   }
 
   // Get the storage entity (always PostgreSQL)
@@ -39,6 +61,7 @@ class PostgreSQLEntity {
 
   // Create a new record
   async create(data) {
+    await this.ensureInitialized();
     const storage = this.getStorageEntity();
     try {
       return await storage.create(data);
@@ -50,6 +73,7 @@ class PostgreSQLEntity {
 
   // Get a record by ID
   async get(id) {
+    await this.ensureInitialized();
     const storage = this.getStorageEntity();
     try {
       return await storage.get(id);
@@ -61,6 +85,7 @@ class PostgreSQLEntity {
 
   // List all records
   async list(orderBy) {
+    await this.ensureInitialized();
     const storage = this.getStorageEntity();
     try {
       return await storage.list(orderBy);
@@ -72,6 +97,7 @@ class PostgreSQLEntity {
 
   // Filter records
   async filter(filters) {
+    await this.ensureInitialized();
     const storage = this.getStorageEntity();
     try {
       return await storage.filter(filters);
@@ -83,6 +109,7 @@ class PostgreSQLEntity {
 
   // Update a record
   async update(id, data) {
+    await this.ensureInitialized();
     const storage = this.getStorageEntity();
     try {
       return await storage.update(id, data);
@@ -94,6 +121,7 @@ class PostgreSQLEntity {
 
   // Delete a record
   async delete(id) {
+    await this.ensureInitialized();
     const storage = this.getStorageEntity();
     try {
       await storage.delete(id);
@@ -106,6 +134,7 @@ class PostgreSQLEntity {
 
   // Save (create or update)
   async save(data) {
+    await this.ensureInitialized();
     const storage = this.getStorageEntity();
     try {
       return await storage.save(data);
@@ -117,6 +146,7 @@ class PostgreSQLEntity {
 
   // Save multiple records
   async saveAll(dataArray) {
+    await this.ensureInitialized();
     const storage = this.getStorageEntity();
     try {
       return await storage.saveAll(dataArray);
@@ -132,6 +162,7 @@ class PostgreSQLEntity {
     // But we can return the current data immediately
     setTimeout(async () => {
       try {
+        await this.ensureInitialized();
         const data = await this.list();
         callback(data);
       } catch (error) {
@@ -148,6 +179,7 @@ class PostgreSQLEntity {
     // For PostgreSQL, return current data
     setTimeout(async () => {
       try {
+        await this.ensureInitialized();
         const data = await this.get(id);
         callback(data);
       } catch (error) {
@@ -172,6 +204,7 @@ class PostgreSQLEntity {
 
   // Clear all data for this entity
   async clearAll() {
+    await this.ensureInitialized();
     const storage = this.getStorageEntity();
     try {
       // Get all records first
@@ -207,6 +240,13 @@ export const getStorageType = async () => {
 // Initialize sample data if needed
 export const initializeSampleData = async () => {
   try {
+    // First check if PostgreSQL is available
+    const postgresAvailable = await isPostgresAvailable();
+    if (!postgresAvailable) {
+      console.log('PostgreSQL not available - skipping sample data initialization');
+      return false;
+    }
+
     const storageType = await getStorageType();
     
     // Check if we already have data
@@ -215,9 +255,10 @@ export const initializeSampleData = async () => {
       console.log('PostgreSQL is empty. Populating with sample data...');
       await populatePostgresSampleData();
     }
+    return true;
   } catch (error) {
     console.error('Failed to initialize sample data:', error);
-    throw error;
+    return false;
   }
 };
 
