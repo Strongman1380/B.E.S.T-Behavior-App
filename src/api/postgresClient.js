@@ -74,12 +74,70 @@ export const DailyEvaluation = new Proxy({}, {
   }
 });
 
-// Simple pass-through wrappers for other entities (same pattern)
-export const ContactLog = placeholderEntity('ContactLog');
-export const IncidentReport = placeholderEntity('IncidentReport');
-export const Settings = placeholderEntity('Settings');
-export const BehaviorSummary = placeholderEntity('BehaviorSummary');
-export const User = placeholderEntity('User');
+export const ContactLog = new Proxy({}, {
+  get(_, prop) {
+    return async (...args) => {
+      try {
+        const { ContactLog } = await loadRealModels();
+        return ContactLog[prop](...args);
+      } catch {
+        return placeholderEntity('ContactLog')[prop](...args);
+      }
+    };
+  }
+});
+
+export const IncidentReport = new Proxy({}, {
+  get(_, prop) {
+    return async (...args) => {
+      try {
+        const { IncidentReport } = await loadRealModels();
+        return IncidentReport[prop](...args);
+      } catch {
+        return placeholderEntity('IncidentReport')[prop](...args);
+      }
+    };
+  }
+});
+
+export const Settings = new Proxy({}, {
+  get(_, prop) {
+    return async (...args) => {
+      try {
+        const { Settings } = await loadRealModels();
+        return Settings[prop](...args);
+      } catch {
+        return placeholderEntity('Settings')[prop](...args);
+      }
+    };
+  }
+});
+
+export const BehaviorSummary = new Proxy({}, {
+  get(_, prop) {
+    return async (...args) => {
+      try {
+        const { BehaviorSummary } = await loadRealModels();
+        return BehaviorSummary[prop](...args);
+      } catch {
+        return placeholderEntity('BehaviorSummary')[prop](...args);
+      }
+    };
+  }
+});
+
+export const User = new Proxy({}, {
+  get(_, prop) {
+    return async (...args) => {
+      try {
+        const { User } = await loadRealModels();
+        return User[prop](...args);
+      } catch {
+        return placeholderEntity('User')[prop](...args);
+      }
+    };
+  }
+});
 
 // Check if PostgreSQL is available (server-side only)
 export const isPostgresAvailable = async () => {

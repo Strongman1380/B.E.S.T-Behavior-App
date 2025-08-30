@@ -277,12 +277,22 @@ async function populatePostgresSampleData() {
     { student_name: 'Theodore (TJ)', grade_level: '1st Grade', teacher_name: 'Ms. Johnson' }
   ];
 
-  const sampleSettings = [
-    { key: 'teacher_name', value: 'Ms. Johnson' },
-    { key: 'school_name', value: 'Bright Track Elementary' },
-    { key: 'evaluation_periods', value: '9' },
-    { key: 'max_score', value: '5' }
-  ];
+  const sampleSettings = {
+    teacher_name: 'Ms. Johnson',
+    school_name: 'Bright Track Elementary',
+    academic_year: '2024-2025',
+    grading_scale: {
+      excellent: 5,
+      good: 4,
+      satisfactory: 3,
+      needs_improvement: 2,
+      unsatisfactory: 1
+    },
+    notification_preferences: {
+      email_notifications: true,
+      daily_summaries: true
+    }
+  };
 
   try {
     // Add students
@@ -291,9 +301,7 @@ async function populatePostgresSampleData() {
     }
 
     // Add settings
-    for (const settingData of sampleSettings) {
-      await Settings.create(settingData);
-    }
+    await Settings.create(sampleSettings);
 
     // Add some sample evaluations for the first student
     const students = await Student.list();
@@ -301,21 +309,24 @@ async function populatePostgresSampleData() {
       const firstStudent = students[0];
       const today = new Date().toISOString().split('T')[0];
       
-      const sampleEvaluations = [];
+      const timeSlots = {};
       for (let period = 1; period <= 8; period++) {
-        sampleEvaluations.push({
-          student_id: firstStudent.id,
-          evaluation_date: today,
-          period: period,
+        timeSlots[`period_${period}`] = {
           score: Math.floor(Math.random() * 5) + 1,
-          notes: `Period ${period} evaluation`,
-          created_at: new Date().toISOString()
-        });
+          notes: `Period ${period} evaluation`
+        };
       }
 
-      for (const evalData of sampleEvaluations) {
-        await DailyEvaluation.create(evalData);
-      }
+      const sampleEvaluation = {
+        student_id: firstStudent.id,
+        date: today,
+        teacher_name: 'Ms. Johnson',
+        school: 'Bright Track Elementary',
+        time_slots: timeSlots,
+        general_comments: 'Sample evaluation for demonstration purposes'
+      };
+
+      await DailyEvaluation.create(sampleEvaluation);
     }
 
     console.log('Sample data populated successfully in PostgreSQL');

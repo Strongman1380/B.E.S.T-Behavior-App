@@ -55,7 +55,7 @@ export class PostgresContactLog {
 
   static async delete(id) {
     const query = `DELETE FROM contact_logs WHERE id = $1 RETURNING id`;
-    const results = await executeQuery(query, [id]);
+    await executeQuery(query, [id]);
     return { success: true, deletedId: id };
   }
 
@@ -158,7 +158,7 @@ export class PostgresIncidentReport {
 
   static async delete(id) {
     const query = `DELETE FROM incident_reports WHERE id = $1 RETURNING id`;
-    const results = await executeQuery(query, [id]);
+    await executeQuery(query, [id]);
     return { success: true, deletedId: id };
   }
 
@@ -270,7 +270,7 @@ export class PostgresSettings {
 
   static async delete(id) {
     const query = `DELETE FROM settings WHERE id = $1 RETURNING id`;
-    const results = await executeQuery(query, [id]);
+    await executeQuery(query, [id]);
     return { success: true, deletedId: id };
   }
 
@@ -316,11 +316,11 @@ export class PostgresSettings {
 // Placeholder for behavior summaries
 export class PostgresBehaviorSummary {
   static async list() { return []; }
-  static async get(id) { return null; }
+  static async get() { return null; }
   static async create(data) { return data; }
-  static async update(id, data) { return data; }
+  static async update(id, data) { return { ...data, id }; }
   static async delete(id) { return { success: true, deletedId: id }; }
-  static async filter(criteria) { return []; }
+  static async filter() { return []; }
   static async save(data) { return data; }
   static async saveAll(dataArray) { return dataArray; }
 }
@@ -338,11 +338,11 @@ export class PostgresUser {
   static async signOut() { return true; }
   static isAuthenticated() { return true; }
   static async list() { return []; }
-  static async get(id) { return null; }
+  static async get() { return null; }
   static async create(data) { return data; }
-  static async update(id, data) { return data; }
+  static async update(id, data) { return { ...data, id }; }
   static async delete(id) { return { success: true, deletedId: id }; }
-  static async filter(criteria) { return []; }
+  static async filter() { return []; }
   static async save(data) { return data; }
   static async saveAll(dataArray) { return dataArray; }
 }

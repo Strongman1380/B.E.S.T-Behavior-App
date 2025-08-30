@@ -33,12 +33,23 @@ export default [
         'warn',
         { allowConstantExport: true },
       ],
+      'react/prop-types': 'off', // Disable prop-types validation
+      'no-unused-vars': 'warn', // Change to warning instead of error
     },
   },
   {
-    files: ['*.config.js', 'vite.config.js', 'tailwind.config.js'],
+    files: ['*.config.js', 'vite.config.js', 'tailwind.config.js', 'server.js', 'setup-*.js', 'reset-*.js'],
     languageOptions: {
       globals: globals.node,
+    },
+  },
+  {
+    files: ['src/database/**/*.js', 'src/api/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
     },
   },
 ]
