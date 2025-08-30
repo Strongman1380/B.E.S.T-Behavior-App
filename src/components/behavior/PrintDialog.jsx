@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
@@ -5,7 +6,7 @@ import { Printer, X } from 'lucide-react';
 
 export default function PrintDialog({ open, onOpenChange, student, evaluation, settings, date }) {
   
-  React.useEffect(() => {
+  useEffect(() => {
     if (open) {
       console.log("=== PrintDialog opened ===");
       console.log("Student:", student);
