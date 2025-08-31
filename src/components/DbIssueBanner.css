@@ -1,0 +1,4 @@
+/* lightweight styling for the DB banner if needed by environments without Tailwind */
+.db-banner{width:100%;background:#fff7ed;color:#7c2d12;border-bottom:1px solid #fed7aa;padding:.5rem .75rem;display:flex;justify-content:space-between;align-items:center;font-size:.875rem}
+.db-dot{display:inline-block;width:.5rem;height:.5rem;border-radius:9999px;background:#f59e0b;margin-right:.5rem}
+.db-dismiss{color:#7c2d12}

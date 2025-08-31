@@ -210,7 +210,7 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
         </DialogHeader>
         <div id="single-print-area" className="p-4 max-h-[75vh] overflow-y-auto">
           <div className="header">
-            <h1>{student?.student_name}'s Daily Report</h1>
+            <h1>{student?.student_name}’s Daily Report</h1>
             <div className="date-teacher">Date: {format(new Date(date), 'MMMM d, yyyy')}</div>
             <div className="date-teacher">Teacher: {evaluation.teacher_name || settings?.teacher_name || 'Not Set'}</div>
           </div>

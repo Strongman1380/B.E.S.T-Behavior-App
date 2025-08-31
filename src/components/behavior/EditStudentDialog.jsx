@@ -25,7 +25,7 @@ export default function EditStudentDialog({ open, onOpenChange, student, onUpdat
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Student Name</DialogTitle>
-          <DialogDescription>Update the student's name below.</DialogDescription>
+          <DialogDescription>Update the student’s name below.</DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <Label htmlFor="student-name-edit">Student Name</Label>

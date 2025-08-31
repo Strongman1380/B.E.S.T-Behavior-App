@@ -157,7 +157,7 @@ class PostgreSQLEntity {
   }
 
   // Real-time listener for changes (simplified without real-time updates)
-  onSnapshot(callback, filters = {}) {
+  onSnapshot(callback) {
     // For PostgreSQL, we can't provide real-time updates
     // But we can return the current data immediately
     setTimeout(async () => {
@@ -247,8 +247,7 @@ export const initializeSampleData = async () => {
       return false;
     }
 
-    const storageType = await getStorageType();
-    
+    // ensure storage available
     // Check if we already have data
     const students = await Student.list();
     if (students.length === 0) {

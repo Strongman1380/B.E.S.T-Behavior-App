@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { User, Edit, CheckCircle, Play, UserCog } from "lucide-react";
+import { User, Edit, Play, UserCog } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export default function StudentCard({ student, evaluation, today, onEdit, isSelectMode, isSelected, onSelectToggle }) {

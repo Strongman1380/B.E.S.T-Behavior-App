@@ -56,7 +56,7 @@ export default function StudentCard({ student, evaluation, today, onEdit, isSele
 
           {hasEvaluation && (
             <div className="mb-6 p-4 bg-slate-50 rounded-xl">
-              <p className="text-sm text-slate-600 mb-2 font-medium">Today's Progress</p>
+              <p className="text-sm text-slate-600 mb-2 font-medium">Today’s Progress</p>
               <div className="text-2xl font-bold text-slate-900 mb-3">
                 {completedSlots}/9 time slots
               </div>

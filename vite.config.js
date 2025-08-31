@@ -10,8 +10,30 @@ const repoName = process.env.GITHUB_REPOSITORY ? process.env.GITHUB_REPOSITORY.s
 export default defineConfig({
   base: process.env.GITHUB_PAGES ? `/${repoName}/` : '/',
   plugins: [react()],
+  // Expose both VITE_* and NEXT_PUBLIC_* vars to import.meta.env in the client
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          recharts: ['recharts'],
+          lucide: ['lucide-react'],
+          router: ['react-router-dom'],
+          datefns: ['date-fns'],
+        }
+      }
+    }
+  },
   server: {
-    allowedHosts: true
+    allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false,
+      },
+    }
   },
   resolve: {
     alias: {

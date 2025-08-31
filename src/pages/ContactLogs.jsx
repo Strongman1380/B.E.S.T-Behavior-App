@@ -31,7 +31,7 @@ export default function ContactLogs() {
             ]);
             setStudents(studentList);
             setContactLogs(logList);
-        } catch (e) {
+        } catch {
             toast.error("Failed to fetch data.");
         }
         setIsLoading(false);
@@ -43,7 +43,7 @@ export default function ContactLogs() {
             toast.success("Contact log saved successfully.");
             setIsFormOpen(false);
             fetchData();
-        } catch (e) {
+        } catch {
             toast.error("Failed to save contact log.");
         }
     };

@@ -13,7 +13,7 @@ export default function EmailVerification() {
     setIsResending(true);
     try {
       await resendEmailVerification();
-    } catch (error) {
+    } catch {
       toast.error('Failed to send verification email');
     } finally {
       setIsResending(false);
@@ -36,7 +36,7 @@ export default function EmailVerification() {
           </CardHeader>
           <CardContent className="p-4 sm:p-6 pt-0 text-center space-y-4">
             <p className="text-slate-600">
-              We've sent a verification email to:
+              We’ve sent a verification email to:
             </p>
             <p className="font-semibold text-slate-900 bg-slate-100 p-2 rounded">
               {user?.email}
@@ -51,7 +51,7 @@ export default function EmailVerification() {
                 className="w-full"
               >
                 <CheckCircle className="w-4 h-4 mr-2" />
-                I've Verified My Email
+                I’ve Verified My Email
               </Button>
               
               <Button 
@@ -75,7 +75,7 @@ export default function EmailVerification() {
             
             <div className="pt-4 border-t">
               <p className="text-xs text-slate-500">
-                Didn't receive the email? Check your spam folder or try resending.
+                Didn’t receive the email? Check your spam folder or try resending.
               </p>
             </div>
           </CardContent>

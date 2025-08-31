@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Student } from "@/api/entities";
 import { DailyEvaluation } from "@/api/entities";
@@ -26,13 +26,7 @@ export default function StudentEvaluation() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => { 
-    if (studentId) {
-      loadData(); 
-    }
-  }, [studentId, date]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [studentData, evaluationData, settingsData] = await Promise.all([
@@ -49,7 +43,13 @@ export default function StudentEvaluation() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [studentId, date]);
+
+  useEffect(() => { 
+    if (studentId) {
+      loadData(); 
+    }
+  }, [studentId, loadData]);
 
   const saveEvaluation = async (evaluationData, showToast = true) => {
     setIsSaving(true);

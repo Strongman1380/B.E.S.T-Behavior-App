@@ -1,3 +1,4 @@
+/* eslint react-refresh/only-export-components: off */
 "use client";
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"

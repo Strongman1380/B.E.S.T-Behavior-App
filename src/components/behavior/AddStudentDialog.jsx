@@ -20,7 +20,7 @@ export default function AddStudentDialog({ open, onOpenChange, onAddStudent }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add New Student</DialogTitle>
-          <DialogDescription>Enter the student's name to add them to the behavior dashboard.</DialogDescription>
+          <DialogDescription>Enter the student’s name to add them to the behavior dashboard.</DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <Label htmlFor="student-name">Student Name</Label>

@@ -1,4 +1,3 @@
-import React from 'react';
 import { AlertTriangle, Database, ExternalLink } from 'lucide-react';
 
 const DatabaseError = ({ error }) => {

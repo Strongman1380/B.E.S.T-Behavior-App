@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger 
 } from '../ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { User, LogOut, Mail, Shield } from 'lucide-react';
+import { LogOut, Mail, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function UserProfile() {
@@ -21,7 +21,7 @@ export default function UserProfile() {
     setIsLoggingOut(true);
     try {
       await logout();
-    } catch (error) {
+    } catch {
       toast.error('Failed to sign out');
     } finally {
       setIsLoggingOut(false);
@@ -31,7 +31,7 @@ export default function UserProfile() {
   const handleResendVerification = async () => {
     try {
       await resendEmailVerification();
-    } catch (error) {
+    } catch {
       toast.error('Failed to send verification email');
     }
   };

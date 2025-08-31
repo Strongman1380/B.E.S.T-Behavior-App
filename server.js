@@ -1,7 +1,11 @@
 import express from 'express';
+import dotenv from 'dotenv';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+
+// Load environment variables
+dotenv.config();
 
 // Import database initialization
 import { initializeDatabase, initializeSchema } from './src/database/postgres.js';
@@ -81,7 +85,13 @@ const requireDatabase = (req, res, next) => {
 // Students
 app.get('/api/students', requireDatabase, async (req, res) => {
   try {
-    const students = await Student.list();
+    let students;
+    const criteria = {};
+    if (req.query?.active !== undefined) {
+      const v = req.query.active;
+      criteria.active = v === 'true' || v === true || v === '1' ? true : false;
+    }
+    students = Object.keys(criteria).length > 0 ? await Student.filter(criteria) : await Student.list();
     res.json(students);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -130,7 +140,12 @@ app.delete('/api/students/:id', requireDatabase, async (req, res) => {
 // Daily Evaluations
 app.get('/api/evaluations', requireDatabase, async (req, res) => {
   try {
-    const evaluations = await DailyEvaluation.list();
+    const criteria = {};
+    if (req.query?.date) criteria.date = req.query.date;
+    if (req.query?.student_id) criteria.student_id = req.query.student_id;
+    if (req.query?.start_date) criteria.date_from = req.query.start_date;
+    if (req.query?.end_date) criteria.date_to = req.query.end_date;
+    const evaluations = Object.keys(criteria).length > 0 ? await DailyEvaluation.filter(criteria) : await DailyEvaluation.list();
     res.json(evaluations);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -155,10 +170,55 @@ app.post('/api/evaluations', requireDatabase, async (req, res) => {
   }
 });
 
+app.put('/api/evaluations/:id', requireDatabase, async (req, res) => {
+  try {
+    const evaluation = await DailyEvaluation.update(req.params.id, req.body);
+    res.json(evaluation);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/evaluations/:id', requireDatabase, async (req, res) => {
+  try {
+    await DailyEvaluation.delete(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Fallbacks for query param id usage
+app.put('/api/evaluations', requireDatabase, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Missing id' });
+    const evaluation = await DailyEvaluation.update(id, req.body);
+    res.json(evaluation);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/evaluations', requireDatabase, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Missing id' });
+    await DailyEvaluation.delete(id);
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Contact Logs
 app.get('/api/contact-logs', requireDatabase, async (req, res) => {
   try {
-    const logs = await ContactLog.list();
+    const criteria = {};
+    if (req.query?.student_id) criteria.student_id = req.query.student_id;
+    if (req.query?.start_date) criteria.contact_date_from = req.query.start_date;
+    if (req.query?.end_date) criteria.contact_date_to = req.query.end_date;
+    const logs = Object.keys(criteria).length > 0 ? await ContactLog.filter(criteria) : await ContactLog.list();
     res.json(logs);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -177,7 +237,12 @@ app.post('/api/contact-logs', requireDatabase, async (req, res) => {
 // Incident Reports
 app.get('/api/incident-reports', requireDatabase, async (req, res) => {
   try {
-    const reports = await IncidentReport.list();
+    const criteria = {};
+    if (req.query?.student_id) criteria.student_id = req.query.student_id;
+    if (req.query?.incident_type) criteria.incident_type = req.query.incident_type;
+    if (req.query?.start_date) criteria.incident_date_from = req.query.start_date;
+    if (req.query?.end_date) criteria.incident_date_to = req.query.end_date;
+    const reports = Object.keys(criteria).length > 0 ? await IncidentReport.filter(criteria) : await IncidentReport.list();
     res.json(reports);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -188,6 +253,26 @@ app.post('/api/incident-reports', requireDatabase, async (req, res) => {
   try {
     const report = await IncidentReport.create(req.body);
     res.status(201).json(report);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/incident-reports/:id', requireDatabase, async (req, res) => {
+  try {
+    await IncidentReport.delete(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/incident-reports', requireDatabase, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Missing id' });
+    await IncidentReport.delete(id);
+    res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -59,7 +59,7 @@ export const setupRecaptcha = (containerId) => {
   
   return new RecaptchaVerifier(auth, containerId, {
     size: 'invisible',
-    callback: (response) => {
+    callback: () => {
       // reCAPTCHA solved, allow signInWithPhoneNumber.
       console.log('reCAPTCHA solved');
     },

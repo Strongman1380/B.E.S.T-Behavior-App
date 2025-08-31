@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
-import { initializeDatabase, initializeSchema } from '../src/database/postgres.js';
+import { initializeDatabase, executeQuery } from '../src/database/postgres.js';
+import { applyCors } from './_cors.js';
 
 // Load environment variables
 dotenv.config();
@@ -10,6 +11,8 @@ let databaseError = null;
 async function checkDatabase() {
   try {
     await initializeDatabase();
+    // Perform a simple query to verify connectivity
+    await executeQuery('SELECT 1');
     databaseReady = true;
     return true;
   } catch (error) {
@@ -20,12 +23,10 @@ async function checkDatabase() {
 
 export default async function handler(req, res) {
   // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  const allowed = applyCors(req, res);
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
+    res.status(allowed ? 200 : 403).end();
     return;
   }
 

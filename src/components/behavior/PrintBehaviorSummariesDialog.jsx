@@ -244,7 +244,7 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
               <p className="text-slate-500">Complete behavior summaries from the Behavior Summary Reports page to print them here.</p>
             </div>
           ) : (
-            completedSummaries.map((summary, index) => (
+            completedSummaries.map((summary) => (
               <div key={summary.id} className="behavior-form">
                 
                 <div className="form-title">Student Behavior Summary Report</div>

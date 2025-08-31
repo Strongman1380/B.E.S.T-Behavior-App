@@ -36,7 +36,7 @@ export async function initializeDatabase() {
     const Pool = await ensurePg();
     pool = new Pool({
       connectionString,
-      ssl: { rejectUnauthorized: false },
+      ssl: { rejectUnauthorized: process.env.NODE_ENV === 'production' },
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,

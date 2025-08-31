@@ -1,29 +1,23 @@
+import { Suspense, lazy } from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Layout from "./Layout.jsx";
 
-import StudentEvaluation from "./StudentEvaluation";
-
-import Settings from "./Settings";
-
-import QuickScore from "./QuickScore";
-
-import BehaviorDashboard from "./BehaviorDashboard";
-
-import ContactLogs from "./ContactLogs";
-
-import StudentProfile from "./StudentProfile";
-
-import BehaviorSummaryReports from "./BehaviorSummaryReports";
-
-import IncidentReports from "./IncidentReports";
-
-import KPIDashboard from "./KPIDashboard";
-
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+// Route-level code splitting for heavy pages
+const StudentEvaluation = lazy(() => import('./StudentEvaluation'));
+const Settings = lazy(() => import('./Settings'));
+const QuickScore = lazy(() => import('./QuickScore'));
+const BehaviorDashboard = lazy(() => import('./BehaviorDashboard'));
+const ContactLogs = lazy(() => import('./ContactLogs'));
+const StudentProfile = lazy(() => import('./StudentProfile'));
+const BehaviorSummaryReports = lazy(() => import('./BehaviorSummaryReports'));
+const IncidentReports = lazy(() => import('./IncidentReports'));
+const KPIDashboard = lazy(() => import('./KPIDashboard'));
 
 // Create a wrapper component that uses useLocation inside the Router context
 function PagesContent() {
     return (
         <Layout>
+            <Suspense fallback={<div className="p-4">Loading...</div>}>
             <Routes>            
                 
                     <Route path="/" element={<StudentEvaluation />} />
@@ -48,6 +42,7 @@ function PagesContent() {
                 <Route path="/IncidentReports" element={<IncidentReports />} />
                 
             </Routes>
+            </Suspense>
         </Layout>
     );
 }

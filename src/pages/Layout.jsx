@@ -4,6 +4,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { LayoutDashboard, MessageSquare, Zap, Settings, ShieldCheck, Menu, FileText, AlertTriangle, BarChart3 } from 'lucide-react';
 import RealTimeSync from '../components/sync/RealTimeSync';
+import SupabaseStatus from '../components/SupabaseStatus';
+import DbStatusBanner from '../components/DbStatusBanner';
 
 const navItems = [
     { title: 'Dashboard', icon: LayoutDashboard, url: createPageUrl('BehaviorDashboard') },
@@ -60,8 +62,9 @@ export default function Layout({ children }) {
                 <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
                     {navItems.map(item => <NavLink key={item.title} item={item} currentPath={location.pathname} onNavigate={() => setIsSidebarOpen(false)} />)}
                 </nav>
-                <div className="p-4 border-t border-slate-200">
+                <div className="p-4 border-t border-slate-200 space-y-2">
                     <RealTimeSync />
+                    <SupabaseStatus />
                 </div>
             </aside>
             
@@ -83,6 +86,7 @@ export default function Layout({ children }) {
                     </div>
                 </header>
                 <main className="flex-1 overflow-y-auto mobile-scroll safe-area-bottom">
+                    <DbStatusBanner />
                     {children}
                 </main>
             </div>

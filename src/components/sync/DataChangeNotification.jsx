@@ -1,3 +1,4 @@
+/* eslint react-refresh/only-export-components: off */
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { getStorageType } from '@/api/entities';

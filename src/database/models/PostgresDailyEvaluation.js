@@ -169,7 +169,7 @@ export class PostgresDailyEvaluation {
       let query = `
         SELECT id, student_id, date, teacher_name, school, time_slots, general_comments,
                created_at, updated_at
-        FROM daily_evaluations
+        FROM daily_evaluations 
       `;
       
       const conditions = [];
@@ -177,6 +177,19 @@ export class PostgresDailyEvaluation {
       let paramCount = 0;
 
       Object.entries(criteria).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') return;
+        if (key === 'date_from') {
+          paramCount++;
+          conditions.push(`date >= $${paramCount}`);
+          params.push(value);
+          return;
+        }
+        if (key === 'date_to') {
+          paramCount++;
+          conditions.push(`date <= $${paramCount}`);
+          params.push(value);
+          return;
+        }
         paramCount++;
         conditions.push(`${key} = $${paramCount}`);
         params.push(value);

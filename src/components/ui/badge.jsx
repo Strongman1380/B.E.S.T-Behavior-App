@@ -1,3 +1,4 @@
+/* eslint react-refresh/only-export-components: off */
 import { cva } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"

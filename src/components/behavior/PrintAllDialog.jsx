@@ -140,7 +140,7 @@ export default function PrintAllDialog({ open, onOpenChange, students, evaluatio
               if (!evaluation) return null;
               return (
                 <div key={student.id} className={`p-8 bg-white shadow-sm ${index > 0 ? 'page-break' : 'no-page-break'}`}>
-                  <h1 className="text-3xl font-bold mb-1">{student.student_name}'s Daily Report</h1>
+                  <h1 className="text-3xl font-bold mb-1">{student.student_name}’s Daily Report</h1>
                   <p className="text-xl text-slate-600 mb-2">Date: {format(new Date(date), 'MMMM d, yyyy')}</p>
                   <p className="text-lg text-slate-500 mb-8">Teacher: {evaluation.teacher_name || settings?.teacher_name}</p>
 

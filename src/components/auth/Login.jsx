@@ -133,7 +133,7 @@ export default function Login({ onToggleMode }) {
     try {
       await confirmationResult.confirm(verificationCode);
       toast.success('Successfully signed in!');
-    } catch (error) {
+    } catch {
       toast.error('Invalid verification code');
     } finally {
       setPhoneLoading(false);
@@ -363,7 +363,7 @@ export default function Login({ onToggleMode }) {
 
             <div className="mt-6 text-center">
               <p className="text-sm text-slate-600">
-                Don't have an account?{' '}
+                Don’t have an account?{' '}
                 <button
                   onClick={onToggleMode}
                   className="text-blue-600 hover:text-blue-800 font-medium"

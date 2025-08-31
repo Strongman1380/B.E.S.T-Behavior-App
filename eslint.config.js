@@ -29,6 +29,7 @@ export default [
       ...react.configs['jsx-runtime'].rules,
       ...reactHooks.configs.recommended.rules,
       'react/jsx-no-target-blank': 'off',
+      'react/no-unescaped-entities': 'warn',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },
@@ -38,7 +39,7 @@ export default [
     },
   },
   {
-    files: ['*.config.js', 'vite.config.js', 'tailwind.config.js', 'server.js', 'setup-*.js', 'reset-*.js'],
+    files: ['*.config.js', 'vite.config.js', 'tailwind.config.js', 'server.js', 'setup-*.js', 'reset-*.js', 'api/**/*.js'],
     languageOptions: {
       globals: globals.node,
     },

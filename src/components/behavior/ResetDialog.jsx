@@ -25,10 +25,10 @@ export default function ResetDialog({ open, onOpenChange, onConfirm, count }) {
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <RotateCcw className="text-orange-500"/>
-                        Reset Today's Evaluations?
+                        Reset Today’s Evaluations?
                     </DialogTitle>
                     <DialogDescription>
-                        Are you sure you want to delete all {count} of today's evaluations? This action cannot be undone.
+                        Are you sure you want to delete all {count} of today’s evaluations? This action cannot be undone.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>

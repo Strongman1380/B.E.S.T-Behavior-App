@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { IncidentReport, Student, Settings } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Search, FileText, Calendar, User, Plus, Eye, Trash2 } from "lucide-react";
+import { AlertTriangle, Search, Calendar, User, Plus, Eye, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from 'sonner';
 import IncidentReportDialog from "../components/behavior/IncidentReportDialog";
@@ -44,15 +44,7 @@ export default function IncidentReports() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [viewingReport, setViewingReport] = useState(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    filterReports();
-  }, [reports, searchTerm, filterType, filterStudent]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       const [reportsData, studentsData, settingsData] = await Promise.all([
@@ -69,9 +61,13 @@ export default function IncidentReports() {
       toast.error("Failed to load incident reports.");
     }
     setIsLoading(false);
-  };
+  }, []);
 
-  const filterReports = () => {
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const filterReports = useCallback(() => {
     let filtered = reports;
 
     // Search filter
@@ -94,7 +90,13 @@ export default function IncidentReports() {
     }
 
     setFilteredReports(filtered);
-  };
+  }, [reports, searchTerm, filterType, filterStudent]);
+
+  useEffect(() => {
+    filterReports();
+  }, [filterReports]);
+
+  
 
   const handleSaveReport = async (reportData) => {
     try {

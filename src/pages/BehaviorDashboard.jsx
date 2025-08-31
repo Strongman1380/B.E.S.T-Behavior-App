@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Student, DailyEvaluation, Settings, IncidentReport, getStorageType } from "@/api/entities";
+import { useState, useEffect, useCallback } from "react";
+import { Student, DailyEvaluation, Settings, IncidentReport } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Plus, FileText, Trash2, X, CheckSquare, Calendar, RotateCcw, Edit, Eye, User, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
@@ -20,7 +20,7 @@ import ResetDialog from "../components/behavior/ResetDialog";
 import PrintDialog from "../components/behavior/PrintDialog";
 import PrintBehaviorSummariesDialog from "../components/behavior/PrintBehaviorSummariesDialog";
 import IncidentReportDialog from "../components/behavior/IncidentReportDialog";
-import RealTimeSync, { useRealTimeData } from "../components/sync/RealTimeSync";
+import RealTimeSync from "../components/sync/RealTimeSync";
 
 export default function BehaviorDashboard() {
   const [students, setStudents] = useState([]);
@@ -41,11 +41,7 @@ export default function BehaviorDashboard() {
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       
@@ -65,7 +61,11 @@ export default function BehaviorDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [today]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const addStudent = async (studentData) => { 
     try {
@@ -281,7 +281,7 @@ export default function BehaviorDashboard() {
         <Card className="shadow-xl border-slate-200 bg-white/80 backdrop-blur-sm">
           <CardContent className="p-0">
              {students.length === 0 ? (
-                <div className="text-center py-20 px-6"><h2 className="text-2xl font-semibold text-slate-700">No Active Students</h2><p className="text-slate-500 mt-2">Click "Add Student" to get started.</p></div>
+                <div className="text-center py-20 px-6"><h2 className="text-2xl font-semibold text-slate-700">No Active Students</h2><p className="text-slate-500 mt-2">Click “Add Student” to get started.</p></div>
               ) : (
                 <>
                 {/* Mobile Card View */}

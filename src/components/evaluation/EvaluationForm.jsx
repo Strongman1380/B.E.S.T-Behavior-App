@@ -64,7 +64,7 @@ export default function EvaluationForm({ evaluation, settings, onSave, isSaving 
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
           <div className="space-y-3">
             <Label htmlFor="teacher_name" className="text-base font-semibold text-slate-700">
-              Teacher's Name
+              Teacher’s Name
             </Label>
             <Input
               id="teacher_name"

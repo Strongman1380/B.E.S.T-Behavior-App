@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Student } from '@/api/entities';
 import { ContactLog } from '@/api/entities';
@@ -22,13 +22,7 @@ export default function StudentProfile() {
     const [isLoading, setIsLoading] = useState(true);
     const [showPrintLogsDialog, setShowPrintLogsDialog] = useState(false);
 
-    useEffect(() => {
-        if (studentId) {
-            fetchData();
-        }
-    }, [studentId]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
             const [studentData, logsData, evalsData] = await Promise.all([
@@ -43,7 +37,13 @@ export default function StudentProfile() {
             console.error("Failed to fetch student profile data:", error);
         }
         setIsLoading(false);
-    };
+    }, [studentId]);
+
+    useEffect(() => {
+        if (studentId) {
+            fetchData();
+        }
+    }, [studentId, fetchData]);
 
     if (isLoading) return (
         <div className="p-4 sm:p-6 md:p-8">

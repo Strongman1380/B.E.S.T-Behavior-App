@@ -66,6 +66,19 @@ export class PostgresContactLog {
     let paramCount = 0;
 
     Object.entries(criteria).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      if (key === 'contact_date_from') {
+        paramCount++;
+        conditions.push(`contact_date >= $${paramCount}`);
+        params.push(value);
+        return;
+      }
+      if (key === 'contact_date_to') {
+        paramCount++;
+        conditions.push(`contact_date <= $${paramCount}`);
+        params.push(value);
+        return;
+      }
       paramCount++;
       conditions.push(`${key} = $${paramCount}`);
       params.push(value);
@@ -169,6 +182,19 @@ export class PostgresIncidentReport {
     let paramCount = 0;
 
     Object.entries(criteria).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      if (key === 'incident_date_from') {
+        paramCount++;
+        conditions.push(`incident_date >= $${paramCount}`);
+        params.push(value);
+        return;
+      }
+      if (key === 'incident_date_to') {
+        paramCount++;
+        conditions.push(`incident_date <= $${paramCount}`);
+        params.push(value);
+        return;
+      }
       paramCount++;
       conditions.push(`${key} = $${paramCount}`);
       params.push(value);

@@ -1,22 +1,28 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Suspense, lazy } from 'react';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, Area, AreaChart
-} from 'recharts';
-import { 
-  TrendingUp, TrendingDown, Users, AlertTriangle, Smile, 
-  Calendar, Target, Award, Activity, BarChart3, RefreshCw, Download, Trash2
+  Users, AlertTriangle, Smile, 
+  Calendar, Target, BarChart3, RefreshCw, Download, Trash2
 } from "lucide-react";
-import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, parseISO } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 import { toast } from 'sonner';
 import ClearDataDialog from "@/components/kpi/ClearDataDialog";
+import EvaluationsCountCard from "@/components/kpi/EvaluationsCountCard";
+import IncidentsCountCard from "@/components/kpi/IncidentsCountCard";
+import ContactLogsCountCard from "@/components/kpi/ContactLogsCountCard";
+import ActiveStudentsCard from "@/components/kpi/ActiveStudentsCard";
+import { createZip } from "@/lib/zip";
 
-const COLORS = ['#3B82F6', '#EF4444', '#F59E0B', '#10B981', '#8B5CF6', '#F97316', '#06B6D4', '#84CC16'];
+const BehaviorTrendChart = lazy(() => import('@/components/kpi/BehaviorTrendChart'));
+const IncidentTypesBar = lazy(() => import('@/components/kpi/IncidentTypesBar'));
+const RatingDistributionPie = lazy(() => import('@/components/kpi/RatingDistributionPie'));
+const TimeSlotAnalysisBar = lazy(() => import('@/components/kpi/TimeSlotAnalysisBar'));
+const WeeklyTrendsArea = lazy(() => import('@/components/kpi/WeeklyTrendsArea'));
+const StudentComparisonList = lazy(() => import('@/components/kpi/StudentComparisonList'));
 
 const INCIDENT_TYPE_COLORS = {
   "Aggressive Behavior": "#EF4444",
@@ -39,18 +45,7 @@ export default function KPIDashboard() {
   const [selectedStudent, setSelectedStudent] = useState('all');
   const [showClearDataDialog, setShowClearDataDialog] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    // Reload data when filters change
-    if (!isLoading) {
-      loadData();
-    }
-  }, [dateRange, selectedStudent]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       const [studentsData, evaluationsData, incidentsData, summariesData, contactsData] = await Promise.all([
@@ -71,7 +66,20 @@ export default function KPIDashboard() {
       toast.error("Failed to load KPI data.");
     }
     setIsLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    // Reload data when filters change
+    if (!isLoading) {
+      loadData();
+    }
+  }, [dateRange, selectedStudent, isLoading, loadData]);
+
+  
 
   // Filter data based on date range and selected student
   const getFilteredData = () => {
@@ -395,6 +403,81 @@ export default function KPIDashboard() {
     toast.success('KPI data exported successfully!');
   };
 
+  // Export all raw rows zipped (evaluations, incidents, contact logs, active students)
+  const exportAllCSVs = async () => {
+    const start = format(subDays(new Date(), parseInt(dateRange) - 1), 'yyyy-MM-dd');
+    const end = format(new Date(), 'yyyy-MM-dd');
+    const files = [];
+
+    try {
+      // Evaluations
+      {
+        const q = new URLSearchParams({ start_date: start, end_date: end });
+        const res = await fetch(`/api/evaluations?${q.toString()}`);
+        if (res.ok) {
+          const rows = await res.json();
+          const headers = ['id','student_id','date','teacher_name','school','time_slots','general_comments'];
+          const csv = [headers.join(',')];
+          rows.forEach(r => csv.push([
+            r.id, r.student_id, r.date, r.teacher_name ?? '', r.school ?? '', JSON.stringify(r.time_slots ?? {}), (r.general_comments ?? '').replaceAll('\n',' ')
+          ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')));
+          files.push({ name: `evaluations-${start}_to_${end}.csv`, data: csv.join('\n') });
+        }
+      }
+      // Incidents
+      {
+        const q = new URLSearchParams({ start_date: start, end_date: end });
+        const res = await fetch(`/api/incident-reports?${q.toString()}`);
+        if (res.ok) {
+          const rows = await res.json();
+          const headers = ['id','student_id','incident_date','incident_time','location','incident_type','severity_level','description','action_taken','reported_by','follow_up_required','follow_up_notes'];
+          const csv = [headers.join(',')];
+          rows.forEach(r => csv.push([
+            r.id, r.student_id, r.incident_date, r.incident_time ?? '', r.location ?? '', r.incident_type ?? '', r.severity_level ?? '', (r.description ?? '').replaceAll('\n',' '), r.action_taken ?? '', r.reported_by ?? '', r.follow_up_required ?? false, (r.follow_up_notes ?? '').replaceAll('\n',' ')
+          ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')));
+          files.push({ name: `incidents-${start}_to_${end}.csv`, data: csv.join('\n') });
+        }
+      }
+      // Contact Logs
+      {
+        const q = new URLSearchParams({ start_date: start, end_date: end });
+        const res = await fetch(`/api/contact-logs?${q.toString()}`);
+        if (res.ok) {
+          const rows = await res.json();
+          const headers = ['id','student_id','contact_date','contact_person_name','contact_category','purpose_of_contact','outcome_of_contact'];
+          const csv = [headers.join(',')];
+          rows.forEach(r => csv.push([
+            r.id, r.student_id, r.contact_date, r.contact_person_name ?? '', r.contact_category ?? '', (r.purpose_of_contact ?? '').replaceAll('\n',' '), (r.outcome_of_contact ?? '').replaceAll('\n',' ')
+          ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')));
+          files.push({ name: `contact-logs-${start}_to_${end}.csv`, data: csv.join('\n') });
+        }
+      }
+      // Active students
+      {
+        const res = await fetch('/api/students?active=true');
+        if (res.ok) {
+          const rows = await res.json();
+          const headers = ['id','student_name','grade_level','teacher_name','active'];
+          const csv = [headers.join(',')];
+          rows.forEach(r => csv.push([
+            r.id, r.student_name ?? '', r.grade_level ?? '', r.teacher_name ?? '', r.active ?? true
+          ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')));
+          files.push({ name: 'students-active.csv', data: csv.join('\n') });
+        }
+      }
+      // Zip and download
+      const zipBlob = await createZip(files);
+      const url = window.URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `export-${start}_to_${end}.zip`; a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success('Exported ZIP with evaluations, incidents, contact logs, and active students');
+    } catch (e) {
+      console.error('Export all failed', e);
+      toast.error('Failed to export all CSVs');
+    }
+  };
+
   // Clear all data
   const clearAllData = async () => {
     try {
@@ -580,6 +663,23 @@ export default function KPIDashboard() {
               </p>
             </CardContent>
           </Card>
+
+          <EvaluationsCountCard
+            startDate={format(subDays(new Date(), parseInt(dateRange) - 1), 'yyyy-MM-dd')}
+            endDate={format(new Date(), 'yyyy-MM-dd')}
+          />
+
+          <IncidentsCountCard
+            startDate={format(subDays(new Date(), parseInt(dateRange) - 1), 'yyyy-MM-dd')}
+            endDate={format(new Date(), 'yyyy-MM-dd')}
+          />
+
+          <ContactLogsCountCard
+            startDate={format(subDays(new Date(), parseInt(dateRange) - 1), 'yyyy-MM-dd')}
+            endDate={format(new Date(), 'yyyy-MM-dd')}
+          />
+
+          <ActiveStudentsCard />
         </div>
 
         {/* Charts Grid */}
@@ -590,51 +690,9 @@ export default function KPIDashboard() {
               <CardTitle className="text-base sm:text-lg">Behavior Trends Over Time</CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={behaviorTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date" 
-                    fontSize={10}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <YAxis 
-                    yAxisId="rating" 
-                    domain={[0, 4]} 
-                    fontSize={10}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <YAxis 
-                    yAxisId="smiley" 
-                    orientation="right" 
-                    domain={[0, 100]} 
-                    fontSize={10}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ fontSize: '12px' }}
-                  />
-                  <Legend 
-                    wrapperStyle={{ fontSize: '12px' }}
-                  />
-                  <Line 
-                    yAxisId="rating"
-                    type="monotone" 
-                    dataKey="avgRating" 
-                    stroke="#3B82F6" 
-                    strokeWidth={2}
-                    name="Avg Rating (1-4)"
-                  />
-                  <Line 
-                    yAxisId="smiley"
-                    type="monotone" 
-                    dataKey="smileyPercentage" 
-                    stroke="#F59E0B" 
-                    strokeWidth={2}
-                    name="Smiley Rate (%)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
+                <BehaviorTrendChart data={behaviorTrendData} />
+              </Suspense>
             </CardContent>
           </Card>
 
@@ -644,36 +702,9 @@ export default function KPIDashboard() {
               <CardTitle className="text-base sm:text-lg">Incident Types Distribution</CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              {incidentStats.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={incidentStats}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="type" 
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                      fontSize={9}
-                      tick={{ fontSize: 9 }}
-                    />
-                    <YAxis 
-                      fontSize={10}
-                      tick={{ fontSize: 10 }}
-                    />
-                    <Tooltip 
-                      contentStyle={{ fontSize: '12px' }}
-                    />
-                    <Bar dataKey="percentage" fill="#EF4444" name="Percentage %" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-[250px] text-slate-500">
-                  <div className="text-center">
-                    <Award className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-2 text-green-500" />
-                    <p className="text-sm sm:text-base">No incidents in selected period!</p>
-                  </div>
-                </div>
-              )}
+              <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
+                <IncidentTypesBar data={incidentStats} />
+              </Suspense>
             </CardContent>
           </Card>
         </div>
@@ -686,27 +717,9 @@ export default function KPIDashboard() {
               <CardTitle className="text-base sm:text-lg">Rating Distribution</CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={ratingDistribution}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ rating, percentage }) => `${rating}: ${percentage}%`}
-                    outerRadius={60}
-                    fill="#8884d8"
-                    dataKey="count"
-                  >
-                    {ratingDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ fontSize: '12px' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
+                <RatingDistributionPie data={ratingDistribution} />
+              </Suspense>
             </CardContent>
           </Card>
 
@@ -716,31 +729,9 @@ export default function KPIDashboard() {
               <CardTitle className="text-base sm:text-lg">Student Performance Overview</CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              <div className="space-y-3 max-h-[250px] overflow-y-auto">
-                {studentComparison.map((student, index) => (
-                  <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-slate-50 rounded-lg gap-2">
-                    <div className="flex-1">
-                      <p className="font-medium text-slate-900 text-sm sm:text-base">{student.name}</p>
-                      <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-slate-600">
-                        <span>Avg: {student.avgRating}/4</span>
-                        <span>😊 {student.smileyRate}%</span>
-                        <span>Incidents: {student.incidents}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-1 sm:gap-2 self-start sm:self-center">
-                      {student.avgRating >= 3.5 && (
-                        <Badge className="bg-green-100 text-green-800 text-xs">Excellent</Badge>
-                      )}
-                      {student.avgRating >= 2.5 && student.avgRating < 3.5 && (
-                        <Badge className="bg-yellow-100 text-yellow-800 text-xs">Good</Badge>
-                      )}
-                      {student.avgRating < 2.5 && (
-                        <Badge className="bg-red-100 text-red-800 text-xs">Needs Support</Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
+                <StudentComparisonList data={studentComparison} />
+              </Suspense>
             </CardContent>
           </Card>
         </div>
@@ -753,37 +744,9 @@ export default function KPIDashboard() {
               <CardTitle className="text-base sm:text-lg">Performance by Time of Day</CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={timeSlotAnalysis}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="timeSlot" 
-                    fontSize={10}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <YAxis 
-                    yAxisId="rating" 
-                    domain={[0, 4]} 
-                    fontSize={10}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <YAxis 
-                    yAxisId="smiley" 
-                    orientation="right" 
-                    domain={[0, 100]} 
-                    fontSize={10}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ fontSize: '12px' }}
-                  />
-                  <Legend 
-                    wrapperStyle={{ fontSize: '12px' }}
-                  />
-                  <Bar yAxisId="rating" dataKey="avgRating" fill="#3B82F6" name="Avg Rating" />
-                  <Bar yAxisId="smiley" dataKey="smileyRate" fill="#F59E0B" name="Smiley Rate %" />
-                </BarChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
+                <TimeSlotAnalysisBar data={timeSlotAnalysis} />
+              </Suspense>
             </CardContent>
           </Card>
 
@@ -793,55 +756,9 @@ export default function KPIDashboard() {
               <CardTitle className="text-base sm:text-lg">Weekly Progress Trends</CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              <ResponsiveContainer width="100%" height={250}>
-                <AreaChart data={weeklyTrends}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="week" 
-                    fontSize={10}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <YAxis 
-                    yAxisId="rating" 
-                    domain={[0, 4]} 
-                    fontSize={10}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <YAxis 
-                    yAxisId="smiley" 
-                    orientation="right" 
-                    domain={[0, 100]} 
-                    fontSize={10}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ fontSize: '12px' }}
-                  />
-                  <Legend 
-                    wrapperStyle={{ fontSize: '12px' }}
-                  />
-                  <Area 
-                    yAxisId="rating"
-                    type="monotone" 
-                    dataKey="avgRating" 
-                    stackId="1"
-                    stroke="#3B82F6" 
-                    fill="#3B82F6"
-                    fillOpacity={0.6}
-                    name="Avg Rating"
-                  />
-                  <Area 
-                    yAxisId="smiley"
-                    type="monotone" 
-                    dataKey="smileyRate" 
-                    stackId="2"
-                    stroke="#F59E0B" 
-                    fill="#F59E0B"
-                    fillOpacity={0.6}
-                    name="Smiley Rate %"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
+                <WeeklyTrendsArea data={weeklyTrends} />
+              </Suspense>
             </CardContent>
           </Card>
         </div>

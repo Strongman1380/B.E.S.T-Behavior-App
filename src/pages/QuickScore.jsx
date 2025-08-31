@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Student } from "@/api/entities";
 import { DailyEvaluation } from "@/api/entities";
 import { Settings } from "@/api/entities";
@@ -22,11 +22,7 @@ export default function QuickScore() {
   
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  useEffect(() => { 
-    loadData(); 
-  }, []);
-
-  const loadData = async (showLoading = true) => {
+  const loadData = useCallback(async (showLoading = true) => {
     try {
       if(showLoading) setIsLoading(true);
       console.log("Loading Quick Score data...");
@@ -62,7 +58,11 @@ export default function QuickScore() {
     } finally {
       if(showLoading) setIsLoading(false);
     }
-  };
+  }, [today]);
+
+  useEffect(() => { 
+    loadData(); 
+  }, [loadData]);
   
   const saveEvaluation = async (formData, showToast = true) => {
     const studentId = students[currentStudentIndex]?.id;

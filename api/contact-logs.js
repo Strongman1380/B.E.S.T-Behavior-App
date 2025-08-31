@@ -1,31 +1,36 @@
 import dotenv from 'dotenv';
 import { ContactLog } from '../src/database/models/index.js';
+import { applyCors } from './_cors.js';
 
 // Load environment variables
 dotenv.config();
 
 export default async function handler(req, res) {
   // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  const allowed = applyCors(req, res);
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
+    res.status(allowed ? 200 : 403).end();
     return;
   }
 
   try {
     switch (req.method) {
-      case 'GET':
-        const logs = await ContactLog.list();
+      case 'GET': {
+        const criteria = {};
+        if (req.query?.student_id) criteria.student_id = req.query.student_id;
+        if (req.query?.start_date) criteria.contact_date_from = req.query.start_date;
+        if (req.query?.end_date) criteria.contact_date_to = req.query.end_date;
+        const logs = Object.keys(criteria).length > 0 ? await ContactLog.filter(criteria) : await ContactLog.list();
         res.json(logs);
         break;
+      }
 
-      case 'POST':
+      case 'POST': {
         const newLog = await ContactLog.create(req.body);
         res.status(201).json(newLog);
         break;
+      }
 
       default:
         res.status(405).json({ error: 'Method not allowed' });
