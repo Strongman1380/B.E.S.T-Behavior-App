@@ -28,11 +28,14 @@ async function ensureFs() {
 export async function initializeDatabase() {
   if (isBrowser) throw new Error('PostgreSQL not available in browser');
   if (pool) return pool;
+  
+  const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (!connectionString) {
+    console.log('⚠️  No DATABASE_URL configured - running in demo mode without PostgreSQL');
+    return null;
+  }
+  
   try {
-    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-    if (!connectionString) {
-      throw new Error('DATABASE_URL or POSTGRES_URL environment variable is required');
-    }
     const Pool = await ensurePg();
     pool = new Pool({
       connectionString,
@@ -44,8 +47,8 @@ export async function initializeDatabase() {
     console.log('✅ PostgreSQL connection pool initialized successfully');
     return pool;
   } catch (error) {
-    console.error('❌ PostgreSQL initialization failed:', error);
-    throw error;
+    console.warn('⚠️  PostgreSQL connection failed, running in demo mode:', error.message);
+    return null;
   }
 }
 
@@ -54,7 +57,13 @@ export async function initializeDatabase() {
  */
 export async function getDatabase() {
   if (isBrowser) throw new Error('PostgreSQL not available in browser');
-  if (!pool) return initializeDatabase();
+  if (!pool) {
+    const result = await initializeDatabase();
+    if (!result) {
+      throw new Error('PostgreSQL not available - running in demo mode');
+    }
+    return result;
+  }
   return pool;
 }
 
@@ -75,11 +84,14 @@ export async function closeDatabase() {
  */
 export async function executeQuery(query, params = []) {
   if (isBrowser) throw new Error('PostgreSQL not available in browser');
-  const database = await getDatabase();
   try {
+    const database = await getDatabase();
     const result = await database.query(query, params);
     return result.rows;
   } catch (error) {
+    if (error.message.includes('PostgreSQL not available')) {
+      throw new Error('Database not configured - running in demo mode');
+    }
     console.error('PostgreSQL query execution error:', error);
     console.error('Query:', query);
     console.error('Params:', params);
@@ -119,6 +131,13 @@ export async function executeTransaction(queries) {
  */
 export async function initializeSchema() {
   if (isBrowser) throw new Error('PostgreSQL not available in browser');
+  
+  const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (!connectionString) {
+    console.log('⚠️  No DATABASE_URL configured - skipping schema initialization');
+    return;
+  }
+  
   try {
     // Resolve relative to this module without using Node's path/url helpers
     const schemaUrl = new URL('./postgres-schema.sql', import.meta.url);
@@ -129,8 +148,7 @@ export async function initializeSchema() {
     await executeQuery(schema);
     console.log('✅ PostgreSQL schema initialized successfully');
   } catch (error) {
-    console.error('❌ PostgreSQL schema initialization failed:', error);
-    throw error;
+    console.warn('⚠️  PostgreSQL schema initialization failed, running in demo mode:', error.message);
   }
 }
 

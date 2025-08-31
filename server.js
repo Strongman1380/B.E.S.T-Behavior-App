@@ -30,17 +30,24 @@ async function initializeApp() {
   try {
     console.log('🔄 Initializing PostgreSQL database...');
     await initializeDatabase();
-    await initializeSchema();
+    
+    // Only initialize schema if database connection was successful
+    if (databaseReady !== false) {
+      await initializeSchema();
+    }
     
     // Initialize sample data if database is empty
-    console.log('🔄 Checking for sample data...');
-    await initializeSampleData();
+    if (databaseReady !== false) {
+      console.log('🔄 Checking for sample data...');
+      await initializeSampleData();
+    }
     
     databaseReady = true;
     console.log('✅ Database initialized successfully');
   } catch (error) {
-    console.error('❌ Database initialization failed:', error.message);
+    console.warn('⚠️  Database initialization failed, running in demo mode:', error.message);
     databaseError = error.message;
+    databaseReady = false;
     // Continue without database - app will show error message
   }
 }
