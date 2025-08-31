@@ -1,5 +1,5 @@
-// PostgreSQL Storage API - Uses PostgreSQL only
-import { 
+// Supabase Storage API – use Supabase in the browser
+import {
   Student,
   DailyEvaluation,
   Settings,
@@ -9,10 +9,7 @@ import {
   User,
   getStorageType,
   initializeSampleData
-} from './storage.js';
-
-// Note: Sample data initialization is now handled by the server
-// and only occurs when the database is properly configured
+} from './supabaseStorage.js'
 
 export {
   Student,

@@ -33,9 +33,15 @@ The workflow needs to pass these as build environment variables. Edit `.github/w
     VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 ```
 
-### 4. For Server-Side (Optional)
+### 4. Frontend uses Supabase directly (no /api)
 
-If running the server component, you can also set:
+This app now connects to Supabase directly from the browser. On GitHub Pages there is no server, so all previous `/api/*` calls have been removed/guarded. Ensure your Row Level Security (RLS) policies allow the anon role read/write that you expect.
+
+If you need server-only operations (service role), deploy the `api/*` folder to Vercel or another server separately. GitHub Pages won’t serve those endpoints.
+
+### 5. For Server-Side (Optional)
+
+If running the server component, you can also set (not required for GitHub Pages):
 ```
 DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.teiupxwqnbwopnixulay.supabase.co:5432/postgres
 ```
@@ -49,3 +55,12 @@ The app will automatically create the required tables when it connects to Supaba
 - Never commit passwords or service role keys to Git
 - Only use the anon public key in browser builds
 - The anon public key is safe to expose in client-side code when properly configured with Row Level Security (RLS)
+
+## Troubleshooting
+
+- Console shows: “Supabase client not configured: missing URL or anon key”
+  - Add repository secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` and re-deploy.
+  - For local dev, add them to `.env` (see `.env.example`).
+
+- “No routes matched location "/B.E.S.T-Behavior-App/"”
+  - Ensure the Pages workflow uses `npm run build:pages` (sets the correct base) and that your deployment is at `https://<user>.github.io/B.E.S.T-Behavior-App/`.

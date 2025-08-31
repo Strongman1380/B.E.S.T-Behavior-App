@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
+import { supabase } from '@/config/supabase'
 
 export default function SupabaseStatus() {
   const [ready, setReady] = useState(false)
@@ -11,12 +12,18 @@ export default function SupabaseStatus() {
     let mounted = true
     const check = async () => {
       try {
-        const res = await fetch('/api/supabase-status')
-        if (!res.ok) throw new Error('status failed')
-        const json = await res.json()
+        if (!supabase) { if (mounted) { setReady(false); setCounts(null) } ; return }
+        // Head count queries to validate connectivity
+        const tables = ['students','daily_evaluations','incident_reports','contact_logs']
+        const counts = {}
+        for (const t of tables) {
+          const res = await supabase.from(t).select('id', { count: 'exact', head: true })
+          if (res.error) throw res.error
+          counts[t === 'daily_evaluations' ? 'daily_evaluations' : t] = res.count ?? 0
+        }
         if (!mounted) return
-        setReady(Boolean(json?.ready))
-        setCounts(json?.counts || null)
+        setReady(true)
+        setCounts(counts)
       } catch {
         if (!mounted) return
         setReady(false)
@@ -61,11 +68,20 @@ function Ranges() {
     let mounted = true
     const load = async () => {
       try {
-        const res = await fetch('/api/supabase-status')
-        if (!res.ok) return
-        const json = await res.json()
+        if (!supabase) return
+        const getRange = async (table, column) => {
+          const minQ = await supabase.from(table).select(column).order(column, { ascending: true }).limit(1)
+          const maxQ = await supabase.from(table).select(column).order(column, { ascending: false }).limit(1)
+          if (minQ.error || maxQ.error) return { min: null, max: null }
+          return { min: minQ.data?.[0]?.[column] || null, max: maxQ.data?.[0]?.[column] || null }
+        }
+        const out = {
+          daily_evaluations: await getRange('daily_evaluations', 'date'),
+          contact_logs: await getRange('contact_logs', 'contact_date'),
+          incident_reports: await getRange('incident_reports', 'incident_date'),
+        }
         if (!mounted) return
-        setRanges(json?.ranges || null)
+        setRanges(out)
       } catch {
         // ignore
       }

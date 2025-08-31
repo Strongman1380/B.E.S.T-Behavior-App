@@ -1,27 +1,27 @@
 import { useEffect, useState } from 'react';
+import { supabase } from '@/config/supabase'
 
 export default function DbStatusBanner() {
   const [down, setDown] = useState(false);
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
+    let mounted = true
     const check = async () => {
       try {
-        const res = await fetch('/api/status');
-        if (!res.ok) throw new Error('status failed');
-        const json = await res.json();
-        if (!mounted) return;
-        setDown(!json?.database?.ready);
+        if (!supabase) { if (mounted) setDown(true); return }
+        const res = await supabase.from('settings').select('id', { count: 'exact', head: true })
+        if (!mounted) return
+        setDown(Boolean(res.error))
       } catch {
-        if (!mounted) return;
-        setDown(true);
+        if (!mounted) return
+        setDown(true)
       }
-    };
-    check();
-    const id = setInterval(check, 30000);
-    return () => { mounted = false; clearInterval(id); };
-  }, []);
+    }
+    check()
+    const id = setInterval(check, 30000)
+    return () => { mounted = false; clearInterval(id) }
+  }, [])
 
   if (!down || hidden) return null;
 
@@ -35,4 +35,3 @@ export default function DbStatusBanner() {
     </div>
   );
 }
-

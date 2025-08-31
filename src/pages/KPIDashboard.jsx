@@ -404,7 +404,7 @@ export default function KPIDashboard() {
   };
 
   // Export all raw rows zipped (evaluations, incidents, contact logs, active students)
-  const exportAllCSVs = async () => {
+const exportAllCSVs = async () => {
     const start = format(subDays(new Date(), parseInt(dateRange) - 1), 'yyyy-MM-dd');
     const end = format(new Date(), 'yyyy-MM-dd');
     const files = [];
@@ -412,58 +412,43 @@ export default function KPIDashboard() {
     try {
       // Evaluations
       {
-        const q = new URLSearchParams({ start_date: start, end_date: end });
-        const res = await fetch(`/api/evaluations?${q.toString()}`);
-        if (res.ok) {
-          const rows = await res.json();
-          const headers = ['id','student_id','date','teacher_name','school','time_slots','general_comments'];
-          const csv = [headers.join(',')];
-          rows.forEach(r => csv.push([
-            r.id, r.student_id, r.date, r.teacher_name ?? '', r.school ?? '', JSON.stringify(r.time_slots ?? {}), (r.general_comments ?? '').replaceAll('\n',' ')
-          ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')));
-          files.push({ name: `evaluations-${start}_to_${end}.csv`, data: csv.join('\n') });
-        }
+        const rows = await DailyEvaluation.filter({ date_from: start, date_to: end })
+        const headers = ['id','student_id','date','teacher_name','school','time_slots','general_comments']
+        const csv = [headers.join(',')]
+        rows.forEach(r => csv.push([
+          r.id, r.student_id, r.date, r.teacher_name ?? '', r.school ?? '', JSON.stringify(r.time_slots ?? {}), (r.general_comments ?? '').replaceAll('\n',' ')
+        ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')))
+        files.push({ name: `evaluations-${start}_to_${end}.csv`, data: csv.join('\n') })
       }
       // Incidents
       {
-        const q = new URLSearchParams({ start_date: start, end_date: end });
-        const res = await fetch(`/api/incident-reports?${q.toString()}`);
-        if (res.ok) {
-          const rows = await res.json();
-          const headers = ['id','student_id','incident_date','incident_time','location','incident_type','severity_level','description','action_taken','reported_by','follow_up_required','follow_up_notes'];
-          const csv = [headers.join(',')];
-          rows.forEach(r => csv.push([
-            r.id, r.student_id, r.incident_date, r.incident_time ?? '', r.location ?? '', r.incident_type ?? '', r.severity_level ?? '', (r.description ?? '').replaceAll('\n',' '), r.action_taken ?? '', r.reported_by ?? '', r.follow_up_required ?? false, (r.follow_up_notes ?? '').replaceAll('\n',' ')
-          ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')));
-          files.push({ name: `incidents-${start}_to_${end}.csv`, data: csv.join('\n') });
-        }
+        const rows = await IncidentReport.filter({ incident_date_from: start, incident_date_to: end })
+        const headers = ['id','student_id','incident_date','incident_time','location','incident_type','severity_level','description','action_taken','reported_by','follow_up_required','follow_up_notes']
+        const csv = [headers.join(',')]
+        rows.forEach(r => csv.push([
+          r.id, r.student_id, r.incident_date, r.incident_time ?? '', r.location ?? '', r.incident_type ?? '', r.severity_level ?? '', (r.description ?? '').replaceAll('\n',' '), r.action_taken ?? '', r.reported_by ?? '', r.follow_up_required ?? false, (r.follow_up_notes ?? '').replaceAll('\n',' ')
+        ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')))
+        files.push({ name: `incidents-${start}_to_${end}.csv`, data: csv.join('\n') })
       }
       // Contact Logs
       {
-        const q = new URLSearchParams({ start_date: start, end_date: end });
-        const res = await fetch(`/api/contact-logs?${q.toString()}`);
-        if (res.ok) {
-          const rows = await res.json();
-          const headers = ['id','student_id','contact_date','contact_person_name','contact_category','purpose_of_contact','outcome_of_contact'];
-          const csv = [headers.join(',')];
-          rows.forEach(r => csv.push([
-            r.id, r.student_id, r.contact_date, r.contact_person_name ?? '', r.contact_category ?? '', (r.purpose_of_contact ?? '').replaceAll('\n',' '), (r.outcome_of_contact ?? '').replaceAll('\n',' ')
-          ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')));
-          files.push({ name: `contact-logs-${start}_to_${end}.csv`, data: csv.join('\n') });
-        }
+        const rows = await ContactLog.filter({ contact_date_from: start, contact_date_to: end })
+        const headers = ['id','student_id','contact_date','contact_person_name','contact_category','purpose_of_contact','outcome_of_contact']
+        const csv = [headers.join(',')]
+        rows.forEach(r => csv.push([
+          r.id, r.student_id, r.contact_date, r.contact_person_name ?? '', r.contact_category ?? '', (r.purpose_of_contact ?? '').replaceAll('\n',' '), (r.outcome_of_contact ?? '').replaceAll('\n',' ')
+        ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')))
+        files.push({ name: `contact-logs-${start}_to_${end}.csv`, data: csv.join('\n') })
       }
       // Active students
       {
-        const res = await fetch('/api/students?active=true');
-        if (res.ok) {
-          const rows = await res.json();
-          const headers = ['id','student_name','grade_level','teacher_name','active'];
-          const csv = [headers.join(',')];
-          rows.forEach(r => csv.push([
-            r.id, r.student_name ?? '', r.grade_level ?? '', r.teacher_name ?? '', r.active ?? true
-          ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')));
-          files.push({ name: 'students-active.csv', data: csv.join('\n') });
-        }
+        const rows = await Student.filter({ active: true })
+        const headers = ['id','student_name','grade_level','teacher_name','active']
+        const csv = [headers.join(',')]
+        rows.forEach(r => csv.push([
+          r.id, r.student_name ?? '', r.grade_level ?? '', r.teacher_name ?? '', r.active ?? true
+        ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')))
+        files.push({ name: 'students-active.csv', data: csv.join('\n') })
       }
       // Zip and download
       const zipBlob = await createZip(files);

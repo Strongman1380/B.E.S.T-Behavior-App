@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Student } from '@/api/entities'
 
 export default function ActiveStudentsCard() {
   const [count, setCount] = useState(null)
@@ -11,9 +12,7 @@ export default function ActiveStudentsCard() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/students?active=true')
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const rows = await res.json()
+      const rows = await Student.filter({ active: true })
       setCount(Array.isArray(rows) ? rows.length : 0)
     } catch (e) {
       setError(e.message)
@@ -27,9 +26,7 @@ export default function ActiveStudentsCard() {
 
   const exportCsv = async () => {
     try {
-      const res = await fetch('/api/students?active=true')
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const rows = await res.json()
+      const rows = await Student.filter({ active: true })
       const headers = ['id','student_name','grade_level','teacher_name','active']
       const csv = [headers.join(',')]
       rows.forEach(r => {
@@ -76,4 +73,3 @@ export default function ActiveStudentsCard() {
     </Card>
   )
 }
-
