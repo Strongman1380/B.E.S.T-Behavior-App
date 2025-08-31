@@ -36,7 +36,7 @@ export async function initializeDatabase() {
     const Pool = await ensurePg();
     pool = new Pool({
       connectionString,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      ssl: { rejectUnauthorized: false },
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
@@ -122,14 +122,11 @@ export async function initializeSchema() {
   try {
     // Resolve relative to this module without using Node's path/url helpers
     const schemaUrl = new URL('./postgres-schema.sql', import.meta.url);
-  const readFileSync = await ensureFs();
-  const schema = readFileSync(schemaUrl, 'utf8');
-    const statements = schema.split(';').filter(stmt => stmt.trim());
-    for (const statement of statements) {
-      if (statement.trim()) {
-        await executeQuery(statement);
-      }
-    }
+    const readFileSync = await ensureFs();
+    const schema = readFileSync(schemaUrl, 'utf8');
+    
+    // Execute the entire schema as one statement to handle functions properly
+    await executeQuery(schema);
     console.log('✅ PostgreSQL schema initialized successfully');
   } catch (error) {
     console.error('❌ PostgreSQL schema initialization failed:', error);
