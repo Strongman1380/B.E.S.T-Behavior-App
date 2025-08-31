@@ -1,4 +1,4 @@
-// PostgreSQL Storage API - Uses PostgreSQL only
+// Supabase Storage API - Uses Supabase PostgreSQL via API
 import { 
   Student,
   DailyEvaluation,
@@ -11,7 +11,7 @@ import {
   initializeSampleData
 } from './storage.js';
 
-// Note: Sample data initialization is now handled by the server
+// Note: Sample data initialization is now handled by Supabase
 // and only occurs when the database is properly configured
 
 export {
