@@ -90,11 +90,20 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Triggers to automatically update updated_at
+-- Triggers to automatically update updated_at (drop and recreate to handle existing triggers)
+DROP TRIGGER IF EXISTS update_students_updated_at ON students;
 CREATE TRIGGER update_students_updated_at BEFORE UPDATE ON students FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_daily_evaluations_updated_at ON daily_evaluations;
 CREATE TRIGGER update_daily_evaluations_updated_at BEFORE UPDATE ON daily_evaluations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_contact_logs_updated_at ON contact_logs;
 CREATE TRIGGER update_contact_logs_updated_at BEFORE UPDATE ON contact_logs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_incident_reports_updated_at ON incident_reports;
 CREATE TRIGGER update_incident_reports_updated_at BEFORE UPDATE ON incident_reports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_settings_updated_at ON settings;
 CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert default settings if none exist

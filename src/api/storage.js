@@ -8,9 +8,11 @@ import {
   IncidentReport as PostgresIncidentReport,
   User as PostgresUser,
   isPostgresAvailable
-} from './postgresClient';
+} from './postgresClient.js';
 
 // PostgreSQL storage class
+const isBrowser = typeof window !== 'undefined';
+
 class PostgreSQLEntity {
   constructor(postgresEntity, entityName) {
     this.postgresEntity = postgresEntity;
@@ -27,18 +29,30 @@ class PostgreSQLEntity {
 
     this.initializationPromise = (async () => {
       try {
-        // Check PostgreSQL availability
+        // In the browser, always assume available and let API calls handle errors
+        if (isBrowser) {
+          this.isAvailable = true;
+          console.log(`${this.entityName} using: PostgreSQL via API`);
+          return true;
+        }
+        // Server-side: check PostgreSQL availability
         this.isAvailable = await isPostgresAvailable();
         
         if (!this.isAvailable) {
-          throw new Error(`PostgreSQL is not available for ${this.entityName}. Please configure your database connection.`);
+          // In server context, warn about missing PostgreSQL
+          if (!isBrowser) {
+            console.warn(`PostgreSQL is not available for ${this.entityName}. Please configure your database connection.`);
+          }
+          // Don't throw error, let individual operations handle it
+          return false;
         }
         
-        console.log(`${this.entityName} using: PostgreSQL`);
+        console.log(`${this.entityName} using: PostgreSQL direct`);
         return true;
       } catch (error) {
+        console.warn(`Storage initialization warning for ${this.entityName}:`, error.message);
         this.isAvailable = false;
-        throw error;
+        return false;
       }
     })();
 
@@ -49,8 +63,13 @@ class PostgreSQLEntity {
     if (this.isAvailable === null) {
       await this.initializeStorage();
     }
-    if (!this.isAvailable) {
-      throw new Error(`PostgreSQL is not available for ${this.entityName}. Please configure your database connection.`);
+    // In the browser, always proceed and let API calls handle errors
+    if (isBrowser) {
+      return;
+    }
+    // Server-side: warn but don't block if PostgreSQL is not available
+    if (!isBrowser && !this.isAvailable) {
+      console.warn(`PostgreSQL is not available for ${this.entityName}. Operations may fail.`);
     }
   }
 
@@ -66,7 +85,12 @@ class PostgreSQLEntity {
     try {
       return await storage.create(data);
     } catch (error) {
-      console.error(`PostgreSQL create failed for ${this.entityName}:`, error);
+      if (isBrowser) {
+        // In browser, just log debug info without scary error messages
+        console.debug(`PostgreSQL create failed for ${this.entityName}, likely API not configured`);
+      } else {
+        console.error(`PostgreSQL create failed for ${this.entityName}:`, error);
+      }
       throw error;
     }
   }
@@ -78,7 +102,11 @@ class PostgreSQLEntity {
     try {
       return await storage.get(id);
     } catch (error) {
-      console.error(`PostgreSQL get failed for ${this.entityName}:`, error);
+      if (isBrowser) {
+        console.debug(`PostgreSQL get failed for ${this.entityName}, likely API not configured`);
+      } else {
+        console.error(`PostgreSQL get failed for ${this.entityName}:`, error);
+      }
       throw error;
     }
   }
@@ -90,7 +118,11 @@ class PostgreSQLEntity {
     try {
       return await storage.list(orderBy);
     } catch (error) {
-      console.error(`PostgreSQL list failed for ${this.entityName}:`, error);
+      if (isBrowser) {
+        console.debug(`PostgreSQL list failed for ${this.entityName}, likely API not configured`);
+      } else {
+        console.error(`PostgreSQL list failed for ${this.entityName}:`, error);
+      }
       throw error;
     }
   }
@@ -234,7 +266,9 @@ export const User = new PostgreSQLEntity(PostgresUser, 'users');
 export const getStorageType = async () => {
   const postgresAvailable = await isPostgresAvailable();
   if (postgresAvailable) return 'postgresql';
-  throw new Error('PostgreSQL is not available. Please configure your database connection.');
+  // Don't throw in the browser — return a soft 'error' so UI can show status
+  // without noisy console errors in dev when API isn't reachable.
+  return 'error';
 };
 
 // Initialize sample data if needed
@@ -296,11 +330,28 @@ async function populatePostgresSampleData() {
   try {
     // Add students
     for (const studentData of sampleStudents) {
-      await Student.create(studentData);
+      try {
+        await Student.create(studentData);
+      } catch (error) {
+        // Skip if student already exists
+        if (!error.message.includes('duplicate key')) {
+          throw error;
+        }
+      }
     }
 
-    // Add settings
-    await Settings.create(sampleSettings);
+    // Add settings (check if exists first)
+    try {
+      const existingSettings = await Settings.list();
+      if (existingSettings.length === 0) {
+        await Settings.create(sampleSettings);
+      }
+    } catch (error) {
+      // Skip if settings already exist
+      if (!error.message.includes('duplicate key')) {
+        throw error;
+      }
+    }
 
     // Add some sample evaluations for the first student
     const students = await Student.list();
