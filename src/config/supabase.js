@@ -13,10 +13,15 @@ try {
       auth: { persistSession: true },
     })
   } else {
-    console.warn('Supabase client not configured: missing URL or anon key')
+    // Only log in development mode to avoid noise in deployed demos
+    if (import.meta.env.DEV) {
+      console.warn('Supabase client not configured: missing URL or anon key')
+    }
   }
 } catch (e) {
-  console.warn('Supabase client init failed:', e?.message)
+  if (import.meta.env.DEV) {
+    console.warn('Supabase client init failed:', e?.message)
+  }
 }
 
 export { supabase }

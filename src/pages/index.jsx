@@ -48,8 +48,11 @@ function PagesContent() {
 }
 
 export default function Pages() {
+    // Extract base path from current URL for GitHub Pages deployment
+    const basename = import.meta.env.BASE_URL || '/';
+    
     return (
-        <Router>
+        <Router basename={basename}>
             <PagesContent />
         </Router>
     );

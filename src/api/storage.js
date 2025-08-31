@@ -1,23 +1,21 @@
-// Supabase-based storage - using Supabase PostgreSQL via API
+// PostgreSQL-only storage - simplified from hybrid storage
 import { 
-  Student as SupabaseStudent, 
-  DailyEvaluation as SupabaseDailyEvaluation, 
-  Settings as SupabaseSettings, 
-  ContactLog as SupabaseContactLog, 
-  BehaviorSummary as SupabaseBehaviorSummary,
-  IncidentReport as SupabaseIncidentReport,
-  User as SupabaseUser,
-  isSupabaseAvailable,
-  getStorageType as getSupabaseStorageType,
-  initializeSampleData as initSupabaseSampleData
-} from './supabaseStorage.js';
+  Student as PostgresStudent, 
+  DailyEvaluation as PostgresDailyEvaluation, 
+  Settings as PostgresSettings, 
+  ContactLog as PostgresContactLog, 
+  BehaviorSummary as PostgresBehaviorSummary,
+  IncidentReport as PostgresIncidentReport,
+  User as PostgresUser,
+  isPostgresAvailable
+} from './postgresClient.js';
 
-// Supabase storage class
+// PostgreSQL storage class
 const isBrowser = typeof window !== 'undefined';
 
-class SupabaseEntity {
-  constructor(supabaseEntity, entityName) {
-    this.supabaseEntity = supabaseEntity;
+class PostgreSQLEntity {
+  constructor(postgresEntity, entityName) {
+    this.postgresEntity = postgresEntity;
     this.entityName = entityName;
     this.listeners = new Set();
     this.isAvailable = null; // Will be checked when needed
@@ -31,19 +29,25 @@ class SupabaseEntity {
 
     this.initializationPromise = (async () => {
       try {
-        // Always try to use Supabase (works in both browser and server)
-        this.isAvailable = await isSupabaseAvailable();
+        // In the browser, always assume available and let API calls handle errors
+        if (isBrowser) {
+          this.isAvailable = true;
+          console.log(`${this.entityName} using: PostgreSQL via API`);
+          return true;
+        }
+        // Server-side: check PostgreSQL availability
+        this.isAvailable = await isPostgresAvailable();
         
         if (!this.isAvailable) {
-          // In server context, warn about missing Supabase
+          // In server context, warn about missing PostgreSQL
           if (!isBrowser) {
-            console.warn(`Supabase is not available for ${this.entityName}. Please configure your connection.`);
+            console.warn(`PostgreSQL is not available for ${this.entityName}. Please configure your database connection.`);
           }
           // Don't throw error, let individual operations handle it
           return false;
         }
         
-        console.log(`${this.entityName} using: Supabase`);
+        console.log(`${this.entityName} using: PostgreSQL direct`);
         return true;
       } catch (error) {
         console.warn(`Storage initialization warning for ${this.entityName}:`, error.message);
@@ -63,15 +67,15 @@ class SupabaseEntity {
     if (isBrowser) {
       return;
     }
-    // Server-side: warn but don't block if Supabase is not available
+    // Server-side: warn but don't block if PostgreSQL is not available
     if (!isBrowser && !this.isAvailable) {
-      console.warn(`Supabase is not available for ${this.entityName}. Operations may fail.`);
+      console.warn(`PostgreSQL is not available for ${this.entityName}. Operations may fail.`);
     }
   }
 
-  // Get the storage entity (always Supabase)
+  // Get the storage entity (always PostgreSQL)
   getStorageEntity() {
-    return this.supabaseEntity;
+    return this.postgresEntity;
   }
 
   // Create a new record
@@ -83,9 +87,9 @@ class SupabaseEntity {
     } catch (error) {
       if (isBrowser) {
         // In browser, just log debug info without scary error messages
-        console.debug(`Supabase create failed for ${this.entityName}, likely not configured`);
+        console.debug(`PostgreSQL create failed for ${this.entityName}, likely API not configured`);
       } else {
-        console.error(`Supabase create failed for ${this.entityName}:`, error);
+        console.error(`PostgreSQL create failed for ${this.entityName}:`, error);
       }
       throw error;
     }
@@ -99,9 +103,9 @@ class SupabaseEntity {
       return await storage.get(id);
     } catch (error) {
       if (isBrowser) {
-        console.debug(`Supabase get failed for ${this.entityName}, likely not configured`);
+        console.debug(`PostgreSQL get failed for ${this.entityName}, likely API not configured`);
       } else {
-        console.error(`Supabase get failed for ${this.entityName}:`, error);
+        console.error(`PostgreSQL get failed for ${this.entityName}:`, error);
       }
       throw error;
     }
@@ -115,9 +119,9 @@ class SupabaseEntity {
       return await storage.list(orderBy);
     } catch (error) {
       if (isBrowser) {
-        console.debug(`Supabase list failed for ${this.entityName}, likely not configured`);
+        console.debug(`PostgreSQL list failed for ${this.entityName}, likely API not configured`);
       } else {
-        console.error(`Supabase list failed for ${this.entityName}:`, error);
+        console.error(`PostgreSQL list failed for ${this.entityName}:`, error);
       }
       throw error;
     }
@@ -130,11 +134,7 @@ class SupabaseEntity {
     try {
       return await storage.filter(filters);
     } catch (error) {
-      if (isBrowser) {
-        console.debug(`Supabase filter failed for ${this.entityName}, likely not configured`);
-      } else {
-        console.error(`Supabase filter failed for ${this.entityName}:`, error);
-      }
+      console.error(`PostgreSQL filter failed for ${this.entityName}:`, error);
       throw error;
     }
   }
@@ -146,11 +146,7 @@ class SupabaseEntity {
     try {
       return await storage.update(id, data);
     } catch (error) {
-      if (isBrowser) {
-        console.debug(`Supabase update failed for ${this.entityName}, likely not configured`);
-      } else {
-        console.error(`Supabase update failed for ${this.entityName}:`, error);
-      }
+      console.error(`PostgreSQL update failed for ${this.entityName}:`, error);
       throw error;
     }
   }
@@ -163,11 +159,7 @@ class SupabaseEntity {
       await storage.delete(id);
       return true;
     } catch (error) {
-      if (isBrowser) {
-        console.debug(`Supabase delete failed for ${this.entityName}, likely not configured`);
-      } else {
-        console.error(`Supabase delete failed for ${this.entityName}:`, error);
-      }
+      console.error(`PostgreSQL delete failed for ${this.entityName}:`, error);
       throw error;
     }
   }
@@ -179,11 +171,7 @@ class SupabaseEntity {
     try {
       return await storage.save(data);
     } catch (error) {
-      if (isBrowser) {
-        console.debug(`Supabase save failed for ${this.entityName}, likely not configured`);
-      } else {
-        console.error(`Supabase save failed for ${this.entityName}:`, error);
-      }
+      console.error(`PostgreSQL save failed for ${this.entityName}:`, error);
       throw error;
     }
   }
@@ -195,27 +183,22 @@ class SupabaseEntity {
     try {
       return await storage.saveAll(dataArray);
     } catch (error) {
-      if (isBrowser) {
-        console.debug(`Supabase saveAll failed for ${this.entityName}, likely not configured`);
-      } else {
-        console.error(`Supabase saveAll failed for ${this.entityName}:`, error);
-      }
+      console.error(`PostgreSQL saveAll failed for ${this.entityName}:`, error);
       throw error;
     }
   }
 
-  // Real-time listener for changes (with Supabase real-time subscriptions)
+  // Real-time listener for changes (simplified without real-time updates)
   onSnapshot(callback) {
-    // For Supabase, use real-time subscriptions
+    // For PostgreSQL, we can't provide real-time updates
+    // But we can return the current data immediately
     setTimeout(async () => {
       try {
         await this.ensureInitialized();
-        const storage = this.getStorageEntity();
-        const unsubscribe = storage.onSnapshot(callback);
-        this.listeners.add(unsubscribe);
-        return unsubscribe;
+        const data = await this.list();
+        callback(data);
       } catch (error) {
-        console.error(`Failed to set up subscription for ${this.entityName}:`, error);
+        console.error(`Failed to load data for ${this.entityName}:`, error);
         callback([]);
       }
     }, 0);
@@ -223,18 +206,16 @@ class SupabaseEntity {
     return () => {}; // Return empty unsubscribe function
   }
 
-  // Real-time listener for a specific document (with Supabase real-time)
+  // Real-time listener for a specific document (simplified)
   onDocSnapshot(id, callback) {
-    // For Supabase, use real-time subscriptions
+    // For PostgreSQL, return current data
     setTimeout(async () => {
       try {
         await this.ensureInitialized();
-        const storage = this.getStorageEntity();
-        const unsubscribe = storage.onDocSnapshot(id, callback);
-        this.listeners.add(unsubscribe);
-        return unsubscribe;
+        const data = await this.get(id);
+        callback(data);
       } catch (error) {
-        console.error(`Failed to set up document subscription for ${this.entityName}:`, error);
+        console.error(`Failed to load document ${id} for ${this.entityName}:`, error);
         callback(null);
       }
     }, 0);
@@ -248,8 +229,8 @@ class SupabaseEntity {
     this.listeners.clear();
   }
 
-  // Check if using Supabase (always true)
-  isUsingSupabase() {
+  // Check if using PostgreSQL (always true)
+  isUsingPostgreSQL() {
     return true;
   }
 
@@ -266,31 +247,141 @@ class SupabaseEntity {
       
       return true;
     } catch (error) {
-      if (isBrowser) {
-        console.debug(`Supabase clearAll failed for ${this.entityName}, likely not configured`);
-      } else {
-        console.error(`Supabase clearAll failed for ${this.entityName}:`, error);
-      }
+      console.error(`PostgreSQL clearAll failed for ${this.entityName}:`, error);
       throw error;
     }
   }
 }
 
-// Create Supabase entities
-export const Student = new SupabaseEntity(SupabaseStudent, 'students');
-export const DailyEvaluation = new SupabaseEntity(SupabaseDailyEvaluation, 'daily_evaluations');
-export const Settings = new SupabaseEntity(SupabaseSettings, 'settings');
-export const ContactLog = new SupabaseEntity(SupabaseContactLog, 'contact_logs');
-export const BehaviorSummary = new SupabaseEntity(SupabaseBehaviorSummary, 'behavior_summaries');
-export const IncidentReport = new SupabaseEntity(SupabaseIncidentReport, 'incident_reports');
-export const User = new SupabaseEntity(SupabaseUser, 'users');
+// Create PostgreSQL entities
+export const Student = new PostgreSQLEntity(PostgresStudent, 'students');
+export const DailyEvaluation = new PostgreSQLEntity(PostgresDailyEvaluation, 'daily_evaluations');
+export const Settings = new PostgreSQLEntity(PostgresSettings, 'settings');
+export const ContactLog = new PostgreSQLEntity(PostgresContactLog, 'contact_logs');
+export const BehaviorSummary = new PostgreSQLEntity(PostgresBehaviorSummary, 'behavior_summaries');
+export const IncidentReport = new PostgreSQLEntity(PostgresIncidentReport, 'incident_reports');
+export const User = new PostgreSQLEntity(PostgresUser, 'users');
 
-// Utility function to check storage type (always Supabase)
+// Utility function to check storage type (always PostgreSQL)
 export const getStorageType = async () => {
-  return await getSupabaseStorageType();
+  const postgresAvailable = await isPostgresAvailable();
+  if (postgresAvailable) return 'postgresql';
+  // Don't throw in the browser — return a soft 'error' so UI can show status
+  // without noisy console errors in dev when API isn't reachable.
+  return 'error';
 };
 
 // Initialize sample data if needed
 export const initializeSampleData = async () => {
-  return await initSupabaseSampleData();
+  try {
+    // First check if PostgreSQL is available
+    const postgresAvailable = await isPostgresAvailable();
+    if (!postgresAvailable) {
+      console.log('PostgreSQL not available - skipping sample data initialization');
+      return false;
+    }
+
+    // ensure storage available
+    // Check if we already have data
+    const students = await Student.list();
+    if (students.length === 0) {
+      console.log('PostgreSQL is empty. Populating with sample data...');
+      await populatePostgresSampleData();
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize sample data:', error);
+    return false;
+  }
 };
+
+// Populate PostgreSQL with sample data
+async function populatePostgresSampleData() {
+  const sampleStudents = [
+    { student_name: 'Chance', grade_level: '3rd Grade', teacher_name: 'Ms. Johnson' },
+    { student_name: 'Elijah', grade_level: '4th Grade', teacher_name: 'Ms. Johnson' },
+    { student_name: 'Eloy', grade_level: '2nd Grade', teacher_name: 'Ms. Johnson' },
+    { student_name: 'Emiliano (Nano)', grade_level: '5th Grade', teacher_name: 'Ms. Johnson' },
+    { student_name: 'Curtis', grade_level: '1st Grade', teacher_name: 'Ms. Johnson' },
+    { student_name: 'Jason', grade_level: '3rd Grade', teacher_name: 'Ms. Johnson' },
+    { student_name: 'Paytin', grade_level: '2nd Grade', teacher_name: 'Ms. Johnson' },
+    { student_name: 'Jaden', grade_level: '4th Grade', teacher_name: 'Ms. Johnson' },
+    { student_name: 'David', grade_level: '5th Grade', teacher_name: 'Ms. Johnson' },
+    { student_name: 'Theodore (TJ)', grade_level: '1st Grade', teacher_name: 'Ms. Johnson' }
+  ];
+
+  const sampleSettings = {
+    teacher_name: 'Ms. Johnson',
+    school_name: 'Bright Track Elementary',
+    academic_year: '2024-2025',
+    grading_scale: {
+      excellent: 5,
+      good: 4,
+      satisfactory: 3,
+      needs_improvement: 2,
+      unsatisfactory: 1
+    },
+    notification_preferences: {
+      email_notifications: true,
+      daily_summaries: true
+    }
+  };
+
+  try {
+    // Add students
+    for (const studentData of sampleStudents) {
+      try {
+        await Student.create(studentData);
+      } catch (error) {
+        // Skip if student already exists
+        if (!error.message.includes('duplicate key')) {
+          throw error;
+        }
+      }
+    }
+
+    // Add settings (check if exists first)
+    try {
+      const existingSettings = await Settings.list();
+      if (existingSettings.length === 0) {
+        await Settings.create(sampleSettings);
+      }
+    } catch (error) {
+      // Skip if settings already exist
+      if (!error.message.includes('duplicate key')) {
+        throw error;
+      }
+    }
+
+    // Add some sample evaluations for the first student
+    const students = await Student.list();
+    if (students.length > 0) {
+      const firstStudent = students[0];
+      const today = new Date().toISOString().split('T')[0];
+      
+      const timeSlots = {};
+      for (let period = 1; period <= 8; period++) {
+        timeSlots[`period_${period}`] = {
+          score: Math.floor(Math.random() * 5) + 1,
+          notes: `Period ${period} evaluation`
+        };
+      }
+
+      const sampleEvaluation = {
+        student_id: firstStudent.id,
+        date: today,
+        teacher_name: 'Ms. Johnson',
+        school: 'Bright Track Elementary',
+        time_slots: timeSlots,
+        general_comments: 'Sample evaluation for demonstration purposes'
+      };
+
+      await DailyEvaluation.create(sampleEvaluation);
+    }
+
+    console.log('Sample data populated successfully in PostgreSQL');
+  } catch (error) {
+    console.error('Failed to populate sample data:', error);
+    throw error;
+  }
+}
