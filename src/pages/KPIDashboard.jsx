@@ -52,7 +52,7 @@ export default function KPIDashboard() {
         Student.filter({ active: true }),
         DailyEvaluation.list('date'),
         IncidentReport.list('incident_date'),
-        BehaviorSummary.list('date_range_start'),
+        BehaviorSummary.list('date_from'),
         ContactLog.list('contact_date')
       ]);
       

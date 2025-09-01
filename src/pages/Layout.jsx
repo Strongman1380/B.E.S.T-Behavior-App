@@ -5,6 +5,7 @@ import { createPageUrl } from '@/utils';
 import { LayoutDashboard, MessageSquare, Zap, Settings, ShieldCheck, Menu, FileText, AlertTriangle, BarChart3 } from 'lucide-react';
 import RealTimeSync from '../components/sync/RealTimeSync';
 import SupabaseStatus from '../components/SupabaseStatus';
+import SupabaseHealth from '../components/SupabaseHealth';
 import DbStatusBanner from '../components/DbStatusBanner';
 
 const navItems = [
@@ -65,6 +66,7 @@ export default function Layout({ children }) {
                 <div className="p-4 border-t border-slate-200 space-y-2">
                     <RealTimeSync />
                     <SupabaseStatus />
+                    <SupabaseHealth />
                 </div>
             </aside>
             

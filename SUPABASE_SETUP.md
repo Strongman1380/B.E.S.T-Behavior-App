@@ -48,7 +48,12 @@ DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.teiupxwqnbwopnixulay.supab
 
 ## Database Schema
 
-The app will automatically create the required tables when it connects to Supabase PostgreSQL.
+Run the provided SQL to create tables and permissive RLS policies:
+
+- Open your project → SQL Editor
+- Paste contents of `supabase-schema.sql` and run
+
+This creates tables: `students`, `daily_evaluations`, `settings`, `contact_logs`, `incident_reports`, `behavior_summaries`, `users`, enables RLS, and adds anon policies suitable for a Pages-only demo. Adjust policies for production.
 
 ## Security Notes
 
@@ -63,4 +68,4 @@ The app will automatically create the required tables when it connects to Supaba
   - For local dev, add them to `.env` (see `.env.example`).
 
 - “No routes matched location "/B.E.S.T-Behavior-App/"”
-  - Ensure the Pages workflow uses `npm run build:pages` (sets the correct base) and that your deployment is at `https://<user>.github.io/B.E.S.T-Behavior-App/`.
+  - The app uses HashRouter on GitHub Pages. Open it at `https://<user>.github.io/B.E.S.T-Behavior-App/#/` and deep links like `#/BehaviorDashboard` work without server support.

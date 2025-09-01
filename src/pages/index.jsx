@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { HashRouter as Router, Route, Routes } from 'react-router-dom';
 import Layout from "./Layout.jsx";
 
 // Route-level code splitting for heavy pages
@@ -48,11 +48,8 @@ function PagesContent() {
 }
 
 export default function Pages() {
-    // Extract base path from current URL for GitHub Pages deployment
-    const basename = import.meta.env.BASE_URL || '/';
-    
     return (
-        <Router basename={basename}>
+        <Router>
             <PagesContent />
         </Router>
     );

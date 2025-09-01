@@ -1,4 +1,4 @@
-// PostgreSQL-only storage - simplified from hybrid storage
+// Hybrid storage: Supabase for browser, PostgreSQL for server
 import { 
   Student as PostgresStudent, 
   DailyEvaluation as PostgresDailyEvaluation, 
@@ -10,7 +10,18 @@ import {
   isPostgresAvailable
 } from './postgresClient.js';
 
-// PostgreSQL storage class
+// Import Supabase storage for browser
+import {
+  Student as SupabaseStudent,
+  DailyEvaluation as SupabaseDailyEvaluation,
+  Settings as SupabaseSettings,
+  ContactLog as SupabaseContactLog,
+  BehaviorSummary as SupabaseBehaviorSummary,
+  IncidentReport as SupabaseIncidentReport,
+  User as SupabaseUser,
+  getStorageType as getSupabaseStorageType
+} from './supabaseStorage.js';
+
 const isBrowser = typeof window !== 'undefined';
 
 class PostgreSQLEntity {
@@ -253,36 +264,43 @@ class PostgreSQLEntity {
   }
 }
 
-// Create PostgreSQL entities
-export const Student = new PostgreSQLEntity(PostgresStudent, 'students');
-export const DailyEvaluation = new PostgreSQLEntity(PostgresDailyEvaluation, 'daily_evaluations');
-export const Settings = new PostgreSQLEntity(PostgresSettings, 'settings');
-export const ContactLog = new PostgreSQLEntity(PostgresContactLog, 'contact_logs');
-export const BehaviorSummary = new PostgreSQLEntity(PostgresBehaviorSummary, 'behavior_summaries');
-export const IncidentReport = new PostgreSQLEntity(PostgresIncidentReport, 'incident_reports');
-export const User = new PostgreSQLEntity(PostgresUser, 'users');
+// Export entities based on environment
+export const Student = isBrowser ? SupabaseStudent : new PostgreSQLEntity(PostgresStudent, 'students');
+export const DailyEvaluation = isBrowser ? SupabaseDailyEvaluation : new PostgreSQLEntity(PostgresDailyEvaluation, 'daily_evaluations');
+export const Settings = isBrowser ? SupabaseSettings : new PostgreSQLEntity(PostgresSettings, 'settings');
+export const ContactLog = isBrowser ? SupabaseContactLog : new PostgreSQLEntity(PostgresContactLog, 'contact_logs');
+export const BehaviorSummary = isBrowser ? SupabaseBehaviorSummary : new PostgreSQLEntity(PostgresBehaviorSummary, 'behavior_summaries');
+export const IncidentReport = isBrowser ? SupabaseIncidentReport : new PostgreSQLEntity(PostgresIncidentReport, 'incident_reports');
+export const User = isBrowser ? SupabaseUser : new PostgreSQLEntity(PostgresUser, 'users');
 
-// Utility function to check storage type (always PostgreSQL)
+// Utility function to check storage type
 export const getStorageType = async () => {
-  const postgresAvailable = await isPostgresAvailable();
-  if (postgresAvailable) return 'postgresql';
-  // Don't throw in the browser — return a soft 'error' so UI can show status
-  // without noisy console errors in dev when API isn't reachable.
-  return 'error';
+  if (isBrowser) {
+    return await getSupabaseStorageType();
+  } else {
+    const postgresAvailable = await isPostgresAvailable();
+    if (postgresAvailable) return 'postgresql';
+    return 'error';
+  }
 };
 
 // Initialize sample data if needed
 export const initializeSampleData = async () => {
+  if (isBrowser) {
+    // In browser with Supabase, we don't initialize sample data
+    // This would typically be done by a server or manually in Supabase dashboard
+    console.log('Sample data initialization skipped in browser (Supabase)');
+    return false;
+  }
+  
   try {
-    // First check if PostgreSQL is available
+    // Server-side: check PostgreSQL availability and populate if needed
     const postgresAvailable = await isPostgresAvailable();
     if (!postgresAvailable) {
       console.log('PostgreSQL not available - skipping sample data initialization');
       return false;
     }
 
-    // ensure storage available
-    // Check if we already have data
     const students = await Student.list();
     if (students.length === 0) {
       console.log('PostgreSQL is empty. Populating with sample data...');

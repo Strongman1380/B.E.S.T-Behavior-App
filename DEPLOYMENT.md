@@ -1,55 +1,27 @@
 # Bright Track Deployment Guide
 
-## 🚀 Deployment Status
+## 🚀 Deployment Targets
 
 ✅ **GitHub Repository**: https://github.com/Strongman1380/B.E.S.T-Behavior-App.git  
-✅ **Vercel Project**: bright-track-3233ad6b  
-✅ **Production URL**: https://bright-track-3233ad6b-cgv9nljwa-strongman1380s-projects.vercel.app  
-✅ **Error Handling**: Proper database error messaging implemented  
-⏳ **Database**: Needs manual setup (see below)
+✅ **GitHub Pages**: Static hosting for the SPA  
+✅ **Routing**: HashRouter (supports deep links on Pages)  
+✅ **Database**: Supabase (PostgreSQL)
 
 ## 📋 Completed Setup Steps
 
-1. ✅ **Vercel Configuration**: Added `vercel.json` with proper build settings
-2. ✅ **Package.json Updates**: Added Vercel-specific scripts
-3. ✅ **GitHub Integration**: All code pushed to main branch
-4. ✅ **Vercel Deployment**: Successfully deployed to production
-5. ✅ **Build Process**: Vite build working correctly
-6. ✅ **Database Error Handling**: Added proper error messaging and user guidance
-7. ✅ **Server Improvements**: Added database initialization and status endpoints
+1. ✅ GitHub Actions workflow for Pages (`.github/workflows/pages.yml`)
+2. ✅ Vite base configured for Pages, HashRouter enabled
+3. ✅ Supabase client initialized from Vite env (anon key only)
+4. ✅ SPA 404 fallback generated during build
 
-## 🗄️ Database Setup (Required)
+## 🗄️ Supabase Setup (Required)
 
-### Step 1: Create Vercel Postgres Database
-
-1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
-2. Select project: `bright-track-3233ad6b`
-3. Navigate to **Storage** tab
-4. Click **"Create Database"** → Select **"Postgres"**
-5. Name: `bright-track-db`
-6. Choose your preferred region
-7. Click **"Create"**
-
-### Step 2: Configure Environment Variables
-
-In your Vercel project settings:
-
-1. Go to **Settings** → **Environment Variables**
-2. Add these variables:
-   - `DATABASE_URL` = `your_postgres_connection_string`
-   - `POSTGRES_URL` = `your_postgres_connection_string`
-   - `NODE_ENV` = `production`
-
-### Step 3: Update Local Environment
-
-Update your local `.env` file with the same connection strings for development.
-
-### Step 4: Redeploy
-
-After setting up the database:
-```bash
-vercel --prod
-```
+1. Create a project at https://supabase.com
+2. In Supabase SQL Editor, run the SQL from `supabase-schema.sql` (repo root)
+3. In GitHub repo Settings → Secrets and variables → Actions, add:
+   - `VITE_SUPABASE_URL` = your project URL (e.g., https://xxxx.supabase.co)
+   - `VITE_SUPABASE_ANON_KEY` = anon public key
+4. For local dev, add these to `.env.local`
 
 ## 🧪 Testing
 
@@ -57,36 +29,31 @@ vercel --prod
 ```bash
 # Install dependencies
 npm install
-
-# Start the server (tests database connection)
-npm run server
-
 # Start development server
 npm run dev
 ```
 
 ### Production Testing
-Visit your deployed app and verify:
-- ✅ App loads without errors
-- ✅ Database connection successful
-- ✅ Sample data populated
-- ✅ All features working
+Visit GitHub Pages and verify:
+- ✅ App loads: `https://<user>.github.io/B.E.S.T-Behavior-App/#/`
+- ✅ Navigate to `#/BehaviorDashboard`
+- ✅ Add a student (writes to Supabase)
+- ✅ Health panels show “Supabase Connected” and table counts
 
 ## 📁 Project Structure
 
 ```
 bright-track-3233ad6b/
 ├── src/
-│   ├── api/                 # PostgreSQL API clients
+│   ├── api/                 # Supabase storage adapter
 │   ├── components/          # React components
-│   ├── database/           # Database schema and models
-│   ├── pages/              # Application pages
-│   └── utils/              # Utility functions
-├── dist/                   # Build output
-├── public/                 # Static assets
-├── server.js              # Express server
-├── vercel.json            # Vercel configuration
-└── package.json           # Dependencies and scripts
+│   ├── config/              # supabase.js
+│   ├── pages/               # Application pages
+│   └── utils/               # Utility functions
+├── dist/                    # Build output
+├── public/                  # Static assets
+├── .github/workflows/       # pages.yml
+└── package.json             # Dependencies and scripts
 ```
 
 ## 🔧 Key Features
@@ -95,22 +62,15 @@ bright-track-3233ad6b/
 - **Contact Logging**: Communication tracking with parents/guardians
 - **Incident Reports**: Detailed incident documentation
 - **Data Visualization**: Charts and progress reports
-- **PostgreSQL Storage**: Robust data persistence
+- **Supabase Storage**: Robust data persistence
 - **No Authentication**: Direct access to all features
 
 ## 🚀 Deployment Commands
 
 ```bash
-# Local development
-npm run dev:full          # Start both server and client
-
 # Production build
 npm run build            # Build for production
-npm run start           # Start production server
-
-# Vercel deployment
-vercel --prod           # Deploy to production
-vercel                  # Deploy to preview
+```
 ```
 
 ## 📊 Database Schema
@@ -124,10 +84,10 @@ The app automatically creates these tables:
 
 ## 🔍 Troubleshooting
 
-### Database Connection Issues
-1. Verify connection strings in environment variables
-2. Check Vercel Postgres database status
-3. Ensure SSL is enabled (required for Vercel Postgres)
+### Supabase Connection Issues
+1. Ensure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` secrets are set
+2. Run `supabase-schema.sql` in the SQL Editor
+3. Verify RLS policies allow anon to read/write as intended
 
 ### Build Issues
 1. Run `npm run build` locally to test
@@ -135,9 +95,9 @@ The app automatically creates these tables:
 3. Verify all dependencies are installed
 
 ### Deployment Issues
-1. Check Vercel build logs
-2. Verify `vercel.json` configuration
-3. Ensure environment variables are set
+1. Check GitHub Actions “Deploy to GitHub Pages” logs
+2. Ensure the “Validate Supabase env” step passes
+3. Confirm `404.html` is present in the artifact
 
 ## 📞 Support
 

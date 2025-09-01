@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import { format, subDays } from 'date-fns'
+import { DailyEvaluation } from '@/api/entities'
 
 export default function EvaluationsCountCard({ startDate, endDate }) {
   const initialStart = useMemo(() => (startDate ? new Date(startDate) : subDays(new Date(), 6)), [startDate])
@@ -21,12 +22,10 @@ export default function EvaluationsCountCard({ startDate, endDate }) {
       setLoading(true)
       setError(null)
       try {
-        const params = new URLSearchParams()
-        if (sDate) params.set('start_date', format(sDate, 'yyyy-MM-dd'))
-        if (eDate) params.set('end_date', format(eDate, 'yyyy-MM-dd'))
-        const res = await fetch(`/api/evaluations?${params.toString()}`)
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const rows = await res.json()
+        const rows = await DailyEvaluation.filter({
+          date_from: sDate ? format(sDate, 'yyyy-MM-dd') : undefined,
+          date_to: eDate ? format(eDate, 'yyyy-MM-dd') : undefined,
+        })
         if (!mounted) return
         setCount(Array.isArray(rows) ? rows.length : 0)
       } catch (e) {
@@ -43,12 +42,10 @@ export default function EvaluationsCountCard({ startDate, endDate }) {
 
   const exportCsv = async () => {
     try {
-      const params = new URLSearchParams()
-      if (sDate) params.set('start_date', format(sDate, 'yyyy-MM-dd'))
-      if (eDate) params.set('end_date', format(eDate, 'yyyy-MM-dd'))
-      const res = await fetch(`/api/evaluations?${params.toString()}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const rows = await res.json()
+      const rows = await DailyEvaluation.filter({
+        date_from: sDate ? format(sDate, 'yyyy-MM-dd') : undefined,
+        date_to: eDate ? format(eDate, 'yyyy-MM-dd') : undefined,
+      })
       const headers = ['id','student_id','date','teacher_name','school','time_slots','general_comments']
       const csv = [headers.join(',')]
       rows.forEach(r => {
@@ -78,7 +75,7 @@ export default function EvaluationsCountCard({ startDate, endDate }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">Evaluations (API Range)</CardTitle>
+        <CardTitle className="text-sm font-medium">Evaluations (Range)</CardTitle>
         <Button size="sm" variant="outline" onClick={exportCsv}>Export CSV</Button>
       </CardHeader>
       <CardContent>

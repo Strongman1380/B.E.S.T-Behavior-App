@@ -57,7 +57,7 @@ class SupabaseEntity {
     return true
   }
 
-  async filter(criteria = {}) {
+  async filter(criteria = {}, order) {
     assertSupabase()
     let q = supabase.from(this.table).select('*')
 
@@ -80,6 +80,13 @@ class SupabaseEntity {
       if (rm && (k === rm.from || k === rm.toKey)) return
       q = q.eq(k, v)
     })
+
+    // Ordering
+    if (typeof order === 'string' && order.length > 0) {
+      const desc = order.startsWith('-')
+      const col = desc ? order.slice(1) : order
+      if (col) q = q.order(col, { ascending: !desc })
+    }
 
     const res = await q
     normalizeError(res)
@@ -131,4 +138,3 @@ export const initializeSampleData = async () => {
   // No-op in browser.
   return false
 }
-

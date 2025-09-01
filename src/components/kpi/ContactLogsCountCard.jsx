@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import { format, subDays } from 'date-fns'
+import { ContactLog } from '@/api/entities'
 
 export default function ContactLogsCountCard({ startDate, endDate }) {
   const initialStart = useMemo(() => (startDate ? new Date(startDate) : subDays(new Date(), 6)), [startDate])
@@ -21,12 +22,10 @@ export default function ContactLogsCountCard({ startDate, endDate }) {
       setLoading(true)
       setError(null)
       try {
-        const params = new URLSearchParams()
-        if (sDate) params.set('start_date', format(sDate, 'yyyy-MM-dd'))
-        if (eDate) params.set('end_date', format(eDate, 'yyyy-MM-dd'))
-        const res = await fetch(`/api/contact-logs?${params.toString()}`)
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const rows = await res.json()
+        const rows = await ContactLog.filter({
+          contact_date_from: sDate ? format(sDate, 'yyyy-MM-dd') : undefined,
+          contact_date_to: eDate ? format(eDate, 'yyyy-MM-dd') : undefined,
+        })
         if (!mounted) return
         setCount(Array.isArray(rows) ? rows.length : 0)
       } catch (e) {
@@ -43,12 +42,10 @@ export default function ContactLogsCountCard({ startDate, endDate }) {
 
   const exportCsv = async () => {
     try {
-      const params = new URLSearchParams()
-      if (sDate) params.set('start_date', format(sDate, 'yyyy-MM-dd'))
-      if (eDate) params.set('end_date', format(eDate, 'yyyy-MM-dd'))
-      const res = await fetch(`/api/contact-logs?${params.toString()}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const rows = await res.json()
+      const rows = await ContactLog.filter({
+        contact_date_from: sDate ? format(sDate, 'yyyy-MM-dd') : undefined,
+        contact_date_to: eDate ? format(eDate, 'yyyy-MM-dd') : undefined,
+      })
       const headers = ['id','student_id','contact_date','contact_person_name','contact_category','purpose_of_contact','outcome_of_contact']
       const csv = [headers.join(',')]
       rows.forEach(r => {
@@ -78,7 +75,7 @@ export default function ContactLogsCountCard({ startDate, endDate }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">Contact Logs (API Range)</CardTitle>
+        <CardTitle className="text-sm font-medium">Contact Logs (Range)</CardTitle>
         <Button size="sm" variant="outline" onClick={exportCsv}>Export CSV</Button>
       </CardHeader>
       <CardContent>
@@ -117,4 +114,3 @@ export default function ContactLogsCountCard({ startDate, endDate }) {
     </Card>
   )
 }
-
