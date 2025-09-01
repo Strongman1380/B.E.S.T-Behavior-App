@@ -31,8 +31,15 @@ export default function ContactLogs() {
             ]);
             setStudents(studentList);
             setContactLogs(logList);
-        } catch {
-            toast.error("Failed to fetch data.");
+        } catch (error) {
+            const msg = typeof error?.message === 'string' ? error.message : ''
+            if (msg.includes('Supabase not configured')) {
+              toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+            } else if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('row-level security')) {
+              toast.error('RLS/permissions preventing reads. Apply supabase-schema.sql policies/grants in Supabase.')
+            } else {
+              toast.error("Failed to fetch data.");
+            }
         }
         setIsLoading(false);
     };
@@ -43,8 +50,17 @@ export default function ContactLogs() {
             toast.success("Contact log saved successfully.");
             setIsFormOpen(false);
             fetchData();
-        } catch {
-            toast.error("Failed to save contact log.");
+        } catch (error) {
+            const msg = typeof error?.message === 'string' ? error.message : ''
+            if (msg.includes('Supabase not configured')) {
+              toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+            } else if (msg.toLowerCase().includes('row-level security')) {
+              toast.error('Insert blocked by RLS. Apply supabase-schema.sql policies/grants in Supabase.')
+            } else if (msg.toLowerCase().includes('permission') || error?.code === '42501') {
+              toast.error('Permission denied. Check RLS policies for anon role in Supabase.')
+            } else {
+              toast.error("Failed to save contact log.");
+            }
         }
     };
 

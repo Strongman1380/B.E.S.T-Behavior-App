@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getStorageType } from '@/api/entities';
 import { Badge } from '@/components/ui/badge';
-import { Cloud, Users } from 'lucide-react';
+import { Cloud, Users, Database } from 'lucide-react';
 
 export default function RealTimeSync() {
   const [storageType, setStorageType] = useState('postgresql');
@@ -38,35 +38,47 @@ export default function RealTimeSync() {
   }, []);
 
   const getSyncStatus = () => {
-    if (storageType === 'postgresql' && isOnline) {
+    // Supabase browser client
+    if (storageType === 'supabase') {
+      return {
+        icon: <Database className="w-3 h-3" />,
+        text: 'Supabase',
+        color: isOnline
+          ? 'bg-green-100 text-green-800 border-green-200'
+          : 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        description: isOnline ? 'Connected to Supabase' : 'Supabase unavailable (offline)'
+      };
+    }
+
+    // Legacy PostgreSQL direct (server)
+    if (storageType === 'postgresql') {
       return {
         icon: <Cloud className="w-3 h-3" />,
-        text: 'PostgreSQL',
-        color: 'bg-green-100 text-green-800 border-green-200',
-        description: 'Connected to PostgreSQL database'
+        text: isOnline ? 'PostgreSQL' : 'PostgreSQL (Offline)',
+        color: isOnline
+          ? 'bg-green-100 text-green-800 border-green-200'
+          : 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        description: isOnline ? 'Connected to PostgreSQL database' : 'PostgreSQL connection unavailable'
       };
-    } else if (storageType === 'postgresql' && !isOnline) {
-      return {
-        icon: <Cloud className="w-3 h-3" />,
-        text: 'PostgreSQL (Offline)',
-        color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        description: 'PostgreSQL connection unavailable'
-      };
-    } else if (storageType === 'error') {
+    }
+
+    // Error / unknown
+    if (storageType === 'error') {
       return {
         icon: <Cloud className="w-3 h-3" />,
         text: 'Database Error',
         color: 'bg-red-100 text-red-800 border-red-200',
-        description: 'PostgreSQL connection failed'
-      };
-    } else {
-      return {
-        icon: <Cloud className="w-3 h-3" />,
-        text: 'PostgreSQL',
-        color: 'bg-green-100 text-green-800 border-green-200',
-        description: 'Connected to PostgreSQL database'
+        description: 'Database connection failed'
       };
     }
+
+    // Fallback label
+    return {
+      icon: <Cloud className="w-3 h-3" />,
+      text: 'Database',
+      color: 'bg-amber-100 text-amber-800 border-amber-200',
+      description: 'Checking database connection'
+    };
   };
 
   const status = getSyncStatus();
@@ -78,10 +90,10 @@ export default function RealTimeSync() {
         {status.text}
       </Badge>
       
-      {storageType === 'postgresql' && (
+      {(storageType === 'postgresql' || storageType === 'supabase') && (
         <div className="flex items-center gap-1 text-xs text-slate-500">
           <Users className="w-3 h-3" />
-          <span>Database</span>
+          <span>{storageType === 'supabase' ? 'Supabase' : 'Database'}</span>
         </div>
       )}
     </div>

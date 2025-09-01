@@ -25,7 +25,14 @@ export default function Settings() {
       }
     } catch (error) { 
       console.error("Error loading settings:", error);
-      toast.error("Error loading settings."); 
+      const msg = typeof error?.message === 'string' ? error.message : ''
+      if (msg.includes('Supabase not configured')) {
+        toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+      } else if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('row-level security')) {
+        toast.error('RLS/permissions prevent reading settings. Apply supabase-schema.sql policies/grants.')
+      } else {
+        toast.error("Error loading settings."); 
+      }
     }
     setIsLoading(false);
   };
@@ -42,7 +49,16 @@ export default function Settings() {
       loadSettings();
     } catch (error) { 
       console.error("Error saving settings:", error);
-      toast.error("Error saving settings."); 
+      const msg = typeof error?.message === 'string' ? error.message : ''
+      if (msg.includes('Supabase not configured')) {
+        toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+      } else if (msg.toLowerCase().includes('row-level security')) {
+        toast.error('Update blocked by RLS. Apply supabase-schema.sql policies/grants in Supabase.')
+      } else if (msg.toLowerCase().includes('permission') || error?.code === '42501') {
+        toast.error('Permission denied. Check RLS policies for anon role in Supabase.')
+      } else {
+        toast.error("Error saving settings."); 
+      }
     }
     setIsSaving(false);
   };

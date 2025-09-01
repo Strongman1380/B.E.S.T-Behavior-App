@@ -1,21 +1,47 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/config/supabase'
 
 export default function DbStatusBanner() {
   const [down, setDown] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [message, setMessage] = useState('Database issue detected. Some data may be unavailable.');
+
+  const env = useMemo(() => ({
+    url: import.meta?.env?.VITE_SUPABASE_URL || import.meta?.env?.NEXT_PUBLIC_SUPABASE_URL || '',
+    key: import.meta?.env?.VITE_SUPABASE_ANON_KEY || import.meta?.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+  }), [])
 
   useEffect(() => {
     let mounted = true
     const check = async () => {
       try {
-        if (!supabase) { if (mounted) setDown(true); return }
+        // Missing env at build time
+        if (!env.url || !env.key) {
+          if (!mounted) return
+          setDown(true)
+          setMessage('Supabase env missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+          return
+        }
+        // Client not initialized
+        if (!supabase) {
+          if (!mounted) return
+          setDown(true)
+          setMessage('Supabase client not initialized. Check env names and rebuild.')
+          return
+        }
+        // Head select for connectivity
         const res = await supabase.from('settings').select('id', { count: 'exact', head: true })
         if (!mounted) return
-        setDown(Boolean(res.error))
+        if (res.error) {
+          setDown(true)
+          setMessage('Database unreachable or RLS misconfigured. See Supabase Health for details.')
+        } else {
+          setDown(false)
+        }
       } catch {
         if (!mounted) return
         setDown(true)
+        setMessage('Database issue detected. Some data may be unavailable.')
       }
     }
     check()

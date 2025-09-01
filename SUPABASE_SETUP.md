@@ -67,5 +67,12 @@ This creates tables: `students`, `daily_evaluations`, `settings`, `contact_logs`
   - Add repository secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` and re-deploy.
   - For local dev, add them to `.env` (see `.env.example`).
 
+- Insert fails with: "new row violates row-level security policy"
+  - Your tables likely have RLS enabled but no permissive policy/privileges for `anon`.
+  - In the Supabase SQL Editor, run the updated `supabase-schema.sql` which includes:
+    - RLS policies for `SELECT/INSERT/UPDATE/DELETE` to the `anon` role (demo only)
+    - Grants for `anon`/`authenticated` on the `public` schema, tables, and sequences
+  - Re-run the insert after applying the SQL.
+
 - “No routes matched location "/B.E.S.T-Behavior-App/"”
   - The app uses HashRouter on GitHub Pages. Open it at `https://<user>.github.io/B.E.S.T-Behavior-App/#/` and deep links like `#/BehaviorDashboard` work without server support.

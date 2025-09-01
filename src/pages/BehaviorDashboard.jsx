@@ -74,7 +74,16 @@ export default function BehaviorDashboard() {
       toast.success("Student added successfully!");
     } catch (error) {
       console.error("Error adding student:", error);
-      toast.error("Failed to add student.");
+      const msg = typeof error?.message === 'string' ? error.message : ''
+      if (msg.includes('Supabase not configured')) {
+        toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+      } else if (msg.toLowerCase().includes('row-level security')) {
+        toast.error('Insert blocked by RLS. Apply supabase-schema.sql policies/grants in Supabase.')
+      } else if (msg.toLowerCase().includes('permission') || error?.code === '42501') {
+        toast.error('Permission denied. Check RLS policies for anon role in Supabase.')
+      } else {
+        toast.error("Failed to add student.");
+      }
     }
   };
   
@@ -85,7 +94,16 @@ export default function BehaviorDashboard() {
       toast.success("Student updated successfully!");
     } catch (error) {
       console.error("Error updating student:", error);
-      toast.error("Failed to update student.");
+      const msg = typeof error?.message === 'string' ? error.message : ''
+      if (msg.includes('Supabase not configured')) {
+        toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+      } else if (msg.toLowerCase().includes('row-level security')) {
+        toast.error('Update blocked by RLS. Apply supabase-schema.sql policies/grants in Supabase.')
+      } else if (msg.toLowerCase().includes('permission') || error?.code === '42501') {
+        toast.error('Permission denied. Check RLS policies for anon role in Supabase.')
+      } else {
+        toast.error("Failed to update student.");
+      }
     }
   };
 
@@ -115,7 +133,16 @@ export default function BehaviorDashboard() {
       await loadData();
     } catch (error) { 
       console.error("Error deleting students:", error);
-      toast.error("Failed to update students."); 
+      const msg = typeof error?.message === 'string' ? error.message : ''
+      if (msg.includes('Supabase not configured')) {
+        toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+      } else if (msg.toLowerCase().includes('row-level security')) {
+        toast.error('Update blocked by RLS. Apply supabase-schema.sql policies/grants in Supabase.')
+      } else if (msg.toLowerCase().includes('permission') || error?.code === '42501') {
+        toast.error('Permission denied. Check RLS policies for anon role in Supabase.')
+      } else {
+        toast.error("Failed to update students."); 
+      }
     }
   };
   

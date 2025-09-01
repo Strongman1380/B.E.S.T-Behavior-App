@@ -39,7 +39,14 @@ export default function StudentEvaluation() {
       setSettings(settingsData[0] || null);
     } catch (error) { 
       console.error("Error loading data:", error);
-      toast.error("Failed to load student data.");
+      const msg = typeof error?.message === 'string' ? error.message : ''
+      if (msg.includes('Supabase not configured')) {
+        toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+      } else if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('row-level security')) {
+        toast.error('RLS/permissions prevented loading data. Apply supabase-schema.sql policies/grants.')
+      } else {
+        toast.error("Failed to load student data.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -71,8 +78,17 @@ export default function StudentEvaluation() {
       }
     } catch (error) { 
       console.error("Error saving evaluation:", error);
-      // Always show error toasts
-      toast.error("Failed to save evaluation.");
+      const msg = typeof error?.message === 'string' ? error.message : ''
+      if (msg.includes('Supabase not configured')) {
+        toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+      } else if (msg.toLowerCase().includes('row-level security')) {
+        toast.error('Insert/update blocked by RLS. Apply supabase-schema.sql policies/grants in Supabase.')
+      } else if (msg.toLowerCase().includes('permission') || error?.code === '42501') {
+        toast.error('Permission denied. Check RLS policies for anon role in Supabase.')
+      } else {
+        // Always show error toasts
+        toast.error("Failed to save evaluation.");
+      }
     } finally {
       setIsSaving(false);
     }

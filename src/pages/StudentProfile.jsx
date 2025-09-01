@@ -35,6 +35,7 @@ export default function StudentProfile() {
             setEvaluations(evalsData);
         } catch (error) {
             console.error("Failed to fetch student profile data:", error);
+            // Non-intrusive: rely on global banner/toasts elsewhere
         }
         setIsLoading(false);
     }, [studentId]);

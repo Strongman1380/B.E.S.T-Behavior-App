@@ -102,6 +102,13 @@ ALTER TABLE incident_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE behavior_summaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
+-- Ensure anon/authenticated roles can access objects (required in addition to RLS)
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated;
+
 -- Create policies to allow anon access (for demo purposes)
 -- In production, you should restrict these based on user authentication
 

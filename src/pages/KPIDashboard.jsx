@@ -63,7 +63,14 @@ export default function KPIDashboard() {
       setContactLogs(contactsData);
     } catch (error) {
       console.error("Error loading KPI data:", error);
-      toast.error("Failed to load KPI data.");
+      const msg = typeof error?.message === 'string' ? error.message : ''
+      if (msg.includes('Supabase not configured')) {
+        toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+      } else if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('row-level security')) {
+        toast.error('RLS/permissions preventing reads. Apply supabase-schema.sql policies/grants in Supabase.')
+      } else {
+        toast.error("Failed to load KPI data.");
+      }
     }
     setIsLoading(false);
   }, []);
