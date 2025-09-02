@@ -6,6 +6,7 @@ import { LayoutDashboard, MessageSquare, Zap, Settings, ShieldCheck, Menu, FileT
 import RealTimeSync from '../components/sync/RealTimeSync';
 import SupabaseStatus from '../components/SupabaseStatus';
 import SupabaseHealth from '../components/SupabaseHealth';
+import DeploymentLinks from '../components/DeploymentLinks';
 import DbStatusBanner from '../components/DbStatusBanner';
 
 const navItems = [
@@ -67,6 +68,7 @@ export default function Layout({ children }) {
                     <RealTimeSync />
                     <SupabaseStatus />
                     <SupabaseHealth />
+                    <DeploymentLinks />
                 </div>
             </aside>
             

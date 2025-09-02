@@ -19,6 +19,7 @@ export default function EvaluationsCountCard({ startDate, endDate }) {
   useEffect(() => {
     let mounted = true
     const fetchCount = async () => {
+      if (loading) return // Prevent multiple concurrent requests
       setLoading(true)
       setError(null)
       try {

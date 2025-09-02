@@ -79,13 +79,6 @@ export default function KPIDashboard() {
     loadData();
   }, [loadData]);
 
-  useEffect(() => {
-    // Reload data when filters change
-    if (!isLoading) {
-      loadData();
-    }
-  }, [dateRange, selectedStudent, isLoading, loadData]);
-
   
 
   // Filter data based on date range and selected student
