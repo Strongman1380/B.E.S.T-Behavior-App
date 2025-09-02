@@ -10,8 +10,9 @@ const repoName = process.env.GITHUB_REPOSITORY ? process.env.GITHUB_REPOSITORY.s
 export default defineConfig({
   base: process.env.GITHUB_PAGES ? `/${repoName}/` : '/',
   plugins: [react()],
-  // Expose both VITE_* and NEXT_PUBLIC_* vars to import.meta.env in the client
-  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
+  // Expose public envs to the client
+  // Accept VITE_ (Vite default), NEXT_PUBLIC_ (Next-style), and SUPABASE_* for convenience
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_', 'SUPABASE_'],
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

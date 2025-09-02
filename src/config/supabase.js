@@ -2,9 +2,30 @@
 // Uses public anon key; do NOT use the service role key in the browser.
 import { createClient } from '@supabase/supabase-js'
 
-// Prefer Vite-style public env vars in the browser
-const supabaseUrl = import.meta?.env?.NEXT_PUBLIC_SUPABASE_URL || import.meta?.env?.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta?.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY || import.meta?.env?.VITE_SUPABASE_ANON_KEY
+// Prefer Vite-style public env vars in the browser; accept Next-style and SUPABASE_* fallbacks.
+// As a last resort, allow runtime override via localStorage keys 'SUPABASE_URL' and 'SUPABASE_ANON_KEY'.
+let supabaseUrl =
+  import.meta?.env?.NEXT_PUBLIC_SUPABASE_URL ||
+  import.meta?.env?.VITE_SUPABASE_URL ||
+  import.meta?.env?.SUPABASE_URL
+
+let supabaseAnonKey =
+  import.meta?.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  import.meta?.env?.VITE_SUPABASE_ANON_KEY ||
+  import.meta?.env?.SUPABASE_ANON_KEY
+
+try {
+  if ((!supabaseUrl || !supabaseAnonKey) && typeof window !== 'undefined' && window.localStorage) {
+    const lsUrl = window.localStorage.getItem('SUPABASE_URL')
+    const lsKey = window.localStorage.getItem('SUPABASE_ANON_KEY')
+    if (lsUrl && lsKey) {
+      supabaseUrl = supabaseUrl || lsUrl
+      supabaseAnonKey = supabaseAnonKey || lsKey
+    }
+  }
+} catch {
+  // ignore storage access errors
+}
 
 let supabase = null
 try {

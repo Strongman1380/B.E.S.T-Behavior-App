@@ -14,6 +14,9 @@ const TABLES = [
 export default function SupabaseHealth() {
   const [open, setOpen] = useState(false)
   const [checks, setChecks] = useState(null)
+  const [cfgOpen, setCfgOpen] = useState(false)
+  const [tmpUrl, setTmpUrl] = useState('')
+  const [tmpKey, setTmpKey] = useState('')
 
   const env = useMemo(() => ({
     url: import.meta?.env?.VITE_SUPABASE_URL || import.meta?.env?.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -62,10 +65,62 @@ export default function SupabaseHealth() {
           <span className={`inline-block w-2 h-2 rounded-full mr-2 ${allOk ? 'bg-green-500' : 'bg-amber-500'}`} />
           <span>Supabase Health {allOk ? '(ok)' : '(check config)'}</span>
         </div>
-        <button className="text-slate-500 hover:text-slate-800" onClick={() => setOpen(v => !v)}>
-          {open ? 'Hide' : 'Details'}
-        </button>
+        <div className="flex items-center gap-2">
+          {!allOk && (
+            <button className="text-slate-500 hover:text-slate-800" onClick={() => setCfgOpen(v => !v)}>
+              {cfgOpen ? 'Close' : 'Configure'}
+            </button>
+          )}
+          <button className="text-slate-500 hover:text-slate-800" onClick={() => setOpen(v => !v)}>
+            {open ? 'Hide' : 'Details'}
+          </button>
+        </div>
       </div>
+      {cfgOpen && (
+        <div className="mt-2 space-y-2">
+          <div className="text-[11px] text-slate-500">Runtime override (local only). Values are stored in your browser and used if envs are missing.</div>
+          <input
+            className="w-full border rounded p-1 text-[12px]"
+            placeholder="https://<project-ref>.supabase.co"
+            value={tmpUrl}
+            onChange={e => setTmpUrl(e.target.value)}
+          />
+          <input
+            className="w-full border rounded p-1 text-[12px]"
+            placeholder="anon public key"
+            value={tmpKey}
+            onChange={e => setTmpKey(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <button
+              className="px-2 py-1 border rounded bg-white hover:bg-slate-100"
+              onClick={() => {
+                try {
+                  if (tmpUrl && tmpKey) {
+                    window.localStorage.setItem('SUPABASE_URL', tmpUrl)
+                    window.localStorage.setItem('SUPABASE_ANON_KEY', tmpKey)
+                    window.location.reload()
+                  }
+                } catch {}
+              }}
+            >
+              Save & Reload
+            </button>
+            <button
+              className="px-2 py-1 border rounded bg-white hover:bg-slate-100"
+              onClick={() => {
+                try {
+                  window.localStorage.removeItem('SUPABASE_URL')
+                  window.localStorage.removeItem('SUPABASE_ANON_KEY')
+                  window.location.reload()
+                } catch {}
+              }}
+            >
+              Clear Override
+            </button>
+          </div>
+        </div>
+      )}
       {open && (
         <div className="mt-2 space-y-2">
           <div>
@@ -87,4 +142,3 @@ export default function SupabaseHealth() {
     </div>
   )
 }
-
