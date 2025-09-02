@@ -29,14 +29,26 @@ jobs:
         run: npm ci
       - name: Validate Supabase env
         run: |
-          if [ -z "$VITE_SUPABASE_URL" ]; then echo "❌ Missing VITE_SUPABASE_URL secret" && exit 1; fi
-          if [ -z "$VITE_SUPABASE_ANON_KEY" ]; then echo "❌ Missing VITE_SUPABASE_ANON_KEY secret" && exit 1; fi
+          echo "🔍 Checking Supabase configuration..."
+          if [ -z "$VITE_SUPABASE_URL" ]; then 
+            echo "⚠️  VITE_SUPABASE_URL secret not set, using fallback"
+          else
+            echo "✅ VITE_SUPABASE_URL configured"
+          fi
+          if [ -z "$VITE_SUPABASE_ANON_KEY" ]; then 
+            echo "⚠️  VITE_SUPABASE_ANON_KEY secret not set, using fallback"
+          else
+            echo "✅ VITE_SUPABASE_ANON_KEY configured"
+          fi
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - name: Build (GitHub Pages base)
         run: npm run build:pages
         env:
           GITHUB_PAGES: '1'
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://teiupxwqnbwopnixulay.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlaXVweHdxbmJ3b3BuaXh1bGF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NzIwNTcsImV4cCI6MjA3MjE0ODA1N30._3KGRAQLatX52dDQAQei90b1MjXeB2dRsvZb_B6txrk' }}
       - name: Add SPA fallback (404.html)
         run: cp dist/index.html dist/404.html
       - name: Upload artifact

@@ -40,3 +40,6 @@
 [1] 12:42:21 PM [vite] server restarted.
 [1] 4:54:31 PM [vite] vite.config.js changed, restarting server...
 [1] 4:54:31 PM [vite] server restarted.
+[1] 7:42:06 PM [vite] .env changed, restarting server...
+[1] 7:42:06 PM [vite] server restarted.
+[1] npm run dev exited with code 143

@@ -18,10 +18,17 @@ export default function SupabaseHealth() {
   const [tmpUrl, setTmpUrl] = useState('')
   const [tmpKey, setTmpKey] = useState('')
 
-  const env = useMemo(() => ({
-    url: import.meta?.env?.VITE_SUPABASE_URL || import.meta?.env?.NEXT_PUBLIC_SUPABASE_URL || '',
-    key: import.meta?.env?.VITE_SUPABASE_ANON_KEY || import.meta?.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-  }), [])
+  const env = useMemo(() => {
+    let url = import.meta?.env?.VITE_SUPABASE_URL || import.meta?.env?.NEXT_PUBLIC_SUPABASE_URL || import.meta?.env?.SUPABASE_URL || ''
+    let key = import.meta?.env?.VITE_SUPABASE_ANON_KEY || import.meta?.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY || import.meta?.env?.SUPABASE_ANON_KEY || ''
+    try {
+      if ((!url || !key) && typeof window !== 'undefined' && window.localStorage) {
+        url = url || window.localStorage.getItem('SUPABASE_URL') || ''
+        key = key || window.localStorage.getItem('SUPABASE_ANON_KEY') || ''
+      }
+    } catch {}
+    return { url, key }
+  }, [])
 
   useEffect(() => {
     let mounted = true
