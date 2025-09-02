@@ -95,9 +95,9 @@ export default function IncidentsCountCard({ startDate, endDate }) {
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start text-left font-normal">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {sDate ? format(sDate, 'PPP') : 'Start'}
+              <Button variant="outline" className="w-full justify-start text-left font-normal text-xs px-2">
+                <CalendarIcon className="mr-1 h-3 w-3" />
+                {sDate ? format(sDate, 'M/d/yy') : 'Start'}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
@@ -106,9 +106,9 @@ export default function IncidentsCountCard({ startDate, endDate }) {
           </Popover>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start text-left font-normal">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {eDate ? format(eDate, 'PPP') : 'End'}
+              <Button variant="outline" className="w-full justify-start text-left font-normal text-xs px-2">
+                <CalendarIcon className="mr-1 h-3 w-3" />
+                {eDate ? format(eDate, 'M/d/yy') : 'End'}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">

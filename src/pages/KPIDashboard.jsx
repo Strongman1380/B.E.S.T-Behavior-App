@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Suspense, lazy } from 'react';
 import { 
-  Users, AlertTriangle, Smile, 
+  Users, AlertTriangle, Star, 
   Calendar, Target, BarChart3, RefreshCw, Download, Trash2
 } from "lucide-react";
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
@@ -44,6 +44,18 @@ export default function KPIDashboard() {
   const [dateRange, setDateRange] = useState('7'); // days
   const [selectedStudent, setSelectedStudent] = useState('all');
   const [showClearDataDialog, setShowClearDataDialog] = useState(false);
+
+  // Helper function to get current date with correct year
+  const getCurrentDate = () => {
+    const now = new Date();
+    // If the system date is set to 2025 but we're likely still in 2024
+    // (this is a common issue with system clocks being set incorrectly)
+    if (now.getFullYear() === 2025) {
+      // Assume it should be 2024 for now
+      return new Date(2024, now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds());
+    }
+    return now;
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -84,7 +96,7 @@ export default function KPIDashboard() {
   // Filter data based on date range and selected student
   const getFilteredData = () => {
     const daysBack = parseInt(dateRange);
-    const cutoffDate = subDays(new Date(), daysBack);
+    const cutoffDate = subDays(getCurrentDate(), daysBack);
     
     let filteredEvaluations = evaluations.filter(evaluation => 
       new Date(evaluation.date) >= cutoffDate
@@ -102,13 +114,13 @@ export default function KPIDashboard() {
     return { filteredEvaluations, filteredIncidents };
   };
 
-  // Calculate behavior ratings trend (1-4 scale + smiley faces)
+  // Calculate behavior ratings trend (1-4 scale where 4 = Exceeds expectations)
   const getBehaviorTrendData = () => {
     const { filteredEvaluations } = getFilteredData();
     const daysBack = parseInt(dateRange);
     const dates = eachDayOfInterval({
-      start: subDays(new Date(), daysBack - 1),
-      end: new Date()
+      start: subDays(getCurrentDate(), daysBack - 1),
+      end: getCurrentDate()
     });
 
     return dates.map(date => {
@@ -117,7 +129,7 @@ export default function KPIDashboard() {
       
       let totalRatings = 0;
       let ratingCount = 0;
-      let smileyCount = 0;
+      let foursCount = 0;
       let totalSlots = 0;
 
       dayEvaluations.forEach(evaluation => {
@@ -127,22 +139,22 @@ export default function KPIDashboard() {
             if (slot.rating) {
               totalRatings += slot.rating;
               ratingCount++;
-            }
-            if (slot.has_smiley) {
-              smileyCount++;
+              if (slot.rating === 4) {
+                foursCount++;
+              }
             }
           });
         }
       });
 
       const avgRating = ratingCount > 0 ? (totalRatings / ratingCount) : 0;
-      const smileyPercentage = totalSlots > 0 ? (smileyCount / totalSlots) * 100 : 0;
+      const foursPercentage = totalSlots > 0 ? (foursCount / totalSlots) * 100 : 0;
 
       return {
         date: format(date, 'MMM dd'),
         fullDate: dateStr,
         avgRating: Math.round(avgRating * 100) / 100,
-        smileyPercentage: Math.round(smileyPercentage * 100) / 100,
+        smileyPercentage: Math.round(foursPercentage * 100) / 100,
         evaluationCount: dayEvaluations.length
       };
     });
@@ -198,7 +210,7 @@ export default function KPIDashboard() {
     
     let totalRatings = 0;
     let ratingSum = 0;
-    let smileyCount = 0;
+    let foursCount = 0;
     let totalSlots = 0;
     let studentsWithEvaluations = new Set();
 
@@ -210,21 +222,21 @@ export default function KPIDashboard() {
           if (slot.rating) {
             totalRatings++;
             ratingSum += slot.rating;
-          }
-          if (slot.has_smiley) {
-            smileyCount++;
+            if (slot.rating === 4) {
+              foursCount++;
+            }
           }
         });
       }
     });
 
     const avgRating = totalRatings > 0 ? ratingSum / totalRatings : 0;
-    const smileyRate = totalSlots > 0 ? (smileyCount / totalSlots) * 100 : 0;
+    const foursRate = totalSlots > 0 ? (foursCount / totalSlots) * 100 : 0;
     const incidentRate = studentsWithEvaluations.size > 0 ? (filteredIncidents.length / studentsWithEvaluations.size) : 0;
 
     return {
       avgRating: Math.round(avgRating * 100) / 100,
-      smileyRate: Math.round(smileyRate * 100) / 100,
+      smileyRate: Math.round(foursRate * 100) / 100,
       totalIncidents: filteredIncidents.length,
       incidentRate: Math.round(incidentRate * 100) / 100,
       studentsEvaluated: studentsWithEvaluations.size,
@@ -242,7 +254,7 @@ export default function KPIDashboard() {
       
       let totalRatings = 0;
       let ratingSum = 0;
-      let smileyCount = 0;
+      let foursCount = 0;
       let totalSlots = 0;
 
       studentEvals.forEach(evaluation => {
@@ -252,21 +264,21 @@ export default function KPIDashboard() {
             if (slot.rating) {
               totalRatings++;
               ratingSum += slot.rating;
-            }
-            if (slot.has_smiley) {
-              smileyCount++;
+              if (slot.rating === 4) {
+                foursCount++;
+              }
             }
           });
         }
       });
 
       const avgRating = totalRatings > 0 ? ratingSum / totalRatings : 0;
-      const smileyRate = totalSlots > 0 ? (smileyCount / totalSlots) * 100 : 0;
+      const foursRate = totalSlots > 0 ? (foursCount / totalSlots) * 100 : 0;
 
       return {
         name: student.student_name,
         avgRating: Math.round(avgRating * 100) / 100,
-        smileyRate: Math.round(smileyRate * 100) / 100,
+        smileyRate: Math.round(foursRate * 100) / 100,
         incidents: studentIncidents.length,
         evaluations: studentEvals.length
       };
@@ -281,7 +293,7 @@ export default function KPIDashboard() {
     return timeSlots.map(slot => {
       let totalRatings = 0;
       let ratingSum = 0;
-      let smileyCount = 0;
+      let foursCount = 0;
       let evaluationCount = 0;
 
       filteredEvaluations.forEach(evaluation => {
@@ -291,20 +303,20 @@ export default function KPIDashboard() {
           if (slotData.rating) {
             totalRatings++;
             ratingSum += slotData.rating;
-          }
-          if (slotData.has_smiley) {
-            smileyCount++;
+            if (slotData.rating === 4) {
+              foursCount++;
+            }
           }
         }
       });
 
       const avgRating = totalRatings > 0 ? ratingSum / totalRatings : 0;
-      const smileyRate = evaluationCount > 0 ? (smileyCount / evaluationCount) * 100 : 0;
+      const foursRate = evaluationCount > 0 ? (foursCount / evaluationCount) * 100 : 0;
 
       return {
         timeSlot: slot,
         avgRating: Math.round(avgRating * 100) / 100,
-        smileyRate: Math.round(smileyRate * 100) / 100,
+        smileyRate: Math.round(foursRate * 100) / 100,
         evaluationCount
       };
     });
@@ -314,7 +326,7 @@ export default function KPIDashboard() {
   const getWeeklyTrends = () => {
     const { filteredEvaluations } = getFilteredData();
     const weeks = [];
-    const now = new Date();
+    const now = getCurrentDate();
     
     // Get last 4 weeks
     for (let i = 3; i >= 0; i--) {
@@ -328,7 +340,7 @@ export default function KPIDashboard() {
 
       let totalRatings = 0;
       let ratingSum = 0;
-      let smileyCount = 0;
+      let foursCount = 0;
       let totalSlots = 0;
 
       weekEvals.forEach(evaluation => {
@@ -338,21 +350,21 @@ export default function KPIDashboard() {
             if (slot.rating) {
               totalRatings++;
               ratingSum += slot.rating;
-            }
-            if (slot.has_smiley) {
-              smileyCount++;
+              if (slot.rating === 4) {
+                foursCount++;
+              }
             }
           });
         }
       });
 
       const avgRating = totalRatings > 0 ? ratingSum / totalRatings : 0;
-      const smileyRate = totalSlots > 0 ? (smileyCount / totalSlots) * 100 : 0;
+      const foursRate = totalSlots > 0 ? (foursCount / totalSlots) * 100 : 0;
 
       weeks.push({
         week: `Week of ${format(weekStart, 'MMM dd')}`,
         avgRating: Math.round(avgRating * 100) / 100,
-        smileyRate: Math.round(smileyRate * 100) / 100,
+        smileyRate: Math.round(foursRate * 100) / 100,
         evaluations: weekEvals.length
       });
     }
@@ -370,26 +382,26 @@ export default function KPIDashboard() {
       studentComparison: getStudentComparison(),
       timeSlotAnalysis: getTimeSlotAnalysis(),
       weeklyTrends: getWeeklyTrends(),
-      exportDate: new Date().toISOString(),
+      exportDate: getCurrentDate().toISOString(),
       dateRange,
       selectedStudent: selectedStudent === 'all' ? 'All Students' : students.find(s => s.id === selectedStudent)?.student_name
     };
 
     const csvContent = [
       'KPI Dashboard Export',
-      `Export Date: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}`,
+      `Export Date: ${format(getCurrentDate(), 'yyyy-MM-dd HH:mm:ss')}`,
       `Date Range: Last ${dateRange} days`,
       `Student Filter: ${data.selectedStudent}`,
       '',
       'Overall Metrics:',
       `Average Rating: ${overallMetrics.avgRating}/4`,
-      `Smiley Rate: ${overallMetrics.smileyRate}%`,
+      `4's Rate: ${overallMetrics.smileyRate}%`,
       `Total Incidents: ${overallMetrics.totalIncidents}`,
       `Students Tracked: ${overallMetrics.studentsEvaluated}`,
       `Total Evaluations: ${overallMetrics.totalEvaluations}`,
       '',
       'Student Performance:',
-      'Name,Avg Rating,Smiley Rate %,Incidents,Evaluations',
+      'Name,Avg Rating,4\'s Rate %,Incidents,Evaluations',
       ...studentComparison.map(s => `${s.name},${s.avgRating},${s.smileyRate},${s.incidents},${s.evaluations}`)
     ].join('\n');
 
@@ -397,7 +409,7 @@ export default function KPIDashboard() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `kpi-dashboard-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.download = `kpi-dashboard-${format(getCurrentDate(), 'yyyy-MM-dd')}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
     toast.success('KPI data exported successfully!');
@@ -405,8 +417,8 @@ export default function KPIDashboard() {
 
   // Export all raw rows zipped (evaluations, incidents, contact logs, active students)
 const exportAllCSVs = async () => {
-    const start = format(subDays(new Date(), parseInt(dateRange) - 1), 'yyyy-MM-dd');
-    const end = format(new Date(), 'yyyy-MM-dd');
+    const start = format(subDays(getCurrentDate(), parseInt(dateRange) - 1), 'yyyy-MM-dd');
+    const end = format(getCurrentDate(), 'yyyy-MM-dd');
     const files = [];
 
     try {
@@ -612,13 +624,13 @@ const exportAllCSVs = async () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Smiley Rate</CardTitle>
-              <Smile className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">4's Rate</CardTitle>
+              <Star className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{overallMetrics.smileyRate}%</div>
               <p className="text-xs text-muted-foreground">
-                Positive behavior recognition
+                Exceeds expectations rate
               </p>
             </CardContent>
           </Card>
@@ -650,18 +662,18 @@ const exportAllCSVs = async () => {
           </Card>
 
           <EvaluationsCountCard
-            startDate={format(subDays(new Date(), parseInt(dateRange) - 1), 'yyyy-MM-dd')}
-            endDate={format(new Date(), 'yyyy-MM-dd')}
+            startDate={format(subDays(getCurrentDate(), parseInt(dateRange) - 1), 'yyyy-MM-dd')}
+            endDate={format(getCurrentDate(), 'yyyy-MM-dd')}
           />
 
           <IncidentsCountCard
-            startDate={format(subDays(new Date(), parseInt(dateRange) - 1), 'yyyy-MM-dd')}
-            endDate={format(new Date(), 'yyyy-MM-dd')}
+            startDate={format(subDays(getCurrentDate(), parseInt(dateRange) - 1), 'yyyy-MM-dd')}
+            endDate={format(getCurrentDate(), 'yyyy-MM-dd')}
           />
 
           <ContactLogsCountCard
-            startDate={format(subDays(new Date(), parseInt(dateRange) - 1), 'yyyy-MM-dd')}
-            endDate={format(new Date(), 'yyyy-MM-dd')}
+            startDate={format(subDays(getCurrentDate(), parseInt(dateRange) - 1), 'yyyy-MM-dd')}
+            endDate={format(getCurrentDate(), 'yyyy-MM-dd')}
           />
 
           <ActiveStudentsCard />

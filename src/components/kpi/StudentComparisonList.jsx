@@ -9,7 +9,7 @@ export default function StudentComparisonList({ data }) {
             <p className="font-medium text-slate-900 text-sm sm:text-base">{student.name}</p>
             <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-slate-600">
               <span>Avg: {student.avgRating}/4</span>
-              <span>😊 {student.smileyRate}%</span>
+              <span>4's Rate: {student.smileyRate}%</span>
               <span>Incidents: {student.incidents}</span>
             </div>
           </div>

@@ -11,7 +11,7 @@ export default function TimeSlotAnalysisBar({ data }) {
         <Tooltip contentStyle={{ fontSize: '12px' }} />
         <Legend wrapperStyle={{ fontSize: '12px' }} />
         <Bar yAxisId="rating" dataKey="avgRating" fill="#3B82F6" name="Avg Rating" />
-        <Bar yAxisId="smiley" dataKey="smileyRate" fill="#F59E0B" name="Smiley Rate %" />
+        <Bar yAxisId="smiley" dataKey="smileyRate" fill="#F59E0B" name="4's Rate %" />
       </BarChart>
     </ResponsiveContainer>
   );

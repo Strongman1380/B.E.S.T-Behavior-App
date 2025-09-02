@@ -1,5 +1,4 @@
 import { Textarea } from "@/components/ui/textarea";
-import { Smile } from "lucide-react";
 
 export default function TimeSlotRating({ time, data, onChange }) {
   const safeData = data || {};
@@ -20,10 +19,7 @@ export default function TimeSlotRating({ time, data, onChange }) {
     onChange(newData);
   };
 
-  const handleSmileyToggle = () => {
-    const newData = { ...safeData, has_smiley: !safeData.has_smiley };
-    onChange(newData);
-  };
+  // Smiley toggle removed; 4's indicate exceeding expectations.
   
   const ratingOptions = [4, 3, 2, 1];
   const statusOptions = ["PRESENT", "DISMISSED"];
@@ -65,18 +61,7 @@ export default function TimeSlotRating({ time, data, onChange }) {
               </button>
             ))
           )}
-          
-          <button
-            type="button"
-            onClick={handleSmileyToggle}
-            className={`w-12 h-12 sm:w-10 sm:h-10 rounded border-2 transition-colors flex items-center justify-center ${
-              safeData.has_smiley
-                ? 'bg-yellow-400 border-yellow-500 text-white'
-                : 'bg-white text-slate-400 border-slate-300 hover:border-yellow-300 hover:bg-yellow-50'
-            }`}
-          >
-            <Smile className="w-4 h-4" />
-          </button>
+
         </div>
         
         <Textarea

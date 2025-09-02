@@ -37,28 +37,7 @@ export default function PrintAllDialog({ open, onOpenChange, students, evaluatio
               color: #ffffff !important; 
               border-color: #1e293b !important; 
             }
-            .smiley-icon-container { 
-              width: 1.5rem; 
-              height: 1.5rem; 
-              display: inline-flex; 
-              align-items: center; 
-              justify-content: center; 
-              border: 1.5px solid #cbd5e1; 
-              border-radius: 9999px; 
-              margin-left: 0.5rem;
-            }
-            .smiley-icon-container.selected { 
-              background-color: #facc15 !important; 
-              border-color: #ca8a04 !important; 
-            }
-            .smiley-svg { 
-              width: 1rem; 
-              height: 1rem; 
-              color: #9ca3af; 
-            }
-            .smiley-svg.selected { 
-              color: #ffffff !important; 
-            }
+            /* Smiley icon removed; 4's indicate exceeding expectations. */
             .break-inside-avoid { 
               break-inside: avoid; 
             }
@@ -160,11 +139,7 @@ export default function PrintAllDialog({ open, onOpenChange, students, evaluatio
                                 ))}
                               </div>
                             )}
-                            <div className={`smiley-icon-container ${data?.has_smiley ? 'selected' : ''}`}>
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`smiley-svg ${data?.has_smiley ? 'selected' : ''}`}>
-                                <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>
-                              </svg>
-                            </div>
+                            
                           </div>
                           <div className="comment-col">
                             {data?.comment || <span className="text-slate-400">No comment</span>}

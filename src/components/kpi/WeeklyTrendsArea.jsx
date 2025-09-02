@@ -11,7 +11,7 @@ export default function WeeklyTrendsArea({ data }) {
         <Tooltip contentStyle={{ fontSize: '12px' }} />
         <Legend wrapperStyle={{ fontSize: '12px' }} />
         <Area yAxisId="rating" type="monotone" dataKey="avgRating" stackId="1" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.6} name="Avg Rating" />
-        <Area yAxisId="smiley" type="monotone" dataKey="smileyRate" stackId="2" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.6} name="Smiley Rate %" />
+        <Area yAxisId="smiley" type="monotone" dataKey="smileyRate" stackId="2" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.6} name="4's Rate %" />
       </AreaChart>
     </ResponsiveContainer>
   );

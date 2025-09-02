@@ -11,7 +11,7 @@ export default function BehaviorTrendChart({ data }) {
         <Tooltip contentStyle={{ fontSize: '12px' }} />
         <Legend wrapperStyle={{ fontSize: '12px' }} />
         <Line yAxisId="rating" type="monotone" dataKey="avgRating" stroke="#3B82F6" strokeWidth={2} name="Avg Rating (1-4)" />
-        <Line yAxisId="smiley" type="monotone" dataKey="smileyPercentage" stroke="#F59E0B" strokeWidth={2} name="Smiley Rate (%)" />
+        <Line yAxisId="smiley" type="monotone" dataKey="smileyPercentage" stroke="#F59E0B" strokeWidth={2} name="4's Rate (%)" />
       </LineChart>
     </ResponsiveContainer>
   );

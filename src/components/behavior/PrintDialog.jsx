@@ -50,21 +50,7 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
               color: white; 
               border-color: #333; 
             }
-            .smiley { 
-              display: inline-block; 
-              width: 18px; 
-              height: 18px; 
-              border: 1.5px solid #ccc; 
-              border-radius: 50%; 
-              text-align: center; 
-              line-height: 15px; 
-              font-size: 10px;
-              margin-left: 8px;
-            }
-            .smiley.selected { 
-              background-color: #ffd700; 
-              border-color: #daa520; 
-            }
+            /* Smiley removed: 4's represent recognition */
             .time-slot { 
               display: flex;
               border: 1px solid #ddd; 
@@ -238,9 +224,6 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
                         ))}
                       </span>
                     )}
-                    <span className={`smiley ${data?.has_smiley ? 'selected' : ''}`}>
-                      😊
-                    </span>
                   </div>
                   <div className="comment-section">
                     {data?.comment || 'No comment'}
