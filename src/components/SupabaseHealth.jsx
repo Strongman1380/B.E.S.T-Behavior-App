@@ -8,7 +8,6 @@ const TABLES = [
   'incident_reports',
   'settings',
   'behavior_summaries',
-  'users',
 ]
 
 export default function SupabaseHealth() {

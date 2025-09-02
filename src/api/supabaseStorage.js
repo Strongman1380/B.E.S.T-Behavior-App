@@ -23,7 +23,11 @@ class SupabaseEntity {
   async list(orderBy) {
     assertSupabase()
     let q = supabase.from(this.table).select('*')
-    if (orderBy) q = q.order(orderBy, { ascending: true, nullsFirst: false })
+    if (typeof orderBy === 'string' && orderBy.length > 0) {
+      const desc = orderBy.startsWith('-')
+      const col = desc ? orderBy.slice(1) : orderBy
+      if (col) q = q.order(col, { ascending: !desc, nullsFirst: false })
+    }
     const res = await q
     normalizeError(res)
     return res.data || []

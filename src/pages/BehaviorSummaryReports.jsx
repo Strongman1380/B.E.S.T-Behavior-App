@@ -25,7 +25,8 @@ export default function BehaviorSummaryReports() {
     try {
       const [studentsData, summariesData, settingsData] = await Promise.all([
         Student.filter({ active: true }),
-        BehaviorSummary.list('-date_range_end'),
+        // Order by latest end date; column is `date_to` in schema
+        BehaviorSummary.list('-date_to'),
         Settings.list()
       ]);
       setStudents(studentsData);
