@@ -7,6 +7,7 @@ import { Settings } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileText } from "lucide-react";
 import { format } from "date-fns";
+import { todayYmd } from "@/utils";
 import { formatDate } from "@/utils";
 import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
@@ -18,7 +19,7 @@ export default function StudentEvaluation() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const studentId = searchParams.get('studentId');
-  const date = searchParams.get('date') || format(new Date(), 'yyyy-MM-dd');
+  const date = searchParams.get('date') || todayYmd();
 
   const [student, setStudent] = useState(null);
   const [evaluation, setEvaluation] = useState(null);

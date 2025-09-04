@@ -6,6 +6,7 @@ import { Settings } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, UserCheck, Users } from "lucide-react";
 import { format } from "date-fns";
+import { todayYmd } from "@/utils";
 import { Toaster, toast } from 'sonner';
 
 import StudentList from "../components/quick-score/StudentList";
@@ -20,7 +21,7 @@ export default function QuickScore() {
   const [isSaving, setIsSaving] = useState(false);
   const [isStudentListOpen, setIsStudentListOpen] = useState(false);
   
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const today = todayYmd();
 
   const loadData = useCallback(async (showLoading = true) => {
     try {

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { createPageUrl, todayYmd } from "@/utils";
 
 import AddStudentDialog from "../components/behavior/AddStudentDialog";
 import EditStudentDialog from "../components/behavior/EditStudentDialog";
@@ -39,7 +39,7 @@ export default function BehaviorDashboard() {
   const [selection, setSelection] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const today = todayYmd();
 
   const loadData = useCallback(async () => {
     try {
