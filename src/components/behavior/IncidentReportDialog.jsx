@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Save, FileText, Printer, X } from "lucide-react";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
+import { parseYmd } from "@/utils";
 import { toast } from 'sonner';
 
 const INCIDENT_TYPES = [
@@ -40,7 +41,9 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
         // Load existing report data
         setFormData({
           student_name: initialData.student_name || '',
-          incident_date: new Date(initialData.incident_date),
+          incident_date: typeof initialData.incident_date === 'string' 
+            ? parseYmd(initialData.incident_date) 
+            : new Date(initialData.incident_date),
           incident_type: initialData.incident_type || '',
           incident_summary: initialData.incident_summary || '',
           staff_name: initialData.staff_name || '',

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
+import { formatDate } from '@/utils';
 import { Printer, X } from 'lucide-react';
 
 export default function PrintDialog({ open, onOpenChange, student, evaluation, settings, date }) {
@@ -197,7 +198,7 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
         <div id="single-print-area" className="p-4 max-h-[75vh] overflow-y-auto">
           <div className="header">
             <h1>{student?.student_name}’s Daily Report</h1>
-            <div className="date-teacher">Date: {format(new Date(date), 'MMMM d, yyyy')}</div>
+            <div className="date-teacher">Date: {formatDate(date, 'MMMM d, yyyy')}</div>
             <div className="date-teacher">Teacher: {evaluation.teacher_name || settings?.teacher_name || 'Not Set'}</div>
           </div>
           

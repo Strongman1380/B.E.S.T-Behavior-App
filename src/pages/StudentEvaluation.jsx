@@ -7,6 +7,7 @@ import { Settings } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileText } from "lucide-react";
 import { format } from "date-fns";
+import { formatDate } from "@/utils";
 import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
 
@@ -142,8 +143,8 @@ export default function StudentEvaluation() {
               <div>
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">{student.student_name}</h1>
                 <p className="text-slate-600 text-sm sm:text-base">
-                  <span className="hidden sm:inline">{format(new Date(date), 'EEEE, MMMM d, yyyy')}</span>
-                  <span className="sm:hidden">{format(new Date(date), 'MMM d, yyyy')}</span>
+                  <span className="hidden sm:inline">{formatDate(date, 'EEEE, MMMM d, yyyy')}</span>
+                  <span className="sm:hidden">{formatDate(date, 'MMM d, yyyy')}</span>
                 </p>
               </div>
             </div>

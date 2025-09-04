@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileText, Download } from "lucide-react";
 import { format } from "date-fns";
+import { formatDate } from "@/utils";
 
 export default function PrintDialog({ open, onOpenChange, student, evaluation, settings, date }) {
   const generatePrintContent = () => {
@@ -14,7 +15,7 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
             <strong>Student's Name:</strong> ${student.name}
           </div>
           <div>
-            <strong>Date:</strong> ${format(new Date(date), 'M/d/yy')}
+            <strong>Date:</strong> ${formatDate(date, 'M/d/yy')}
           </div>
         </div>
         <div style="margin-bottom: 30px;">
@@ -71,7 +72,7 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
     printWindow.document.write(`
       <html>
         <head>
-          <title>${student.name} - ${format(new Date(date), 'MMMM d, yyyy')}</title>
+          <title>${student.name} - ${formatDate(date, 'MMMM d, yyyy')}</title>
           <style>
             body { margin: 0; font-family: Arial, sans-serif; }
             @media print {
@@ -100,7 +101,7 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
         </DialogHeader>
         <div className="space-y-4">
           <p className="text-slate-600">
-            Print the evaluation for <strong>{student.name}</strong> on {format(new Date(date), 'MMMM d, yyyy')}.
+            Print the evaluation for <strong>{student.name}</strong> on {formatDate(date, 'MMMM d, yyyy')}.
           </p>
           
           <div className="flex justify-end gap-3 pt-4">

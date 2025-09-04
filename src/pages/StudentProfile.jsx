@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, MessageSquare, ArrowLeft, Printer } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatDate } from '@/utils';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Toaster } from 'sonner';
@@ -125,7 +126,7 @@ export default function StudentProfile() {
                                         <li key={log.id} className="p-3 bg-slate-50 rounded-lg border">
                                             <p className="font-semibold text-sm sm:text-base">{log.purpose_of_contact}</p>
                                             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                                                {format(new Date(log.contact_date), 'MMM d, yyyy')} with {log.contact_person_name}
+                                                {formatDate(log.contact_date, 'MMM d, yyyy')} with {log.contact_person_name}
                                                 <span className="hidden sm:inline"> ({log.contact_category})</span>
                                             </p>
                                         </li>
@@ -152,8 +153,8 @@ export default function StudentProfile() {
                                         <li key={ev.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4 p-3 bg-slate-50 rounded-lg border">
                                             <div className="flex-1">
                                                 <p className="font-semibold text-sm sm:text-base">
-                                                    <span className="hidden sm:inline">{format(new Date(ev.date), 'EEEE, MMM d, yyyy')}</span>
-                                                    <span className="sm:hidden">{format(new Date(ev.date), 'MMM d, yyyy')}</span>
+                                                    <span className="hidden sm:inline">{formatDate(ev.date, 'EEEE, MMM d, yyyy')}</span>
+                                                    <span className="sm:hidden">{formatDate(ev.date, 'MMM d, yyyy')}</span>
                                                 </p>
                                                 <p className="text-xs sm:text-sm text-slate-500">Avg Score: {calculateAvgScore(ev)}</p>
                                             </div>

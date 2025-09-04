@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
+import { formatDate } from '@/utils';
 import { Printer, X } from 'lucide-react';
 
 export default function PrintContactLogsDialog({ open, onOpenChange, student, logs }) {
@@ -56,7 +57,7 @@ export default function PrintContactLogsDialog({ open, onOpenChange, student, lo
                   {logs.map(log => (
                     <div key={log.id} className="border border-slate-300 p-4 rounded-lg break-inside-avoid">
                       <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3">
-                        <div className="font-medium">Date: <span className="font-normal">{format(new Date(log.contact_date), 'MMMM d, yyyy')}</span></div>
+                        <div className="font-medium">Date: <span className="font-normal">{formatDate(log.contact_date, 'MMMM d, yyyy')}</span></div>
                         <div className="font-medium">Category: <span className="font-normal">{log.contact_category}</span></div>
                         <div className="col-span-2 font-medium">Contact Person: <span className="font-normal">{log.contact_person_name}</span></div>
                       </div>

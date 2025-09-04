@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@
 import { Button } from "@/components/ui/button";
 import { BehaviorSummary } from "@/api/entities";
 import { format } from 'date-fns';
+import { formatDate } from '@/utils';
 import { Printer, X, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -258,7 +259,7 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
                   <div className="info-row">
                     <span className="info-label">Report Period:</span>
                     <div className="info-box">
-                      {format(new Date(summary.date_range_start), 'MMM d, yyyy')} - {format(new Date(summary.date_range_end), 'MMM d, yyyy')}
+                      {formatDate(summary.date_range_start, 'MMM d, yyyy')} - {formatDate(summary.date_range_end, 'MMM d, yyyy')}
                     </div>
                   </div>
                   

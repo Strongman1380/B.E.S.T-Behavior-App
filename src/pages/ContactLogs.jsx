@@ -6,6 +6,7 @@ import { PlusCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from 'date-fns';
+import { formatDate } from '@/utils';
 import { Toaster, toast } from 'sonner';
 import ContactLogFormDialog from '../components/contacts/ContactLogFormDialog';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,7 +110,7 @@ export default function ContactLogs() {
                             contactLogs.map(log => (
                                 <TableRow key={log.id}>
                                     <TableCell className="font-medium">{studentMap.get(log.student_id) || 'Unknown Student'}</TableCell>
-                                    <TableCell>{format(new Date(log.contact_date), 'MMM d, yyyy')}</TableCell>
+                                    <TableCell>{formatDate(log.contact_date, 'MMM d, yyyy')}</TableCell>
                                     <TableCell>{log.contact_person_name}</TableCell>
                                     <TableCell><Badge variant="outline">{log.contact_category}</Badge></TableCell>
                                     <TableCell className="max-w-xs truncate">{log.purpose_of_contact}</TableCell>
@@ -143,7 +144,7 @@ export default function ContactLogs() {
                           <Card key={log.id} className="bg-white shadow-md">
                               <CardHeader className="pb-3 p-3 sm:p-4">
                                   <CardTitle className="text-base sm:text-lg">{studentMap.get(log.student_id) || 'Unknown'}</CardTitle>
-                                  <p className="text-xs sm:text-sm text-slate-500">{format(new Date(log.contact_date), 'MMM d, yyyy')}</p>
+                                  <p className="text-xs sm:text-sm text-slate-500">{formatDate(log.contact_date, 'MMM d, yyyy')}</p>
                               </CardHeader>
                               <CardContent className="space-y-2 sm:space-y-3 text-sm p-3 sm:p-4 pt-0">
                                   <div>
