@@ -43,3 +43,4 @@
 [1] 7:42:06 PM [vite] .env changed, restarting server...
 [1] 7:42:06 PM [vite] server restarted.
 [1] npm run dev exited with code 143
+[0] npm run server exited with code SIGTERM

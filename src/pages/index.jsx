@@ -20,7 +20,7 @@ function PagesContent() {
             <Suspense fallback={<div className="p-4">Loading...</div>}>
             <Routes>            
                 
-                    <Route path="/" element={<StudentEvaluation />} />
+                    <Route path="/" element={<BehaviorDashboard />} />
                 
                 
                 <Route path="/StudentEvaluation" element={<StudentEvaluation />} />

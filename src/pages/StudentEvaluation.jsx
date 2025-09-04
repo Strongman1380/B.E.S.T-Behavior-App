@@ -55,8 +55,12 @@ export default function StudentEvaluation() {
   useEffect(() => { 
     if (studentId) {
       loadData(); 
+    } else {
+      // Auto-redirect to dashboard if no student specified
+      setIsLoading(false);
+      navigate(createPageUrl("BehaviorDashboard"), { replace: true });
     }
-  }, [studentId, loadData]);
+  }, [studentId, loadData, navigate]);
 
   const saveEvaluation = async (evaluationData, showToast = true) => {
     setIsSaving(true);
@@ -104,7 +108,11 @@ export default function StudentEvaluation() {
       </div>
     </div>
   );
-  
+
+  // No student selected: we are redirecting
+  if (!studentId) return null;
+
+  // studentId present but student record not found
   if (!student) return (
     <div className="p-3 sm:p-4 md:p-6 lg:p-8 bg-slate-50 min-h-screen">
       <div className="text-center">
