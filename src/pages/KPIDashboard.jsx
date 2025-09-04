@@ -9,6 +9,7 @@ import {
   Calendar, Target, BarChart3, RefreshCw, Download, Trash2
 } from "lucide-react";
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
+import { parseYmd } from "@/utils";
 import { toast } from 'sonner';
 import ClearDataDialog from "@/components/kpi/ClearDataDialog";
 import EvaluationsCountCard from "@/components/kpi/EvaluationsCountCard";
@@ -99,11 +100,11 @@ export default function KPIDashboard() {
     const cutoffDate = subDays(getCurrentDate(), daysBack);
     
     let filteredEvaluations = evaluations.filter(evaluation => 
-      new Date(evaluation.date) >= cutoffDate
+      parseYmd(evaluation.date) >= cutoffDate
     );
     
     let filteredIncidents = incidents.filter(incident => 
-      new Date(incident.incident_date) >= cutoffDate
+      parseYmd(incident.incident_date) >= cutoffDate
     );
 
     if (selectedStudent !== 'all') {
@@ -334,7 +335,7 @@ export default function KPIDashboard() {
       const weekEnd = endOfWeek(weekStart);
       
       const weekEvals = filteredEvaluations.filter(evaluation => {
-        const evalDate = new Date(evaluation.date);
+        const evalDate = parseYmd(evaluation.date);
         return evalDate >= weekStart && evalDate <= weekEnd;
       });
 

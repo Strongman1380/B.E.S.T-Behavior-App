@@ -7,6 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Save } from "lucide-react";
 import { format } from "date-fns";
+import { parseYmd } from "@/utils";
 
 // Removed BehaviorCheckbox import - no longer using checkboxes
 
@@ -24,8 +25,8 @@ export default function SummaryForm({ summary, settings, onSave, isSaving }) {
 
   useEffect(() => {
     const newFormData = {
-      date_range_start: summary?.date_range_start ? new Date(summary.date_range_start) : new Date(),
-      date_range_end: summary?.date_range_end ? new Date(summary.date_range_end) : new Date(),
+      date_range_start: summary?.date_range_start ? parseYmd(summary.date_range_start) : new Date(),
+      date_range_end: summary?.date_range_end ? parseYmd(summary.date_range_end) : new Date(),
       prepared_by: summary?.prepared_by || settings?.teacher_name || '',
       general_behavior_overview: summary?.general_behavior_overview || '',
       strengths: summary?.strengths || '',

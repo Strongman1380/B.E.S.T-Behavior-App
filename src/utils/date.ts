@@ -1,4 +1,4 @@
-import { format, parse } from 'date-fns'
+import { format, parse, isSameYear, isSameMonth } from 'date-fns'
 
 export const YMD = 'yyyy-MM-dd'
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -23,3 +23,20 @@ export function todayYmd(date: Date = new Date()): string {
   return format(date, YMD)
 }
 
+// Human-friendly date range formatting.
+// Examples:
+// - Sep 1–3, 2025
+// - Aug 30 – Sep 3, 2025
+// - Dec 31, 2024 – Jan 2, 2025
+export function formatDateRange(start: Date | string, end: Date | string): string {
+  if (!start || !end) return ''
+  const s = typeof start === 'string' && isYmd(start) ? parseYmd(start) : new Date(start)
+  const e = typeof end === 'string' && isYmd(end) ? parseYmd(end) : new Date(end)
+  if (isSameYear(s, e)) {
+    if (isSameMonth(s, e)) {
+      return `${format(s, 'MMM d')}–${format(e, 'd, yyyy')}`
+    }
+    return `${format(s, 'MMM d')} – ${format(e, 'MMM d, yyyy')}`
+  }
+  return `${format(s, 'MMM d, yyyy')} – ${format(e, 'MMM d, yyyy')}`
+}
