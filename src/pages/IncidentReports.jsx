@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, Search, Calendar, User, Plus, Eye, Trash2 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
+import { formatDate } from "@/utils";
 import { toast } from 'sonner';
 import IncidentReportDialog from "../components/behavior/IncidentReportDialog";
 
@@ -298,7 +299,7 @@ export default function IncidentReports() {
                       {filteredReports.map(report => (
                         <TableRow key={report.id}>
                           <TableCell className="font-medium">
-                            {format(parseISO(report.incident_date), 'MMM d, yyyy')}
+                            {formatDate(report.incident_date, 'MMM d, yyyy')}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -349,7 +350,7 @@ export default function IncidentReports() {
                             <p className="font-semibold text-slate-900 text-sm">{getStudentName(report.student_id)}</p>
                           </div>
                           <p className="text-xs text-slate-500">
-                            {format(parseISO(report.incident_date), 'MMM d, yyyy')} • {report.staff_name}
+                            {formatDate(report.incident_date, 'MMM d, yyyy')} • {report.staff_name}
                           </p>
                         </div>
                         <div className="flex gap-1">
