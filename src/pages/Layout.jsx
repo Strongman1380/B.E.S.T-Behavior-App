@@ -7,7 +7,6 @@ import RealTimeSync from '../components/sync/RealTimeSync';
 import SupabaseStatus from '../components/SupabaseStatus';
 import SupabaseHealth from '../components/SupabaseHealth';
 import DeploymentLinks from '../components/DeploymentLinks';
-import DbStatusBanner from '../components/DbStatusBanner';
 
 const navItems = [
     { title: 'Dashboard', icon: LayoutDashboard, url: createPageUrl('BehaviorDashboard') },
@@ -90,7 +89,6 @@ export default function Layout({ children }) {
                     </div>
                 </header>
                 <main className="flex-1 overflow-y-auto mobile-scroll safe-area-bottom">
-                    <DbStatusBanner />
                     {children}
                 </main>
             </div>
