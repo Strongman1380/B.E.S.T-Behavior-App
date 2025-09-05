@@ -25,8 +25,8 @@ export default function PrintAllDialog({ open, onOpenChange, students, evaluatio
             .time-cell { width: 28%; text-align: center; font-size: 12px; }
             .rating-cell { width: 18%; text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 2px; }
             .comment-cell { width: 54%; font-size: 12px; min-height: 48px; }
-            .rating-cell .num { opacity: .5; margin: 0 6px; }
-            .rating-cell .num.selected { opacity: 1; }
+            .rating-cell .num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; margin: 0 6px; font-weight: 700; }
+            .rating-cell .num.selected { border-color: #000; }
             .scale { margin-top: 12px; font-size: 12px; }
             .scale b { display: block; margin-bottom: 4px; }
             .comments { margin-top: 12px; }
