@@ -223,31 +223,31 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       }
     }).join('\n\n');
 
-    const prompt = `You are an expert educational psychologist analyzing comprehensive student behavioral data from multiple sources. Based on ALL the following behavioral information from a student's daily evaluations, incident reports, and contact logs, generate a comprehensive behavior summary report.
+    const prompt = `You are a friendly but professional educational specialist analyzing student behavior data. Based on ALL the behavioral information from daily evaluations, incident reports, and contact logs, create a casual yet professional behavior summary that feels natural and conversational.
 
 BEHAVIORAL DATA TO ANALYZE:
 ${commentsText}
 
-Please analyze ALL the behavioral information provided and generate content for each section of a behavior summary report. Pay special attention to:
+Please analyze ALL the behavioral information and create content for each section. Keep it conversational and natural, like you're talking to a colleague about the student, but still professional and appropriate for educational documentation.
 
-1. Patterns across different time slots throughout the day
-2. Consistency of behavior across different days
-3. Specific incidents and their context
-4. Communication with parents/guardians and outcomes
-5. Both positive behaviors and areas needing improvement
-6. Any trends in ratings and comments over time
+Focus on:
+1. Daily patterns and consistency across time slots
+2. How the student interacts with others throughout the day
+3. Both the good stuff and areas that need attention
+4. Any specific incidents and what happened
+5. Communication with parents and how that went
 
-Generate content for these sections:
+Create content for these sections:
 
-1. GENERAL BEHAVIOR OVERVIEW: Write 2-3 comprehensive sentences summarizing the student's overall behavior patterns, trends, and general demeanor observed across all time slots, days, incidents, and communications.
+1. GENERAL BEHAVIOR OVERVIEW: Write 2-3 sentences in a conversational tone about the student's overall behavior. Make it feel like you're chatting about the student with another teacher - friendly but professional.
 
-2. STRENGTHS: List 3-5 specific behavioral strengths or positive qualities demonstrated by the student, with specific examples from the comments, ratings, and incidents.
+2. STRENGTHS: List 3-5 positive qualities or behaviors you've noticed, with specific examples. Keep it encouraging and specific, like you're highlighting what the student does well.
 
-3. IMPROVEMENTS NEEDED: Identify 2-4 areas where the student could benefit from improvement or additional support, with specific examples from the comments, low ratings, and incident reports.
+3. IMPROVEMENTS NEEDED: Mention 2-4 areas where the student could use some extra support or practice. Be gentle and constructive, focusing on growth opportunities rather than just problems.
 
-4. BEHAVIORAL INCIDENTS: Document any specific behavioral incidents, conflicts, or concerning behaviors noted, including dates, context, and any follow-up actions mentioned.
+4. BEHAVIORAL INCIDENTS: Note any specific incidents or challenging moments, including what happened and any follow-up. Keep it factual and neutral, like you're documenting events for the record.
 
-5. SUMMARY & RECOMMENDATIONS: Provide 2-3 actionable recommendations for supporting the student's behavioral development, based on all patterns observed in the evaluations, incidents, and communications.
+5. SUMMARY & RECOMMENDATIONS: Share 2-3 practical suggestions for supporting the student's growth. Make them feel actionable and realistic, like helpful tips you'd give to another educator.
 
 Format your response as a JSON object with these exact keys:
 {
@@ -258,7 +258,7 @@ Format your response as a JSON object with these exact keys:
   "recommendations": "content here"
 }
 
-Be extremely specific, professional, and use concrete examples from ALL the behavioral data provided. Focus on comprehensive patterns and trends rather than isolated incidents. Consider the full context from daily evaluations, incident reports, and parent communications.`;
+Use everyday language that's easy to read, but keep it appropriate for school documentation. Focus on being supportive and solution-oriented rather than just pointing out problems. Make it feel like helpful feedback from someone who genuinely cares about the student's success.`;
 
     try {
       const completion = await openai.chat.completions.create({
@@ -266,14 +266,14 @@ Be extremely specific, professional, and use concrete examples from ALL the beha
         messages: [
           {
             role: "system",
-            content: "You are an expert at analyzing student behavior evaluation comments and creating comprehensive, professional behavior summary reports."
+            content: "You are a friendly educational specialist who creates helpful, conversational behavior summaries that feel natural and supportive while remaining professional for school documentation."
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        temperature: 0.7,
+        temperature: 0.8,
         max_tokens: 1500
       });
 
