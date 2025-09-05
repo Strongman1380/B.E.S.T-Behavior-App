@@ -192,7 +192,6 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
           <DialogTitle>Print Report for {student?.student_name}</DialogTitle>
           <div className="flex items-center gap-2">
             <Button onClick={handlePrint}><Printer className="w-4 h-4 mr-2"/>Print</Button>
-            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}><X className="w-4 h-4"/></Button>
           </div>
         </DialogHeader>
         <div id="single-print-area" className="p-4 max-h-[75vh] overflow-y-auto">

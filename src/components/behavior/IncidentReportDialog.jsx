@@ -267,9 +267,7 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
                 {isSaving ? 'Saving...' : 'Save Report'}
               </Button>
             )}
-            <DialogClose asChild>
-              <Button variant="ghost" size="icon"><X className="w-4 h-4"/></Button>
-            </DialogClose>
+            {/* Default DialogContent provides a close button; avoid duplicate X */}
           </div>
         </DialogHeader>
         

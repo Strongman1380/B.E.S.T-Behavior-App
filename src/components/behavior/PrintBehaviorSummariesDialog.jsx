@@ -229,9 +229,6 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
             <Button onClick={handlePrint} disabled={printableSummaries.length === 0 || isLoading}>
               <Printer className="w-4 h-4 mr-2"/>Print All
             </Button>
-            <DialogClose asChild>
-              <Button variant="ghost" size="icon"><X className="w-4 h-4"/></Button>
-            </DialogClose>
           </div>
         </DialogHeader>
         

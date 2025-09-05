@@ -45,7 +45,6 @@ export default function PrintContactLogsDialog({ open, onOpenChange, student, lo
             <DialogTitle>Print Contact Logs for {student.student_name}</DialogTitle>
             <div className="flex items-center gap-2">
                 <Button onClick={handlePrint}><Printer className="w-4 h-4 mr-2"/>Print</Button>
-                <DialogClose asChild><Button variant="ghost" size="icon"><X/></Button></DialogClose>
             </div>
         </DialogHeader>
         <div id="print-logs-area" className="flex-grow overflow-y-auto p-2 bg-slate-100">
