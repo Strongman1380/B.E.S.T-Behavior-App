@@ -27,113 +27,23 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
         <head>
           <title>Print Report</title>
           <style>
-            body { 
-              font-family: Arial, sans-serif; 
-              margin: 0; 
-              padding: 10px; 
-              font-size: 10px;
-              line-height: 1.2;
-            }
-            .rating-circle { 
-              display: inline-block; 
-              width: 18px; 
-              height: 18px; 
-              border: 1.5px solid #666; 
-              border-radius: 50%; 
-              text-align: center; 
-              line-height: 15px; 
-              margin-right: 4px; 
-              font-size: 9px;
-              font-weight: bold;
-            }
-            .rating-circle.selected { 
-              background-color: #333; 
-              color: white; 
-              border-color: #333; 
-            }
-            /* Smiley removed: 4's represent recognition */
-            .time-slot { 
-              display: flex;
-              border: 1px solid #ddd; 
-              padding: 6px; 
-              margin: 2px 0; 
-              border-radius: 3px; 
-              page-break-inside: avoid;
-              align-items: flex-start;
-            }
-            .time-section {
-              width: 45px;
-              flex-shrink: 0;
-            }
-            .rating-section {
-              width: 120px;
-              flex-shrink: 0;
-              display: flex;
-              align-items: center;
-            }
-            .comment-section {
-              flex: 1;
-              margin-left: 8px;
-              padding: 4px 6px;
-              background-color: #f8f9fa;
-              border: 1px solid #e9ecef;
-              border-radius: 2px;
-              min-height: 20px;
-              font-size: 9px;
-            }
-            .header { 
-              margin-bottom: 12px; 
-              text-align: center;
-            }
-            .time-header {
-              font-size: 11px;
-              font-weight: bold;
-            }
-            .general-comments {
-              margin-top: 12px;
-              page-break-inside: avoid;
-            }
-            .general-comments-box {
-              padding: 6px;
-              border: 1px solid #ddd;
-              border-radius: 3px;
-              min-height: 30px;
-              font-size: 9px;
-              background-color: #f8f9fa;
-            }
-            h1 { 
-              font-size: 16px; 
-              font-weight: bold; 
-              margin: 0 0 4px 0; 
-            }
-            h2 { 
-              font-size: 12px; 
-              font-weight: bold; 
-              margin: 8px 0 4px 0; 
-            }
-            .date-teacher { 
-              font-size: 11px; 
-              margin: 1px 0; 
-              color: #666; 
-            }
-            @media print {
-              body { 
-                font-size: 9px !important; 
-                padding: 8px !important;
-              }
-              .time-slot {
-                margin: 1px 0 !important;
-                padding: 4px !important;
-              }
-              .comment-section {
-                min-height: 18px !important;
-                font-size: 8px !important;
-              }
-              .general-comments-box {
-                min-height: 25px !important;
-                font-size: 8px !important;
-              }
-            }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 16px; color: #000; }
+            .title { text-align: center; font-size: 22px; font-weight: 800; letter-spacing: .5px; margin-bottom: 6px; text-transform: uppercase; }
+            .meta { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+            .meta .label { font-weight: 600; }
+            table.schedule { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            table.schedule th, table.schedule td { border: 1px solid #000; padding: 10px; vertical-align: top; }
+            table.schedule th { background: #f4f4f4; text-align: center; font-weight: 700; }
+            .time-cell { width: 28%; text-align: center; font-size: 12px; }
+            .rating-cell { width: 18%; text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 2px; }
+            .comment-cell { width: 54%; font-size: 12px; min-height: 48px; }
+            .rating-cell .num { opacity: .5; margin: 0 6px; }
+            .rating-cell .num.selected { opacity: 1; }
+            .scale { margin-top: 12px; font-size: 12px; }
+            .scale b { display: block; margin-bottom: 4px; }
+            .comments { margin-top: 12px; }
+            .comments .box { border: 2px solid #cfcfcf; background: #f3f3f3; padding: 10px; min-height: 90px; font-size: 12px; }
+            .comments .label { font-weight: 700; margin-bottom: 4px; }
           </style>
         </head>
         <body>${printContent}</body>
@@ -153,16 +63,16 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
     return parseTime(a[0]) - parseTime(b[0]);
   };
 
-  // Define valid time slots to prevent phantom slots
-  const validTimeSlots = ["8:30", "9:10", "9:50", "10:30", "11:10", "1:10", "1:50", "2:30"];
-
-  // Filter time slots to only show valid ones
-  const getValidTimeSlots = (timeSlots) => {
-    if (!timeSlots) return [];
-    return Object.entries(timeSlots)
-      .filter(([time]) => validTimeSlots.includes(time))
-      .sort(sortTimeSlots);
-  };
+  const rows = [
+    { key: '8:30', label: '8:30 a.m. to 9:10 a.m.' },
+    { key: '9:10', label: '9:10 AM to 9:50 AM' },
+    { key: '9:50', label: '9:50 AM to 10:30 AM' },
+    { key: '10:30', label: '10:30 AM to 11:10 AM' },
+    { key: '11:10', label: '11:10 AM to lunch' },
+    { key: '1:10', label: 'after lunch to 1:10 PM' },
+    { key: '1:50', label: '1:10 PM to 1:50 PM' },
+    { key: '2:30', label: '1:50 PM to 2:30 PM' },
+  ];
 
   if (!evaluation || !evaluation.time_slots || Object.keys(evaluation.time_slots).length === 0) {
     return (
@@ -195,49 +105,47 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
           </div>
         </DialogHeader>
         <div id="single-print-area" className="p-4 max-h-[75vh] overflow-y-auto">
-          <div className="header">
-            <h1>{student?.student_name}’s Daily Report</h1>
-            <div className="date-teacher">Date: {formatDate(date, 'MMMM d, yyyy')}</div>
-            <div className="date-teacher">Teacher: {evaluation.teacher_name || settings?.teacher_name || 'Not Set'}</div>
+          <div className="title">BEHAVIOR MONITORING SCHEDULE</div>
+          <div className="meta">
+            <div><span class="label">Student Name:</span> {student?.student_name}</div>
+            <div><span class="label">Date:</span> {formatDate(date, 'MMMM d, yyyy')}</div>
           </div>
-          
-          <div>
-            {getValidTimeSlots(evaluation.time_slots).map(([time, data]) => {
-              const isDismissed = time === "2:30";
-              return (
-                <div key={time} className="time-slot">
-                  <div className="time-section">
-                    <div className="time-header">{time}</div>
-                  </div>
-                  <div className="rating-section">
-                    {isDismissed ? (
-                      <span style={{fontWeight: 'bold', fontSize: '10px'}}>{data?.status || 'N/A'}</span>
-                    ) : (
-                      <span>
-                        {[4, 3, 2, 1].map(rating => (
-                          <span 
-                            key={rating} 
-                            className={`rating-circle ${data?.rating === rating ? 'selected' : ''}`}
-                          >
-                            {rating}
-                          </span>
-                        ))}
-                      </span>
-                    )}
-                  </div>
-                  <div className="comment-section">
-                    {data?.comment || 'No comment'}
-                  </div>
-                </div>
-              );
-            })}
+          <table className="schedule">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Rating</th>
+                <th>Observation/Notes/Comments</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r => {
+                const data = evaluation?.time_slots?.[r.key] || {};
+                const selected = typeof data?.rating === 'number' ? data.rating : null;
+                return (
+                  <tr key={r.key}>
+                    <td className="time-cell">{r.label}</td>
+                    <td className="rating-cell">
+                      {[1,2,3,4].map(n => (
+                        <span key={n} className={`num ${selected === n ? 'selected' : ''}`}>{n}</span>
+                      ))}
+                    </td>
+                    <td className="comment-cell">{data?.comment || ''}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className="scale">
+            <b>BEHAVIOR RATING SCALE</b>
+            4 = Exceeds expectations<br/>
+            3 = Meets expectations<br/>
+            2 = Needs Improvement/Does not meet expectations<br/>
+            1 = Unsatisfactory Behavior
           </div>
-          
-          <div className="general-comments">
-            <h2>General Comments</h2>
-            <div className="general-comments-box">
-              {evaluation.general_comments || 'No general comments'}
-            </div>
+          <div className="comments">
+            <div className="label">COMMENTS:</div>
+            <div className="box">{evaluation?.general_comments || ''}</div>
           </div>
         </div>
       </DialogContent>
