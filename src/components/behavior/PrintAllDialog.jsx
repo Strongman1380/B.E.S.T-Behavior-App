@@ -1,9 +1,8 @@
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
-import { formatDate } from '@/utils';
-import { Printer, X } from 'lucide-react';
+import { Printer } from 'lucide-react';
 
 export default function PrintAllDialog({ open, onOpenChange, students, evaluations, settings, date }) {
   const handlePrint = () => {
