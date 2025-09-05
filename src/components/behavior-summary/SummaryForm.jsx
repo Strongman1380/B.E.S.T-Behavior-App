@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Save, Sparkles, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { parseYmd } from "@/utils";
-import { DailyEvaluation } from "@/api/entities";
+import { DailyEvaluation, IncidentReport, ContactLog } from "@/api/entities";
 import { toast } from 'sonner';
 import OpenAI from 'openai';
 
@@ -64,19 +64,34 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       const startDate = format(formData.date_range_start, 'yyyy-MM-dd');
       const endDate = format(formData.date_range_end, 'yyyy-MM-dd');
 
-      const evaluations = await DailyEvaluation.filter({
-        student_id: studentId,
-        date_from: startDate,
-        date_to: endDate
-      });
+      // Fetch ALL relevant data for comprehensive analysis
+      const [evaluations, incidents, contacts] = await Promise.all([
+        DailyEvaluation.filter({
+          student_id: studentId,
+          date_from: startDate,
+          date_to: endDate
+        }),
+        IncidentReport.filter({
+          student_id: studentId,
+          incident_date_from: startDate,
+          incident_date_to: endDate
+        }),
+        ContactLog.filter({
+          student_id: studentId,
+          contact_date_from: startDate,
+          contact_date_to: endDate
+        })
+      ]);
 
-      if (evaluations.length === 0) {
-        toast.error('No evaluations found for the selected date range');
+      if (evaluations.length === 0 && incidents.length === 0 && contacts.length === 0) {
+        toast.error('No data found for the selected date range');
         return;
       }
 
-      // Extract all comments - comprehensive collection
+      // Extract ALL comments and behavioral information
       const allComments = [];
+
+      // Process daily evaluations - ALL comments from time slots and general comments
       evaluations.forEach(evaluation => {
         // Add general comments
         if (evaluation.general_comments && evaluation.general_comments.trim()) {
@@ -84,11 +99,12 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
             type: 'general',
             date: evaluation.date,
             content: evaluation.general_comments.trim(),
-            context: 'Overall daily evaluation summary'
+            context: 'Overall daily evaluation summary',
+            source: 'daily_evaluation'
           });
         }
 
-        // Add time slot comments - comprehensive extraction
+        // Add ALL time slot comments - comprehensive extraction
         if (evaluation.time_slots) {
           Object.entries(evaluation.time_slots).forEach(([slot, data]) => {
             if (data && data.comment && data.comment.trim()) {
@@ -111,19 +127,55 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
                 slotLabel: timeSlotLabels[slot] || slot,
                 rating: data.rating,
                 content: data.comment.trim(),
-                context: `Time slot: ${timeSlotLabels[slot] || slot}`
+                context: `Time slot: ${timeSlotLabels[slot] || slot}`,
+                source: 'daily_evaluation'
               });
             }
           });
         }
       });
 
+      // Process incident reports for additional behavioral context
+      incidents.forEach(incident => {
+        if (incident.incident_description) {
+          allComments.push({
+            type: 'incident',
+            date: incident.incident_date,
+            content: incident.incident_description,
+            context: `Incident Report - ${incident.incident_type || 'General Incident'}`,
+            source: 'incident_report'
+          });
+        }
+      });
+
+      // Process contact logs for additional context
+      contacts.forEach(contact => {
+        if (contact.outcome_of_contact) {
+          allComments.push({
+            type: 'contact',
+            date: contact.contact_date,
+            content: contact.outcome_of_contact,
+            context: `Contact with ${contact.contact_person_name} - ${contact.contact_category}`,
+            source: 'contact_log'
+          });
+        }
+        if (contact.purpose_of_contact) {
+          allComments.push({
+            type: 'contact_purpose',
+            date: contact.contact_date,
+            content: contact.purpose_of_contact,
+            context: `Contact purpose with ${contact.contact_person_name}`,
+            source: 'contact_log'
+          });
+        }
+      });
+
       if (allComments.length === 0) {
-        toast.error('No comments found in evaluations for the selected date range');
+        toast.error('No behavioral information found in evaluations, incidents, or contacts for the selected date range');
         return;
       }
 
-      // Use AI to analyze and generate comprehensive summaries
+      // Use AI to analyze and generate comprehensive summaries from ALL data
       const analysis = await analyzeCommentsWithAI(allComments);
 
       // Update form data with AI-generated content
@@ -136,7 +188,7 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
         summary_recommendations: analysis.recommendations
       }));
 
-      toast.success('AI-powered comprehensive summary generated from ALL evaluation comments!');
+      toast.success(`AI-powered comprehensive summary generated from ALL ${allComments.length} behavioral records!`);
 
     } catch (error) {
       console.error('Error generating AI summary:', error);
@@ -152,32 +204,50 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       dangerouslyAllowBrowser: true
     });
 
-    // Prepare comments for AI analysis
+    // Prepare ALL behavioral information for AI analysis
     const commentsText = comments.map(comment => {
       const dateStr = new Date(comment.date).toLocaleDateString();
-      if (comment.type === 'general') {
-        return `Date: ${dateStr} - General Comment: ${comment.content}`;
-      } else {
-        return `Date: ${dateStr} - ${comment.slotLabel} (Rating: ${comment.rating}/4): ${comment.content}`;
+      switch (comment.type) {
+        case 'general':
+          return `Date: ${dateStr} - GENERAL COMMENT: ${comment.content}`;
+        case 'time_slot':
+          return `Date: ${dateStr} - ${comment.slotLabel} (Rating: ${comment.rating}/4): ${comment.content}`;
+        case 'incident':
+          return `Date: ${dateStr} - INCIDENT REPORT: ${comment.content}`;
+        case 'contact':
+          return `Date: ${dateStr} - CONTACT LOG: ${comment.content}`;
+        case 'contact_purpose':
+          return `Date: ${dateStr} - CONTACT PURPOSE: ${comment.content}`;
+        default:
+          return `Date: ${dateStr} - ${comment.context}: ${comment.content}`;
       }
     }).join('\n\n');
 
-    const prompt = `You are an expert educational psychologist analyzing student behavior evaluation comments. Based on the following comments from a student's daily behavior evaluations, generate a comprehensive behavior summary report.
+    const prompt = `You are an expert educational psychologist analyzing comprehensive student behavioral data from multiple sources. Based on ALL the following behavioral information from a student's daily evaluations, incident reports, and contact logs, generate a comprehensive behavior summary report.
 
-COMMENTS TO ANALYZE:
+BEHAVIORAL DATA TO ANALYZE:
 ${commentsText}
 
-Please generate content for each of these sections of a behavior summary report:
+Please analyze ALL the behavioral information provided and generate content for each section of a behavior summary report. Pay special attention to:
 
-1. GENERAL BEHAVIOR OVERVIEW: Write 2-3 sentences summarizing the student's overall behavior patterns, trends, and general demeanor observed across all time slots and days.
+1. Patterns across different time slots throughout the day
+2. Consistency of behavior across different days
+3. Specific incidents and their context
+4. Communication with parents/guardians and outcomes
+5. Both positive behaviors and areas needing improvement
+6. Any trends in ratings and comments over time
 
-2. STRENGTHS: List 3-5 specific behavioral strengths or positive qualities demonstrated by the student, with specific examples from the comments.
+Generate content for these sections:
 
-3. IMPROVEMENTS NEEDED: Identify 2-4 areas where the student could benefit from improvement or additional support, with specific examples from the comments.
+1. GENERAL BEHAVIOR OVERVIEW: Write 2-3 comprehensive sentences summarizing the student's overall behavior patterns, trends, and general demeanor observed across all time slots, days, incidents, and communications.
 
-4. BEHAVIORAL INCIDENTS: Document any specific behavioral incidents, conflicts, or concerning behaviors noted, including dates and context where available.
+2. STRENGTHS: List 3-5 specific behavioral strengths or positive qualities demonstrated by the student, with specific examples from the comments, ratings, and incidents.
 
-5. SUMMARY & RECOMMENDATIONS: Provide 2-3 actionable recommendations for supporting the student's behavioral development, based on the patterns observed in the comments.
+3. IMPROVEMENTS NEEDED: Identify 2-4 areas where the student could benefit from improvement or additional support, with specific examples from the comments, low ratings, and incident reports.
+
+4. BEHAVIORAL INCIDENTS: Document any specific behavioral incidents, conflicts, or concerning behaviors noted, including dates, context, and any follow-up actions mentioned.
+
+5. SUMMARY & RECOMMENDATIONS: Provide 2-3 actionable recommendations for supporting the student's behavioral development, based on all patterns observed in the evaluations, incidents, and communications.
 
 Format your response as a JSON object with these exact keys:
 {
@@ -188,7 +258,7 @@ Format your response as a JSON object with these exact keys:
   "recommendations": "content here"
 }
 
-Be specific, professional, and use concrete examples from the comments provided. Focus on patterns and trends rather than isolated incidents.`;
+Be extremely specific, professional, and use concrete examples from ALL the behavioral data provided. Focus on comprehensive patterns and trends rather than isolated incidents. Consider the full context from daily evaluations, incident reports, and parent communications.`;
 
     try {
       const completion = await openai.chat.completions.create({
