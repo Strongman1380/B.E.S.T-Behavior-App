@@ -251,7 +251,7 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-        <DialogHeader className="flex-row items-center justify-between">
+        <DialogHeader className="flex-row items-center justify-between pr-10">
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
             {readOnly ? 'View' : 'Create'} Incident Report - {formData.student_name || student?.student_name}

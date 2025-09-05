@@ -188,7 +188,7 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl">
-        <DialogHeader className="flex-row items-center justify-between">
+        <DialogHeader className="flex-row items-center justify-between pr-10">
           <DialogTitle>Print Report for {student?.student_name}</DialogTitle>
           <div className="flex items-center gap-2">
             <Button onClick={handlePrint}><Printer className="w-4 h-4 mr-2"/>Print</Button>

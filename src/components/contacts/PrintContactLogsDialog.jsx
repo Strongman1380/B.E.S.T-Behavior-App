@@ -41,7 +41,7 @@ export default function PrintContactLogsDialog({ open, onOpenChange, student, lo
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-        <DialogHeader className="flex-row items-center justify-between no-print">
+        <DialogHeader className="flex-row items-center justify-between no-print pr-10">
             <DialogTitle>Print Contact Logs for {student.student_name}</DialogTitle>
             <div className="flex items-center gap-2">
                 <Button onClick={handlePrint}><Printer className="w-4 h-4 mr-2"/>Print</Button>

@@ -106,7 +106,7 @@ export default function PrintAllDialog({ open, onOpenChange, students, evaluatio
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-        <DialogHeader className="flex-row items-center justify-between">
+        <DialogHeader className="flex-row items-center justify-between pr-10">
             <DialogTitle>Print All Daily Reports</DialogTitle>
             <div className="flex items-center gap-2">
                 <Button onClick={handlePrint} disabled={evaluations.length === 0}><Printer className="w-4 h-4 mr-2"/>Print</Button>
