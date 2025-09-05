@@ -289,7 +289,7 @@ export default function KPIDashboard() {
   // Get time slot performance analysis
   const getTimeSlotAnalysis = () => {
     const { filteredEvaluations } = getFilteredData();
-    const timeSlots = ['8:30', '9:10', '9:50', '10:30', '11:10', '1:10', '1:50'];
+    const timeSlots = ['8:30', '9:10', '9:50', '10:30', '11:10', '1:10', '1:50', '2:30'];
     
     return timeSlots.map(slot => {
       let totalRatings = 0;

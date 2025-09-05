@@ -1,16 +1,10 @@
 import { Textarea } from "@/components/ui/textarea";
 
-export default function TimeSlotRating({ time, data, onChange }) {
+export default function TimeSlotRating({ timeKey, label, data, onChange }) {
   const safeData = data || {};
-  const isDismissed = time === "2:30";
 
   const handleRatingChange = (value) => {
     const newData = { ...safeData, rating: value };
-    onChange(newData);
-  };
-  
-  const handleStatusChange = (value) => {
-    const newData = { ...safeData, status: value };
     onChange(newData);
   };
   
@@ -22,31 +16,15 @@ export default function TimeSlotRating({ time, data, onChange }) {
   // Smiley toggle removed; 4's indicate exceeding expectations.
   
   const ratingOptions = [4, 3, 2, 1];
-  const statusOptions = ["PRESENT", "DISMISSED"];
+  // No special status for dismissal; all time slots use 1–4 ratings.
 
   return (
     <div className="p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-lg">
       <div className="flex flex-col gap-3">
-        <div className="font-bold text-base sm:text-lg text-slate-800">{time}</div>
+        <div className="font-bold text-base sm:text-lg text-slate-800">{label || timeKey}</div>
         
         <div className="flex items-center gap-2 flex-wrap">
-          {isDismissed ? (
-            statusOptions.map(status => (
-              <button
-                key={status}
-                type="button"
-                onClick={() => handleStatusChange(status)}
-                className={`px-3 py-2 sm:py-1 rounded border text-sm font-medium transition-colors min-h-[44px] sm:min-h-[auto] ${
-                  safeData.status === status
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-slate-700 border-slate-300 hover:border-blue-300'
-                }`}
-              >
-                {status}
-              </button>
-            ))
-          ) : (
-            ratingOptions.map(rating => (
+            {ratingOptions.map(rating => (
               <button
                 key={rating}
                 type="button"
@@ -59,8 +37,7 @@ export default function TimeSlotRating({ time, data, onChange }) {
               >
                 {rating}
               </button>
-            ))
-          )}
+            ))}
 
         </div>
         

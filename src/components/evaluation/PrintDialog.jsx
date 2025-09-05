@@ -3,64 +3,54 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { FileText, Download } from "lucide-react";
 import { format } from "date-fns";
 import { formatDate } from "@/utils";
+import { TIME_SLOTS } from "@/config/timeSlots";
 
 export default function PrintDialog({ open, onOpenChange, student, evaluation, settings, date }) {
   const generatePrintContent = () => {
     if (!evaluation) return '';
 
+    const rows = TIME_SLOTS;
     return `
-      <div style="padding: 20px; font-family: Arial, sans-serif;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
-          <div>
-            <strong>Student's Name:</strong> ${student.name}
-          </div>
-          <div>
-            <strong>Date:</strong> ${formatDate(date, 'M/d/yy')}
-          </div>
+      <div style="padding: 16px; font-family: Arial, sans-serif; color: #000;">
+        <div style="text-align:center; font-size:22px; font-weight:800; letter-spacing:.5px; margin-bottom:6px; text-transform:uppercase;">BEHAVIOR MONITORING SCHEDULE</div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;">
+          <div><span style="font-weight:600;">Student Name:</span> ${student.name}</div>
+          <div><span style="font-weight:600;">Date:</span> ${formatDate(date, 'MMMM d, yyyy')}</div>
         </div>
-        <div style="margin-bottom: 30px;">
-          <strong>Teacher's Name:</strong> ${evaluation.teacher_name || settings?.teacher_name || ''}
-          <span style="margin-left: 40px;"><strong>School:</strong> ${evaluation.school || settings?.school_name || ''}</span>
-        </div>
-        
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-          ${Object.entries(evaluation.time_slots || {}).map(([time, data]) => {
-            if (time === '2:30') {
+        <table style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="border:1px solid #000; padding:10px; background:#f4f4f4;">Time</th>
+              <th style="border:1px solid #000; padding:10px; background:#f4f4f4;">Rating</th>
+              <th style="border:1px solid #000; padding:10px; background:#f4f4f4;">Observation/Notes/Comments</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => {
+              const d = (evaluation.time_slots || {})[r.key] || {};
+              const selected = typeof d.rating === 'number' ? d.rating : null;
               return `
                 <tr>
-                  <td style="padding: 8px; border-bottom: 1px solid #ccc; width: 60px;">${time}</td>
-                  <td style="padding: 8px; border-bottom: 1px solid #ccc; text-align: center; width: 120px;">${data.status || ''}</td>
-                  <td style="padding: 8px; border-bottom: 1px solid #ccc;">${data.comment || ''}</td>
-                </tr>
-              `;
-            } else {
-              return `
-                <tr>
-                  <td style="padding: 8px; border-bottom: 1px solid #ccc; width: 60px;">${time}</td>
-                  <td style="padding: 8px; border-bottom: 1px solid #ccc; text-align: center; width: 120px;">
-                    ${[1,2,3,4].map(num => 
-                      `<span style="margin: 0 5px; ${data.rating === num ? 'background: #000; color: #fff; padding: 2px 6px; border-radius: 50%;' : ''}">${num}</span>`
-                    ).join('')}
+                  <td style="border:1px solid #000; padding:10px; vertical-align:top; text-align:center; width:28%; font-size:12px;">${r.label}</td>
+                  <td style="border:1px solid #000; padding:10px; vertical-align:top; text-align:center; width:18%; font-size:16px; font-weight:700; letter-spacing:2px;">
+                    ${[1,2,3,4].map(n => `<span style=\"margin:0 6px; opacity:${selected===n?1:0.5}\">${n}</span>`).join('')}
                   </td>
-                  <td style="padding: 8px; border-bottom: 1px solid #ccc;">${data.comment || ''}</td>
+                  <td style="border:1px solid #000; padding:10px; vertical-align:top; width:54%; font-size:12px;">${d.comment || ''}</td>
                 </tr>
-              `;
-            }
-          }).join('')}
+              `
+            }).join('')}
+          </tbody>
         </table>
-        
-        <div style="margin-bottom: 30px;">
-          <div><strong>4 = Productive, cooperative and on task!</strong></div>
-          <div><strong>3 = Needs to Show Improvement!</strong></div>
-          <div><strong>2 = Showing Disruptive Behaviors!</strong></div>
-          <div><strong>1 = Unable to redirect from negative behavior!</strong></div>
+        <div style="margin-top:12px; font-size:12px;">
+          <b style="display:block; margin-bottom:4px;">BEHAVIOR RATING SCALE</b>
+          4 = Exceeds expectations<br/>
+          3 = Meets expectations<br/>
+          2 = Needs Improvement/Does not meet expectations<br/>
+          1 = Unsatisfactory Behavior
         </div>
-        
-        <div>
-          <strong>COMMENTS:</strong>
-          <div style="margin-top: 10px; padding: 10px; border: 1px solid #ccc; min-height: 100px;">
-            ${evaluation.general_comments || ''}
-          </div>
+        <div style="margin-top:12px;">
+          <div style="font-weight:700; margin-bottom:4px;">COMMENTS:</div>
+          <div style="border:2px solid #cfcfcf; background:#f3f3f3; padding:10px; min-height:90px; font-size:12px;">${evaluation.general_comments || ''}</div>
         </div>
       </div>
     `;

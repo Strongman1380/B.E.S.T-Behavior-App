@@ -58,12 +58,12 @@ export default function StudentCard({ student, evaluation, today, onEdit, isSele
             <div className="mb-6 p-4 bg-slate-50 rounded-xl">
               <p className="text-sm text-slate-600 mb-2 font-medium">Today’s Progress</p>
               <div className="text-2xl font-bold text-slate-900 mb-3">
-                {completedSlots}/9 time slots
+                {completedSlots}/8 time slots
               </div>
               <div className="w-full bg-slate-200 rounded-full h-3">
                 <div 
                   className="bg-blue-500 h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${(completedSlots / 9) * 100}%` }}
+                  style={{ width: `${(completedSlots / 8) * 100}%` }}
                 />
               </div>
             </div>

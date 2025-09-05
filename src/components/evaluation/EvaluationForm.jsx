@@ -8,7 +8,7 @@ import { Save, Clock } from "lucide-react";
 
 import TimeSlotRating from './TimeSlotRating';
 
-const TIME_SLOTS = ['8:30', '9:30', '9:10', '9:50', '10:30', '11:10', '1:10', '1:50', '2:30'];
+const TIME_SLOTS = ['8:30', '9:10', '9:50', '10:30', '11:10', '1:10', '1:50', '2:30'];
 
 export default function EvaluationForm({ evaluation, settings, onSave, isSaving }) {
   const [formData, setFormData] = useState({
@@ -96,13 +96,13 @@ export default function EvaluationForm({ evaluation, settings, onSave, isSaving 
             <div className="flex items-center gap-3">
               <Clock className="w-6 h-6 text-blue-600" />
               <span className="text-lg font-bold text-blue-900">
-                Progress: {completedSlots}/9 time slots completed
+                Progress: {completedSlots}/8 time slots completed
               </span>
             </div>
             <div className="w-full sm:w-48 bg-blue-200 rounded-full h-3">
               <div 
                 className="bg-blue-600 h-3 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${(completedSlots / 9) * 100}%` }}
+                style={{ width: `${(completedSlots / 8) * 100}%` }}
               />
             </div>
           </div>
