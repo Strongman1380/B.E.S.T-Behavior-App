@@ -74,28 +74,43 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
         return;
       }
 
-      // Extract all comments
+      // Extract all comments - comprehensive collection
       const allComments = [];
       evaluations.forEach(evaluation => {
         // Add general comments
-        if (evaluation.general_comments) {
+        if (evaluation.general_comments && evaluation.general_comments.trim()) {
           allComments.push({
             type: 'general',
             date: evaluation.date,
-            content: evaluation.general_comments
+            content: evaluation.general_comments.trim(),
+            context: 'Overall daily evaluation summary'
           });
         }
 
-        // Add time slot comments
+        // Add time slot comments - comprehensive extraction
         if (evaluation.time_slots) {
           Object.entries(evaluation.time_slots).forEach(([slot, data]) => {
-            if (data.comment) {
+            if (data && data.comment && data.comment.trim()) {
+              // Map time slot keys to readable labels
+              const timeSlotLabels = {
+                '8:30': '8:30 AM - 9:10 AM',
+                '9:10': '9:10 AM - 9:50 AM',
+                '9:50': '9:50 AM - 10:30 AM',
+                '10:30': '10:30 AM - 11:10 AM',
+                '11:10': '11:10 AM - Lunch',
+                '1:10': 'After Lunch - 1:10 PM',
+                '1:50': '1:10 PM - 1:50 PM',
+                '2:30': '1:50 PM - 2:30 PM'
+              };
+
               allComments.push({
                 type: 'time_slot',
                 date: evaluation.date,
                 slot: slot,
+                slotLabel: timeSlotLabels[slot] || slot,
                 rating: data.rating,
-                content: data.comment
+                content: data.comment.trim(),
+                context: `Time slot: ${timeSlotLabels[slot] || slot}`
               });
             }
           });
@@ -120,7 +135,7 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
         summary_recommendations: analysis.recommendations
       }));
 
-      toast.success('Summary generated from evaluation comments!');
+      toast.success('Comprehensive summary generated from ALL evaluation comments!');
 
     } catch (error) {
       console.error('Error generating summary:', error);
@@ -131,54 +146,121 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
   };
 
   const analyzeComments = (comments) => {
-    // Group comments by themes
+    // Group comments by themes with comprehensive categorization
     const positiveComments = [];
     const negativeComments = [];
     const incidentComments = [];
     const improvementComments = [];
     const generalComments = [];
+    const academicComments = [];
+    const socialComments = [];
+    const behavioralComments = [];
+    const participationComments = [];
+    const focusComments = [];
+    const cooperationComments = [];
 
     comments.forEach(comment => {
       const content = comment.content.toLowerCase();
+      const originalContent = comment.content;
 
-      // Categorize based on keywords and context
+      // Comprehensive positive indicators
       if (content.includes('great') || content.includes('excellent') || content.includes('wonderful') ||
           content.includes('amazing') || content.includes('fantastic') || content.includes('good job') ||
           content.includes('well done') || content.includes('positive') || content.includes('helpful') ||
-          content.includes('cooperative') || content.includes('focused') || content.includes('engaged')) {
-        positiveComments.push(comment);
+          content.includes('cooperative') || content.includes('focused') || content.includes('engaged') ||
+          content.includes('participated') || content.includes('contributed') || content.includes('excellent work') ||
+          content.includes('outstanding') || content.includes('superb') || content.includes('impressive') ||
+          content.includes('commendable') || content.includes('praise') || content.includes('achievement')) {
+        positiveComments.push({ ...comment, originalContent });
       }
 
+      // Comprehensive negative indicators
       if (content.includes('disruptive') || content.includes('difficult') || content.includes('challenging') ||
           content.includes('problem') || content.includes('issue') || content.includes('concern') ||
           content.includes('struggle') || content.includes('hard time') || content.includes('refused') ||
-          content.includes('argued') || content.includes('resisted')) {
-        negativeComments.push(comment);
+          content.includes('argued') || content.includes('resisted') || content.includes('uncooperative') ||
+          content.includes('defiant') || content.includes('resistant') || content.includes('unfocused') ||
+          content.includes('distracted') || content.includes('off task') || content.includes('inappropriate')) {
+        negativeComments.push({ ...comment, originalContent });
       }
 
+      // Incident-related comments
       if (content.includes('incident') || content.includes('fight') || content.includes('argue') ||
           content.includes('yell') || content.includes('disrespect') || content.includes('disobedient') ||
-          content.includes('defiant') || content.includes('aggressive') || content.includes('bullying')) {
-        incidentComments.push(comment);
+          content.includes('defiant') || content.includes('aggressive') || content.includes('bullying') ||
+          content.includes('conflict') || content.includes('dispute') || content.includes('confrontation') ||
+          content.includes('disruption') || content.includes('interruption') || content.includes('disturbance')) {
+        incidentComments.push({ ...comment, originalContent });
       }
 
+      // Improvement and development comments
       if (content.includes('improve') || content.includes('work on') || content.includes('practice') ||
           content.includes('develop') || content.includes('learn') || content.includes('better') ||
-          content.includes('more') || content.includes('help with')) {
-        improvementComments.push(comment);
+          content.includes('more') || content.includes('help with') || content.includes('support') ||
+          content.includes('encourage') || content.includes('remind') || content.includes('reinforce') ||
+          content.includes('build') || content.includes('strengthen') || content.includes('enhance')) {
+        improvementComments.push({ ...comment, originalContent });
+      }
+
+      // Academic-related comments
+      if (content.includes('academic') || content.includes('learning') || content.includes('assignment') ||
+          content.includes('homework') || content.includes('reading') || content.includes('writing') ||
+          content.includes('math') || content.includes('science') || content.includes('test') ||
+          content.includes('grade') || content.includes('study') || content.includes('lesson') ||
+          content.includes('curriculum') || content.includes('subject') || content.includes('classwork')) {
+        academicComments.push({ ...comment, originalContent });
+      }
+
+      // Social interaction comments
+      if (content.includes('social') || content.includes('friend') || content.includes('peer') ||
+          content.includes('group') || content.includes('interaction') || content.includes('relationship') ||
+          content.includes('communication') || content.includes('sharing') || content.includes('teamwork') ||
+          content.includes('collaboration') || content.includes('conversation') || content.includes('discussion')) {
+        socialComments.push({ ...comment, originalContent });
+      }
+
+      // Behavioral comments
+      if (content.includes('behavior') || content.includes('conduct') || content.includes('manners') ||
+          content.includes('respect') || content.includes('courtesy') || content.includes('polite') ||
+          content.includes('rude') || content.includes('appropriate') || content.includes('inappropriate') ||
+          content.includes('acceptable') || content.includes('unacceptable')) {
+        behavioralComments.push({ ...comment, originalContent });
+      }
+
+      // Participation comments
+      if (content.includes('participat') || content.includes('involved') || content.includes('engaged') ||
+          content.includes('active') || content.includes('contribute') || content.includes('volunteer') ||
+          content.includes('raise hand') || content.includes('answer') || content.includes('question') ||
+          content.includes('discussion') || content.includes('activity')) {
+        participationComments.push({ ...comment, originalContent });
+      }
+
+      // Focus and attention comments
+      if (content.includes('focus') || content.includes('attention') || content.includes('concentrat') ||
+          content.includes('distract') || content.includes('on task') || content.includes('off task') ||
+          content.includes('daydream') || content.includes('wandering') || content.includes('listening') ||
+          content.includes('following') || content.includes('directions')) {
+        focusComments.push({ ...comment, originalContent });
+      }
+
+      // Cooperation comments
+      if (content.includes('cooperat') || content.includes('helpful') || content.includes('assist') ||
+          content.includes('support') || content.includes('team') || content.includes('together') ||
+          content.includes('collaborat') || content.includes('work with') || content.includes('group work')) {
+        cooperationComments.push({ ...comment, originalContent });
       }
 
       if (comment.type === 'general') {
-        generalComments.push(comment);
+        generalComments.push({ ...comment, originalContent });
       }
     });
 
-    // Generate summary sections
+    // Generate comprehensive summary sections
     const general_overview = generateGeneralOverview(comments, generalComments);
-    const strengths = generateStrengths(positiveComments);
-    const improvements = generateImprovements(improvementComments, negativeComments);
+    const strengths = generateStrengths(positiveComments, participationComments, focusComments, cooperationComments);
+    const improvements = generateImprovements(improvementComments, negativeComments, focusComments);
     const incidents = generateIncidents(incidentComments);
-    const recommendations = generateRecommendations(improvements, strengths);
+    const recommendations = generateRecommendations(improvements, strengths, academicComments, socialComments, behavioralComments);
 
     return {
       general_overview,
@@ -196,29 +278,79 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
     return `During this period, ${overview}...`;
   };
 
-  const generateStrengths = (positiveComments) => {
-    if (positiveComments.length === 0) return '';
+  const generateStrengths = (positiveComments, participationComments, focusComments, cooperationComments) => {
+    const allStrengths = [...positiveComments, ...participationComments, ...focusComments, ...cooperationComments];
+    if (allStrengths.length === 0) return '';
 
-    const strengths = positiveComments
-      .slice(0, 5) // Limit to top 5
-      .map(c => c.content)
-      .join('. ')
-      .substring(0, 400);
+    // Group by categories for better organization
+    const categories = {
+      positive: positiveComments.slice(0, 3),
+      participation: participationComments.slice(0, 2),
+      focus: focusComments.slice(0, 2),
+      cooperation: cooperationComments.slice(0, 2)
+    };
 
-    return `The student demonstrated several positive behaviors including: ${strengths}.`;
+    let strengthsText = '';
+
+    if (categories.positive.length > 0) {
+      const positiveText = categories.positive.map(c => c.originalContent).join('; ');
+      strengthsText += `Demonstrated positive behaviors: ${positiveText}. `;
+    }
+
+    if (categories.participation.length > 0) {
+      const participationText = categories.participation.map(c => c.originalContent).join('; ');
+      strengthsText += `Active participation: ${participationText}. `;
+    }
+
+    if (categories.focus.length > 0) {
+      const focusText = categories.focus.map(c => c.originalContent).join('; ');
+      strengthsText += `Good focus and attention: ${focusText}. `;
+    }
+
+    if (categories.cooperation.length > 0) {
+      const cooperationText = categories.cooperation.map(c => c.originalContent).join('; ');
+      strengthsText += `Cooperative and helpful: ${cooperationText}. `;
+    }
+
+    return strengthsText.substring(0, 500);
   };
 
-  const generateImprovements = (improvementComments, negativeComments) => {
+  const generateImprovements = (improvementComments, negativeComments, focusComments) => {
     const allImprovements = [...improvementComments, ...negativeComments];
+
+    // Add focus-related issues to improvements
+    const focusIssues = focusComments.filter(c => c.content.toLowerCase().includes('distract') ||
+                                                  c.content.toLowerCase().includes('off task') ||
+                                                  c.content.toLowerCase().includes('unfocused'));
+    allImprovements.push(...focusIssues);
+
     if (allImprovements.length === 0) return '';
 
-    const improvements = allImprovements
-      .slice(0, 5)
-      .map(c => c.content)
-      .join('. ')
-      .substring(0, 400);
+    // Group by categories for better organization
+    const categories = {
+      improvements: improvementComments.slice(0, 3),
+      challenges: negativeComments.slice(0, 3),
+      focus: focusIssues.slice(0, 2)
+    };
 
-    return `Areas for improvement include: ${improvements}.`;
+    let improvementsText = '';
+
+    if (categories.improvements.length > 0) {
+      const improvementText = categories.improvements.map(c => c.originalContent).join('; ');
+      improvementsText += `Areas for development: ${improvementText}. `;
+    }
+
+    if (categories.challenges.length > 0) {
+      const challengeText = categories.challenges.map(c => c.originalContent).join('; ');
+      improvementsText += `Behavioral challenges: ${challengeText}. `;
+    }
+
+    if (categories.focus.length > 0) {
+      const focusText = categories.focus.map(c => c.originalContent).join('; ');
+      improvementsText += `Focus and attention concerns: ${focusText}. `;
+    }
+
+    return improvementsText.substring(0, 500);
   };
 
   const generateIncidents = (incidentComments) => {
@@ -232,20 +364,32 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
     return `Behavioral incidents noted: ${incidents}.`;
   };
 
-  const generateRecommendations = (improvements, strengths) => {
-    if (!improvements && !strengths) return '';
+  const generateRecommendations = (improvements, strengths, academicComments, socialComments, behavioralComments) => {
+    if (!improvements && !strengths && academicComments.length === 0 && socialComments.length === 0 && behavioralComments.length === 0) return '';
 
     let recommendations = '';
 
     if (strengths) {
-      recommendations += 'Continue to build on the student\'s strengths. ';
+      recommendations += 'Continue to build on the student\'s strengths and positive behaviors. ';
     }
 
     if (improvements) {
-      recommendations += 'Focus on the identified areas for improvement through targeted interventions and support.';
+      recommendations += 'Focus on the identified areas for improvement through targeted interventions and support. ';
     }
 
-    return recommendations;
+    if (academicComments.length > 0) {
+      recommendations += 'Support academic engagement and success through consistent routines and encouragement. ';
+    }
+
+    if (socialComments.length > 0) {
+      recommendations += 'Encourage positive social interactions and peer relationships. ';
+    }
+
+    if (behavioralComments.length > 0) {
+      recommendations += 'Reinforce appropriate behavioral expectations and provide clear consequences. ';
+    }
+
+    return recommendations.substring(0, 500);
   };
 
   return (
