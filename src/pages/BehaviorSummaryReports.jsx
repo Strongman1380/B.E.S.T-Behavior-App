@@ -156,7 +156,8 @@ export default function BehaviorSummaryReports() {
                 summary={currentSummary} 
                 settings={settings} 
                 onSave={saveSummary} 
-                isSaving={isSaving} 
+                isSaving={isSaving}
+                studentId={currentStudent.id}
               />
             </div>
           </>
