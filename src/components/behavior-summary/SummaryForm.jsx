@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { parseYmd } from "@/utils";
 import { DailyEvaluation } from "@/api/entities";
 import { toast } from 'sonner';
+import OpenAI from 'openai';
 
 export default function SummaryForm({ summary, settings, onSave, isSaving, studentId }) {
   const [formData, setFormData] = useState({
@@ -122,10 +123,10 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
         return;
       }
 
-      // Analyze and categorize comments
-      const analysis = analyzeComments(allComments);
+      // Use AI to analyze and generate comprehensive summaries
+      const analysis = await analyzeCommentsWithAI(allComments);
 
-      // Update form data with generated content
+      // Update form data with AI-generated content
       setFormData(prev => ({
         ...prev,
         general_behavior_overview: analysis.general_overview,
@@ -135,261 +136,94 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
         summary_recommendations: analysis.recommendations
       }));
 
-      toast.success('Comprehensive summary generated from ALL evaluation comments!');
+      toast.success('AI-powered comprehensive summary generated from ALL evaluation comments!');
 
     } catch (error) {
-      console.error('Error generating summary:', error);
-      toast.error('Failed to generate summary from comments');
+      console.error('Error generating AI summary:', error);
+      toast.error('Failed to generate AI summary. Please check your OpenAI API key.');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const analyzeComments = (comments) => {
-    // Group comments by themes with comprehensive categorization
-    const positiveComments = [];
-    const negativeComments = [];
-    const incidentComments = [];
-    const improvementComments = [];
-    const generalComments = [];
-    const academicComments = [];
-    const socialComments = [];
-    const behavioralComments = [];
-    const participationComments = [];
-    const focusComments = [];
-    const cooperationComments = [];
-
-    comments.forEach(comment => {
-      const content = comment.content.toLowerCase();
-      const originalContent = comment.content;
-
-      // Comprehensive positive indicators
-      if (content.includes('great') || content.includes('excellent') || content.includes('wonderful') ||
-          content.includes('amazing') || content.includes('fantastic') || content.includes('good job') ||
-          content.includes('well done') || content.includes('positive') || content.includes('helpful') ||
-          content.includes('cooperative') || content.includes('focused') || content.includes('engaged') ||
-          content.includes('participated') || content.includes('contributed') || content.includes('excellent work') ||
-          content.includes('outstanding') || content.includes('superb') || content.includes('impressive') ||
-          content.includes('commendable') || content.includes('praise') || content.includes('achievement')) {
-        positiveComments.push({ ...comment, originalContent });
-      }
-
-      // Comprehensive negative indicators
-      if (content.includes('disruptive') || content.includes('difficult') || content.includes('challenging') ||
-          content.includes('problem') || content.includes('issue') || content.includes('concern') ||
-          content.includes('struggle') || content.includes('hard time') || content.includes('refused') ||
-          content.includes('argued') || content.includes('resisted') || content.includes('uncooperative') ||
-          content.includes('defiant') || content.includes('resistant') || content.includes('unfocused') ||
-          content.includes('distracted') || content.includes('off task') || content.includes('inappropriate')) {
-        negativeComments.push({ ...comment, originalContent });
-      }
-
-      // Incident-related comments
-      if (content.includes('incident') || content.includes('fight') || content.includes('argue') ||
-          content.includes('yell') || content.includes('disrespect') || content.includes('disobedient') ||
-          content.includes('defiant') || content.includes('aggressive') || content.includes('bullying') ||
-          content.includes('conflict') || content.includes('dispute') || content.includes('confrontation') ||
-          content.includes('disruption') || content.includes('interruption') || content.includes('disturbance')) {
-        incidentComments.push({ ...comment, originalContent });
-      }
-
-      // Improvement and development comments
-      if (content.includes('improve') || content.includes('work on') || content.includes('practice') ||
-          content.includes('develop') || content.includes('learn') || content.includes('better') ||
-          content.includes('more') || content.includes('help with') || content.includes('support') ||
-          content.includes('encourage') || content.includes('remind') || content.includes('reinforce') ||
-          content.includes('build') || content.includes('strengthen') || content.includes('enhance')) {
-        improvementComments.push({ ...comment, originalContent });
-      }
-
-      // Academic-related comments
-      if (content.includes('academic') || content.includes('learning') || content.includes('assignment') ||
-          content.includes('homework') || content.includes('reading') || content.includes('writing') ||
-          content.includes('math') || content.includes('science') || content.includes('test') ||
-          content.includes('grade') || content.includes('study') || content.includes('lesson') ||
-          content.includes('curriculum') || content.includes('subject') || content.includes('classwork')) {
-        academicComments.push({ ...comment, originalContent });
-      }
-
-      // Social interaction comments
-      if (content.includes('social') || content.includes('friend') || content.includes('peer') ||
-          content.includes('group') || content.includes('interaction') || content.includes('relationship') ||
-          content.includes('communication') || content.includes('sharing') || content.includes('teamwork') ||
-          content.includes('collaboration') || content.includes('conversation') || content.includes('discussion')) {
-        socialComments.push({ ...comment, originalContent });
-      }
-
-      // Behavioral comments
-      if (content.includes('behavior') || content.includes('conduct') || content.includes('manners') ||
-          content.includes('respect') || content.includes('courtesy') || content.includes('polite') ||
-          content.includes('rude') || content.includes('appropriate') || content.includes('inappropriate') ||
-          content.includes('acceptable') || content.includes('unacceptable')) {
-        behavioralComments.push({ ...comment, originalContent });
-      }
-
-      // Participation comments
-      if (content.includes('participat') || content.includes('involved') || content.includes('engaged') ||
-          content.includes('active') || content.includes('contribute') || content.includes('volunteer') ||
-          content.includes('raise hand') || content.includes('answer') || content.includes('question') ||
-          content.includes('discussion') || content.includes('activity')) {
-        participationComments.push({ ...comment, originalContent });
-      }
-
-      // Focus and attention comments
-      if (content.includes('focus') || content.includes('attention') || content.includes('concentrat') ||
-          content.includes('distract') || content.includes('on task') || content.includes('off task') ||
-          content.includes('daydream') || content.includes('wandering') || content.includes('listening') ||
-          content.includes('following') || content.includes('directions')) {
-        focusComments.push({ ...comment, originalContent });
-      }
-
-      // Cooperation comments
-      if (content.includes('cooperat') || content.includes('helpful') || content.includes('assist') ||
-          content.includes('support') || content.includes('team') || content.includes('together') ||
-          content.includes('collaborat') || content.includes('work with') || content.includes('group work')) {
-        cooperationComments.push({ ...comment, originalContent });
-      }
-
-      if (comment.type === 'general') {
-        generalComments.push({ ...comment, originalContent });
-      }
+  const analyzeCommentsWithAI = async (comments) => {
+    const openai = new OpenAI({
+      apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+      dangerouslyAllowBrowser: true
     });
 
-    // Generate comprehensive summary sections
-    const general_overview = generateGeneralOverview(comments, generalComments);
-    const strengths = generateStrengths(positiveComments, participationComments, focusComments, cooperationComments);
-    const improvements = generateImprovements(improvementComments, negativeComments, focusComments);
-    const incidents = generateIncidents(incidentComments);
-    const recommendations = generateRecommendations(improvements, strengths, academicComments, socialComments, behavioralComments);
+    // Prepare comments for AI analysis
+    const commentsText = comments.map(comment => {
+      const dateStr = new Date(comment.date).toLocaleDateString();
+      if (comment.type === 'general') {
+        return `Date: ${dateStr} - General Comment: ${comment.content}`;
+      } else {
+        return `Date: ${dateStr} - ${comment.slotLabel} (Rating: ${comment.rating}/4): ${comment.content}`;
+      }
+    }).join('\n\n');
 
-    return {
-      general_overview,
-      strengths,
-      improvements,
-      incidents,
-      recommendations
-    };
-  };
+    const prompt = `You are an expert educational psychologist analyzing student behavior evaluation comments. Based on the following comments from a student's daily behavior evaluations, generate a comprehensive behavior summary report.
 
-  const generateGeneralOverview = (allComments, generalComments) => {
-    if (generalComments.length === 0) return '';
+COMMENTS TO ANALYZE:
+${commentsText}
 
-    const overview = generalComments.map(c => c.content).join(' ').substring(0, 300);
-    return `During this period, ${overview}...`;
-  };
+Please generate content for each of these sections of a behavior summary report:
 
-  const generateStrengths = (positiveComments, participationComments, focusComments, cooperationComments) => {
-    const allStrengths = [...positiveComments, ...participationComments, ...focusComments, ...cooperationComments];
-    if (allStrengths.length === 0) return '';
+1. GENERAL BEHAVIOR OVERVIEW: Write 2-3 sentences summarizing the student's overall behavior patterns, trends, and general demeanor observed across all time slots and days.
 
-    // Group by categories for better organization
-    const categories = {
-      positive: positiveComments.slice(0, 3),
-      participation: participationComments.slice(0, 2),
-      focus: focusComments.slice(0, 2),
-      cooperation: cooperationComments.slice(0, 2)
-    };
+2. STRENGTHS: List 3-5 specific behavioral strengths or positive qualities demonstrated by the student, with specific examples from the comments.
 
-    let strengthsText = '';
+3. IMPROVEMENTS NEEDED: Identify 2-4 areas where the student could benefit from improvement or additional support, with specific examples from the comments.
 
-    if (categories.positive.length > 0) {
-      const positiveText = categories.positive.map(c => c.originalContent).join('; ');
-      strengthsText += `Demonstrated positive behaviors: ${positiveText}. `;
+4. BEHAVIORAL INCIDENTS: Document any specific behavioral incidents, conflicts, or concerning behaviors noted, including dates and context where available.
+
+5. SUMMARY & RECOMMENDATIONS: Provide 2-3 actionable recommendations for supporting the student's behavioral development, based on the patterns observed in the comments.
+
+Format your response as a JSON object with these exact keys:
+{
+  "general_overview": "content here",
+  "strengths": "content here", 
+  "improvements": "content here",
+  "incidents": "content here",
+  "recommendations": "content here"
+}
+
+Be specific, professional, and use concrete examples from the comments provided. Focus on patterns and trends rather than isolated incidents.`;
+
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert at analyzing student behavior evaluation comments and creating comprehensive, professional behavior summary reports."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1500
+      });
+
+      const response = completion.choices[0].message.content;
+      
+      // Parse the JSON response
+      const analysis = JSON.parse(response);
+      
+      return {
+        general_overview: analysis.general_overview || '',
+        strengths: analysis.strengths || '',
+        improvements: analysis.improvements || '',
+        incidents: analysis.incidents || '',
+        recommendations: analysis.recommendations || ''
+      };
+      
+    } catch (error) {
+      console.error('OpenAI API error:', error);
+      throw new Error('Failed to generate AI analysis');
     }
-
-    if (categories.participation.length > 0) {
-      const participationText = categories.participation.map(c => c.originalContent).join('; ');
-      strengthsText += `Active participation: ${participationText}. `;
-    }
-
-    if (categories.focus.length > 0) {
-      const focusText = categories.focus.map(c => c.originalContent).join('; ');
-      strengthsText += `Good focus and attention: ${focusText}. `;
-    }
-
-    if (categories.cooperation.length > 0) {
-      const cooperationText = categories.cooperation.map(c => c.originalContent).join('; ');
-      strengthsText += `Cooperative and helpful: ${cooperationText}. `;
-    }
-
-    return strengthsText.substring(0, 500);
-  };
-
-  const generateImprovements = (improvementComments, negativeComments, focusComments) => {
-    const allImprovements = [...improvementComments, ...negativeComments];
-
-    // Add focus-related issues to improvements
-    const focusIssues = focusComments.filter(c => c.content.toLowerCase().includes('distract') ||
-                                                  c.content.toLowerCase().includes('off task') ||
-                                                  c.content.toLowerCase().includes('unfocused'));
-    allImprovements.push(...focusIssues);
-
-    if (allImprovements.length === 0) return '';
-
-    // Group by categories for better organization
-    const categories = {
-      improvements: improvementComments.slice(0, 3),
-      challenges: negativeComments.slice(0, 3),
-      focus: focusIssues.slice(0, 2)
-    };
-
-    let improvementsText = '';
-
-    if (categories.improvements.length > 0) {
-      const improvementText = categories.improvements.map(c => c.originalContent).join('; ');
-      improvementsText += `Areas for development: ${improvementText}. `;
-    }
-
-    if (categories.challenges.length > 0) {
-      const challengeText = categories.challenges.map(c => c.originalContent).join('; ');
-      improvementsText += `Behavioral challenges: ${challengeText}. `;
-    }
-
-    if (categories.focus.length > 0) {
-      const focusText = categories.focus.map(c => c.originalContent).join('; ');
-      improvementsText += `Focus and attention concerns: ${focusText}. `;
-    }
-
-    return improvementsText.substring(0, 500);
-  };
-
-  const generateIncidents = (incidentComments) => {
-    if (incidentComments.length === 0) return '';
-
-    const incidents = incidentComments
-      .slice(0, 5)
-      .map(c => `${c.date}: ${c.content}`)
-      .join('. ');
-
-    return `Behavioral incidents noted: ${incidents}.`;
-  };
-
-  const generateRecommendations = (improvements, strengths, academicComments, socialComments, behavioralComments) => {
-    if (!improvements && !strengths && academicComments.length === 0 && socialComments.length === 0 && behavioralComments.length === 0) return '';
-
-    let recommendations = '';
-
-    if (strengths) {
-      recommendations += 'Continue to build on the student\'s strengths and positive behaviors. ';
-    }
-
-    if (improvements) {
-      recommendations += 'Focus on the identified areas for improvement through targeted interventions and support. ';
-    }
-
-    if (academicComments.length > 0) {
-      recommendations += 'Support academic engagement and success through consistent routines and encouragement. ';
-    }
-
-    if (socialComments.length > 0) {
-      recommendations += 'Encourage positive social interactions and peer relationships. ';
-    }
-
-    if (behavioralComments.length > 0) {
-      recommendations += 'Reinforce appropriate behavioral expectations and provide clear consequences. ';
-    }
-
-    return recommendations.substring(0, 500);
   };
 
   return (
