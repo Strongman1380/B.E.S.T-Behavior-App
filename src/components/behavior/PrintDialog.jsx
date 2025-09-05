@@ -34,9 +34,9 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
             table.schedule { width: 100%; border-collapse: collapse; margin-top: 8px; }
             table.schedule th, table.schedule td { border: 1px solid #000; padding: 10px; vertical-align: top; }
             table.schedule th { background: #f4f4f4; text-align: center; font-weight: 700; }
-            .time-cell { width: 28%; text-align: center; font-size: 12px; }
-            .rating-cell { width: 25%; text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 2px; }
-            .comment-cell { width: 47%; font-size: 12px; min-height: 48px; }
+            .time-cell { width: 25%; text-align: center; font-size: 12px; }
+            .rating-cell { width: 30%; text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 2px; }
+            .comment-cell { width: 45%; font-size: 12px; min-height: 48px; }
             .rating-cell .num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 1px solid transparent; margin: 0 6px; font-weight: 700; }
             .rating-cell .num.selected { border-color: #000; border-width: 4px; }
             .scale { margin-top: 12px; font-size: 12px; }
