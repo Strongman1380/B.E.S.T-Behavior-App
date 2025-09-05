@@ -211,10 +211,10 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
 
   // Removed formatCheckboxOption - no longer using checkboxes
 
-  const completedSummaries = summaries.filter(s => 
-    s.general_behavior_overview && 
-    s.strengths && 
-    s.improvements_needed
+  // Allow printing summaries even if some fields are blank, as long as
+  // they have a student and a date range. This avoids blocking printing.
+  const printableSummaries = summaries.filter(s =>
+    s && s.student_id && s.date_range_start && s.date_range_end
   );
 
   return (
@@ -223,10 +223,10 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
         <DialogHeader className="flex-row items-center justify-between">
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            Print All Behavior Summaries ({completedSummaries.length})
+            Print All Behavior Summaries ({printableSummaries.length})
           </DialogTitle>
           <div className="flex items-center gap-2">
-            <Button onClick={handlePrint} disabled={completedSummaries.length === 0 || isLoading}>
+            <Button onClick={handlePrint} disabled={printableSummaries.length === 0 || isLoading}>
               <Printer className="w-4 h-4 mr-2"/>Print All
             </Button>
             <DialogClose asChild>
@@ -238,14 +238,14 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
         <div id="print-summaries-area" className="flex-grow overflow-y-auto p-4 bg-slate-50">
           {isLoading ? (
             <div className="text-center py-10">Loading summaries...</div>
-          ) : completedSummaries.length === 0 ? (
+          ) : printableSummaries.length === 0 ? (
             <div className="text-center py-10">
               <FileText className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-              <h3 className="text-xl font-bold text-slate-800 mb-2">No Completed Summaries</h3>
-              <p className="text-slate-500">Complete behavior summaries from the Behavior Summary Reports page to print them here.</p>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">No Behavior Summaries</h3>
+              <p className="text-slate-500">Create behavior summaries from the Behavior Summary Reports page to print them here.</p>
             </div>
           ) : (
-            completedSummaries.map((summary) => (
+            printableSummaries.map((summary) => (
               <div key={summary.id} className="behavior-form">
                 
                 <div className="form-title">Student Behavior Summary Report</div>
