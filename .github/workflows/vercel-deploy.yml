@@ -1,0 +1,32 @@
+name: Vercel Deploy
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger production deploy (main)
+        if: github.ref == 'refs/heads/main' && env.VERCEL_DEPLOY_HOOK_PROD != ''
+        env:
+          VERCEL_DEPLOY_HOOK_PROD: ${{ secrets.VERCEL_DEPLOY_HOOK_PROD }}
+        run: |
+          echo "Triggering Vercel production deploy via hook"
+          curl -sS -X POST "$VERCEL_DEPLOY_HOOK_PROD" || exit 1
+
+      - name: Trigger preview deploy (non-main)
+        if: github.ref != 'refs/heads/main' && env.VERCEL_DEPLOY_HOOK_PREVIEW != ''
+        env:
+          VERCEL_DEPLOY_HOOK_PREVIEW: ${{ secrets.VERCEL_DEPLOY_HOOK_PREVIEW }}
+        run: |
+          echo "Triggering Vercel preview deploy via hook for $GITHUB_REF_NAME"
+          curl -sS -X POST "$VERCEL_DEPLOY_HOOK_PREVIEW" || exit 1
+
+      - name: No deploy hook configured
+        if: env.VERCEL_DEPLOY_HOOK_PROD == '' && env.VERCEL_DEPLOY_HOOK_PREVIEW == ''
+        run: |
+          echo "No Vercel deploy hooks set. Add secrets VERCEL_DEPLOY_HOOK_PROD and/or VERCEL_DEPLOY_HOOK_PREVIEW to enable automatic deploys."
