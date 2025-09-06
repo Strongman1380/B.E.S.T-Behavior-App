@@ -1,6 +1,14 @@
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from 'recharts';
 
 export default function BehaviorTrendChart({ data }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[250px] text-gray-500">
+        No data available
+      </div>
+    );
+  }
+
   return (
     <ResponsiveContainer width="100%" height={250}>
       <LineChart data={data}>
