@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Allow either GitHub Secrets or Repository Variables to provide the hook URLs
-      VERCEL_DEPLOY_HOOK_PROD: ${{ secrets.VERCEL_DEPLOY_HOOK_PROD || vars.VERCEL_DEPLOY_HOOK_PROD || 'https://api.vercel.com/v1/integrations/deploy/prj_fw6cVFq4ZPs2LR7gtHxosh2wESEl/Q2WRf03X3W' }}
-      VERCEL_DEPLOY_HOOK_PREVIEW: ${{ secrets.VERCEL_DEPLOY_HOOK_PREVIEW || vars.VERCEL_DEPLOY_HOOK_PREVIEW || 'https://api.vercel.com/v1/integrations/deploy/prj_fw6cVFq4ZPs2LR7gtHxosh2wESEl/Q2WRf03X3W' }}
+      VERCEL_DEPLOY_HOOK_PROD: ${{ secrets.VERCEL_DEPLOY_HOOK_PROD || vars.VERCEL_DEPLOY_HOOK_PROD || '' }}
+      VERCEL_DEPLOY_HOOK_PREVIEW: ${{ secrets.VERCEL_DEPLOY_HOOK_PREVIEW || vars.VERCEL_DEPLOY_HOOK_PREVIEW || '' }}
     steps:
       - name: Trigger production deploy (main)
         if: github.ref == 'refs/heads/main' && env.VERCEL_DEPLOY_HOOK_PROD != ''
