@@ -10,6 +10,9 @@ function defaultColors(n) {
 export default function GradesLineChart({ data, seriesKeys }) {
   const colors = defaultColors(seriesKeys.length);
   const hasMulti = seriesKeys.length > 1;
+  if (!Array.isArray(seriesKeys) || seriesKeys.length === 0) {
+    return <div className="h-[250px] flex items-center justify-center text-slate-500 text-sm">No grade data in range</div>;
+  }
 
   return (
     <div style={{ width: '100%', height: 300 }}>
@@ -28,4 +31,3 @@ export default function GradesLineChart({ data, seriesKeys }) {
     </div>
   );
 }
-

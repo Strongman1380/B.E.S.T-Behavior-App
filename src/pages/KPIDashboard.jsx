@@ -98,6 +98,7 @@ export default function KPIDashboard() {
   const getFilteredData = () => {
     const daysBack = parseInt(dateRange);
     const cutoffDate = subDays(getCurrentDate(), daysBack);
+    const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
     
     let filteredEvaluations = evaluations.filter(evaluation => 
       parseYmd(evaluation.date) >= cutoffDate
@@ -107,9 +108,9 @@ export default function KPIDashboard() {
       parseYmd(incident.incident_date) >= cutoffDate
     );
 
-    if (selectedStudent !== 'all') {
-      filteredEvaluations = filteredEvaluations.filter(evaluation => evaluation.student_id === selectedStudent);
-      filteredIncidents = filteredIncidents.filter(incident => incident.student_id === selectedStudent);
+    if (selectedId != null) {
+      filteredEvaluations = filteredEvaluations.filter(evaluation => evaluation.student_id === selectedId);
+      filteredIncidents = filteredIncidents.filter(incident => incident.student_id === selectedId);
     }
 
     return { filteredEvaluations, filteredIncidents };
@@ -877,8 +878,9 @@ const exportAllCSVs = async () => {
     };
     const filtered = grades.filter(inRange);
 
-    if (selectedStudent !== 'all') {
-      const sid = selectedStudent;
+    const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
+    if (selectedId != null) {
+      const sid = selectedId;
       const rows = dayKeys.map(({ key, label }) => {
         const dayGrades = filtered.filter(g => g.student_id === sid && (g.created_at || '').slice(0,10) === key);
         const avg = dayGrades.length ? dayGrades.reduce((a, b) => a + Number(b.percentage || 0), 0) / dayGrades.length : null;
