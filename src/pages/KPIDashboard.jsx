@@ -40,7 +40,7 @@ export default function KPIDashboard() {
   const [grades, setGrades] = useState([]);
   const [contactLogs, setContactLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [dateRange, setDateRange] = useState('7'); // days
+  const [dateRange, setDateRange] = useState('all'); // days
   const [selectedStudent, setSelectedStudent] = useState('all');
   const [showClearDataDialog, setShowClearDataDialog] = useState(false);
 
@@ -96,18 +96,26 @@ export default function KPIDashboard() {
 
   // Filter data based on date range and selected student
   const getFilteredData = () => {
-    const daysBack = parseInt(dateRange);
-    const cutoffDate = subDays(getCurrentDate(), daysBack);
     const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
     
-    let filteredEvaluations = evaluations.filter(evaluation => 
-      parseYmd(evaluation.date) >= cutoffDate
-    );
+    let filteredEvaluations = evaluations;
+    let filteredIncidents = incidents;
     
-    let filteredIncidents = incidents.filter(incident => 
-      parseYmd(incident.incident_date) >= cutoffDate
-    );
-
+    // Apply date filtering only if not 'all'
+    if (dateRange !== 'all') {
+      const daysBack = parseInt(dateRange);
+      const cutoffDate = subDays(getCurrentDate(), daysBack);
+      
+      filteredEvaluations = evaluations.filter(evaluation => 
+        parseYmd(evaluation.date) >= cutoffDate
+      );
+      
+      filteredIncidents = incidents.filter(incident => 
+        parseYmd(incident.incident_date) >= cutoffDate
+      );
+    }
+    
+    // Apply student filtering
     if (selectedId != null) {
       filteredEvaluations = filteredEvaluations.filter(evaluation => evaluation.student_id === selectedId);
       filteredIncidents = filteredIncidents.filter(incident => incident.student_id === selectedId);
@@ -119,11 +127,24 @@ export default function KPIDashboard() {
   // Calculate behavior ratings trend (1-4 scale where 4 = Exceeds expectations)
   const getBehaviorTrendData = () => {
     const { filteredEvaluations } = getFilteredData();
-    const daysBack = parseInt(dateRange);
-    const dates = eachDayOfInterval({
-      start: subDays(getCurrentDate(), daysBack - 1),
-      end: getCurrentDate()
-    });
+    
+    let dates = [];
+    if (dateRange === 'all' && filteredEvaluations.length > 0) {
+      // For "all time", find actual date range of data
+      const evaluationDates = filteredEvaluations.map(e => parseYmd(e.date)).filter(d => d);
+      if (evaluationDates.length > 0) {
+        const minDate = new Date(Math.min(...evaluationDates));
+        const maxDate = new Date(Math.max(...evaluationDates));
+        dates = eachDayOfInterval({ start: minDate, end: maxDate });
+      }
+    } else if (dateRange !== 'all') {
+      // For specific date ranges, use the configured period
+      const daysBack = parseInt(dateRange);
+      dates = eachDayOfInterval({
+        start: subDays(getCurrentDate(), daysBack - 1),
+        end: getCurrentDate()
+      });
+    }
 
     return dates.map(date => {
       const dateStr = format(date, 'yyyy-MM-dd');
@@ -419,8 +440,15 @@ export default function KPIDashboard() {
 
   // Export all raw rows zipped (evaluations, incidents, contact logs, active students)
 const exportAllCSVs = async () => {
-    const start = format(subDays(getCurrentDate(), parseInt(dateRange) - 1), 'yyyy-MM-dd');
-    const end = format(getCurrentDate(), 'yyyy-MM-dd');
+    let start, end;
+    if (dateRange === 'all') {
+      // For all time, use a very early start date and current end date
+      start = '2020-01-01'; // Far back date to include all data
+      end = format(getCurrentDate(), 'yyyy-MM-dd');
+    } else {
+      start = format(subDays(getCurrentDate(), parseInt(dateRange) - 1), 'yyyy-MM-dd');
+      end = format(getCurrentDate(), 'yyyy-MM-dd');
+    }
     const files = [];
 
     try {
@@ -651,10 +679,13 @@ const exportAllCSVs = async () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
                     <SelectItem value="7">Last 7 days</SelectItem>
                     <SelectItem value="14">Last 14 days</SelectItem>
                     <SelectItem value="30">Last 30 days</SelectItem>
                     <SelectItem value="90">Last 90 days</SelectItem>
+                    <SelectItem value="180">Last 6 months</SelectItem>
+                    <SelectItem value="365">Last year</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
