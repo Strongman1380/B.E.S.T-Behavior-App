@@ -8,13 +8,20 @@ import { formatDateRange } from '@/utils';
 import { Printer, X, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function PrintBehaviorSummariesDialog({ open, onOpenChange, students, settings }) {
+export default function PrintBehaviorSummariesDialog({ open, onOpenChange, students, settings, currentStudentId = null }) {
   const [summaries, setSummaries] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [studentMode, setStudentMode] = useState('all'); // 'all' | 'current'
+  const [filterStart, setFilterStart] = useState(''); // yyyy-MM-dd
+  const [filterEnd, setFilterEnd] = useState(''); // yyyy-MM-dd
 
   useEffect(() => {
     if (open) {
       loadSummaries();
+      // Reset filters on open
+      setStudentMode('all');
+      setFilterStart('');
+      setFilterEnd('');
     }
   }, [open]);
 
@@ -211,11 +218,27 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
 
   // Removed formatCheckboxOption - no longer using checkboxes
 
-  // Allow printing summaries even if some fields are blank, as long as
-  // they have a student and a date range. This avoids blocking printing.
-  const printableSummaries = summaries.filter(s =>
-    s && s.student_id && s.date_range_start && s.date_range_end
-  );
+  // Allow printing summaries even if some fields are blank, as long as they have student and date range
+  const printableSummaries = summaries.filter(s => s && s.student_id && s.date_range_start && s.date_range_end);
+
+  // Apply student filter (all or current)
+  const byStudent = printableSummaries.filter(s => {
+    if (studentMode === 'current' && currentStudentId) return s.student_id === currentStudentId;
+    if (studentMode === 'current' && !currentStudentId) return false; // no current context
+    return true;
+  });
+
+  // Apply date range overlap filter if provided
+  const overlapsRange = (s) => {
+    if (!filterStart && !filterEnd) return true;
+    const start = s.date_range_start; // 'yyyy-MM-dd'
+    const end = s.date_range_end;
+    if (filterStart && end < filterStart) return false; // entirely before range
+    if (filterEnd && start > filterEnd) return false; // entirely after range
+    return true;
+  };
+
+  const filteredSummaries = byStudent.filter(overlapsRange);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -223,26 +246,77 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
         <DialogHeader className="flex-row items-center justify-between pr-10">
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            Print All Behavior Summaries ({printableSummaries.length})
+            Print Behavior Summaries ({filteredSummaries.length})
           </DialogTitle>
           <div className="flex items-center gap-2">
-            <Button onClick={handlePrint} disabled={printableSummaries.length === 0 || isLoading}>
-              <Printer className="w-4 h-4 mr-2"/>Print All
+            <Button onClick={handlePrint} disabled={filteredSummaries.length === 0 || isLoading}>
+              <Printer className="w-4 h-4 mr-2"/>Print
             </Button>
           </div>
         </DialogHeader>
-        
+
+        {/* Filters */}
+        <div className="px-4 pb-2">
+          <div className="flex flex-col md:flex-row md:items-end gap-3 md:gap-4">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-slate-700">Students:</label>
+              <label className="text-sm flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="studentMode"
+                  value="all"
+                  checked={studentMode === 'all'}
+                  onChange={() => setStudentMode('all')}
+                />
+                All
+              </label>
+              <label className={`text-sm flex items-center gap-1 ${!currentStudentId ? 'opacity-50' : ''}`}>
+                <input
+                  type="radio"
+                  name="studentMode"
+                  value="current"
+                  disabled={!currentStudentId}
+                  checked={studentMode === 'current'}
+                  onChange={() => setStudentMode('current')}
+                />
+                Current{!currentStudentId ? ' (N/A here)' : ''}
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">Date range:</label>
+              <input
+                type="date"
+                value={filterStart}
+                onChange={(e) => setFilterStart(e.target.value)}
+                className="border border-slate-300 rounded px-2 py-1 text-sm"
+              />
+              <span className="text-slate-500">to</span>
+              <input
+                type="date"
+                value={filterEnd}
+                onChange={(e) => setFilterEnd(e.target.value)}
+                className="border border-slate-300 rounded px-2 py-1 text-sm"
+              />
+              {(filterStart || filterEnd || studentMode !== 'all') && (
+                <Button variant="ghost" onClick={() => { setFilterStart(''); setFilterEnd(''); setStudentMode('all'); }} className="h-8">
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div id="print-summaries-area" className="flex-grow overflow-y-auto p-4 bg-slate-50">
           {isLoading ? (
             <div className="text-center py-10">Loading summaries...</div>
-          ) : printableSummaries.length === 0 ? (
+          ) : filteredSummaries.length === 0 ? (
             <div className="text-center py-10">
               <FileText className="w-16 h-16 mx-auto text-slate-300 mb-4" />
               <h3 className="text-xl font-bold text-slate-800 mb-2">No Behavior Summaries</h3>
               <p className="text-slate-500">Create behavior summaries from the Behavior Summary Reports page to print them here.</p>
             </div>
           ) : (
-            printableSummaries.map((summary) => (
+            filteredSummaries.map((summary) => (
               <div key={summary.id} className="behavior-form">
                 
                 <div className="form-title">Student Behavior Summary Report</div>

@@ -201,6 +201,7 @@ export default function BehaviorSummaryReports() {
         onOpenChange={setShowPrintAllDialog} 
         students={students} 
         settings={settings} 
+        currentStudentId={currentStudent?.id}
       />
     </div>
   );
