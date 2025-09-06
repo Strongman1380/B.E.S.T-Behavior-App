@@ -1,0 +1,4 @@
+- [ ] Apply Supabase schema to create grades table and policies
+- [ ] Fix Vercel manifest.json 401 issue by checking rewrites/headers
+- [ ] Test KPI dashboard after fixes
+- [ ] Verify all APIs work in production
