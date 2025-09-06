@@ -516,6 +516,42 @@ const exportAllCSVs = async () => {
   const studentComparison = getStudentComparison();
   const timeSlotAnalysis = getTimeSlotAnalysis();
   const weeklyTrends = getWeeklyTrends();
+  // Grades trend per day; 'all' plots one line per student, otherwise single student line
+  const getGradesTrend = () => {
+    const daysBack = parseInt(dateRange);
+    const dates = eachDayOfInterval({ start: subDays(getCurrentDate(), daysBack - 1), end: getCurrentDate() });
+    const dayKeys = dates.map(d => ({ key: format(d, 'yyyy-MM-dd'), label: format(d, 'MMM dd') }));
+    const inRange = (g) => {
+      const createdDay = (g.created_at || '').slice(0, 10);
+      return createdDay >= dayKeys[0].key && createdDay <= dayKeys[dayKeys.length - 1].key;
+    };
+    const filtered = grades.filter(inRange);
+
+    const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
+    if (selectedId != null) {
+      const sid = selectedId;
+      const rows = dayKeys.map(({ key, label }) => {
+        const dayGrades = filtered.filter(g => g.student_id === sid && (g.created_at || '').slice(0,10) === key);
+        const avg = dayGrades.length ? dayGrades.reduce((a, b) => a + Number(b.percentage || 0), 0) / dayGrades.length : null;
+        return { date: label, value: avg };
+      });
+      return { data: rows, seriesKeys: ['value'] };
+    }
+
+    const nameById = Object.fromEntries(students.map(s => [s.id, s.student_name]));
+    const seriesKeys = students.map(s => nameById[s.id]).filter(Boolean);
+    const rows = dayKeys.map(({ key, label }) => {
+      const row = { date: label };
+      students.forEach(s => {
+        const dayGrades = filtered.filter(g => g.student_id === s.id && (g.created_at || '').slice(0,10) === key);
+        const avg = dayGrades.length ? dayGrades.reduce((a, b) => a + Number(b.percentage || 0), 0) / dayGrades.length : null;
+        row[nameById[s.id]] = avg;
+      });
+      return row;
+    });
+    return { data: rows, seriesKeys };
+  };
+
   const gradesTrend = getGradesTrend();
   const activeStudentsCount = students.length;
 
@@ -867,39 +903,4 @@ const exportAllCSVs = async () => {
       </div>
     </div>
   );
-  // Grades trend per day; 'all' plots one line per student, otherwise single student line
-  const getGradesTrend = () => {
-    const daysBack = parseInt(dateRange);
-    const dates = eachDayOfInterval({ start: subDays(getCurrentDate(), daysBack - 1), end: getCurrentDate() });
-    const dayKeys = dates.map(d => ({ key: format(d, 'yyyy-MM-dd'), label: format(d, 'MMM dd') }));
-    const inRange = (g) => {
-      const createdDay = (g.created_at || '').slice(0, 10);
-      return createdDay >= dayKeys[0].key && createdDay <= dayKeys[dayKeys.length - 1].key;
-    };
-    const filtered = grades.filter(inRange);
-
-    const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
-    if (selectedId != null) {
-      const sid = selectedId;
-      const rows = dayKeys.map(({ key, label }) => {
-        const dayGrades = filtered.filter(g => g.student_id === sid && (g.created_at || '').slice(0,10) === key);
-        const avg = dayGrades.length ? dayGrades.reduce((a, b) => a + Number(b.percentage || 0), 0) / dayGrades.length : null;
-        return { date: label, value: avg };
-      });
-      return { data: rows, seriesKeys: ['value'] };
-    }
-
-    const nameById = Object.fromEntries(students.map(s => [s.id, s.student_name]));
-    const seriesKeys = students.map(s => nameById[s.id]).filter(Boolean);
-    const rows = dayKeys.map(({ key, label }) => {
-      const row = { date: label };
-      students.forEach(s => {
-        const dayGrades = filtered.filter(g => g.student_id === s.id && (g.created_at || '').slice(0,10) === key);
-        const avg = dayGrades.length ? dayGrades.reduce((a, b) => a + Number(b.percentage || 0), 0) / dayGrades.length : null;
-        row[nameById[s.id]] = avg;
-      });
-      return row;
-    });
-    return { data: rows, seriesKeys };
-  };
 }
