@@ -14,14 +14,14 @@ export default function StudentComparisonList({ data }) {
             </div>
           </div>
           <div className="flex gap-1 sm:gap-2 self-start sm:self-center">
-            {student.avgRating >= 3.5 && (
+            {student.avgRating >= 4 && (
               <Badge className="bg-green-100 text-green-800 text-xs">Excellent</Badge>
             )}
-            {student.avgRating >= 2.5 && student.avgRating < 3.5 && (
+            {student.avgRating >= 3 && student.avgRating < 4 && (
               <Badge className="bg-yellow-100 text-yellow-800 text-xs">Good</Badge>
             )}
-            {student.avgRating < 2.5 && (
-              <Badge className="bg-red-100 text-red-800 text-xs">Needs Support</Badge>
+            {student.avgRating < 3 && (
+              <Badge className="bg-red-100 text-red-800 text-xs">Needs Improvement</Badge>
             )}
           </div>
         </div>

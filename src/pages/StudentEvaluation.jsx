@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Student } from "@/api/entities";
 import { DailyEvaluation } from "@/api/entities";
@@ -27,6 +27,8 @@ export default function StudentEvaluation() {
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const creatingRef = useRef(false);
+  const queuedDataRef = useRef(null);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -75,11 +77,22 @@ export default function StudentEvaluation() {
           toast.success("Evaluation updated successfully!");
         }
       } else {
+        // Prevent duplicate creates when autosave fires multiple times
+        if (creatingRef.current) {
+          // Queue the latest data to apply after create completes
+          queuedDataRef.current = evaluationData;
+          return; // exit early; we will apply queued update later
+        }
+        creatingRef.current = true;
         const newEvaluation = await DailyEvaluation.create({ student_id: studentId, date, ...evaluationData });
-        // Set local state instead of reloading
         setEvaluation(newEvaluation);
-        if (showToast) {
-          toast.success("Evaluation created successfully!");
+        if (showToast) toast.success("Evaluation created successfully!");
+        // If more edits came in during create, apply them as an update now
+        if (queuedDataRef.current) {
+          const pending = queuedDataRef.current;
+          queuedDataRef.current = null;
+          await DailyEvaluation.update(newEvaluation.id, pending);
+          setEvaluation(prev => ({ ...prev, ...pending }));
         }
       }
     } catch (error) { 
@@ -97,6 +110,7 @@ export default function StudentEvaluation() {
       }
     } finally {
       setIsSaving(false);
+      creatingRef.current = false;
     }
   };
 

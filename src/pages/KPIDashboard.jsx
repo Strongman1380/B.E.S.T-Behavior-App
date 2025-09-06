@@ -12,10 +12,6 @@ import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from "date
 import { parseYmd } from "@/utils";
 import { toast } from 'sonner';
 import ClearDataDialog from "@/components/kpi/ClearDataDialog";
-import EvaluationsCountCard from "@/components/kpi/EvaluationsCountCard";
-import IncidentsCountCard from "@/components/kpi/IncidentsCountCard";
-import ContactLogsCountCard from "@/components/kpi/ContactLogsCountCard";
-import ActiveStudentsCard from "@/components/kpi/ActiveStudentsCard";
 import { createZip } from "@/lib/zip";
 
 const BehaviorTrendChart = lazy(() => import('@/components/kpi/BehaviorTrendChart'));
@@ -515,6 +511,24 @@ const exportAllCSVs = async () => {
   const studentComparison = getStudentComparison();
   const timeSlotAnalysis = getTimeSlotAnalysis();
   const weeklyTrends = getWeeklyTrends();
+  const activeStudentsCount = students.length;
+
+  // Export only the Student Performance Overview section as CSV
+  const exportStudentPerformanceCSV = () => {
+    const headers = ['Name','Avg Rating','4\'s Rate %','Incidents','Evaluations'];
+    const rows = studentComparison.map(s => [s.name, s.avgRating, s.smileyRate, s.incidents, s.evaluations]);
+    const csv = [headers.join(',')]
+      .concat(rows.map(r => r.map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `student-performance-${format(getCurrentDate(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success('Student Performance exported successfully!');
+  };
 
   if (isLoading) {
     return (
@@ -651,33 +665,16 @@ const exportAllCSVs = async () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Students Tracked</CardTitle>
+              <CardTitle className="text-sm font-medium">Students Tracked / Active</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{overallMetrics.studentsEvaluated}</div>
+              <div className="text-2xl font-bold">{overallMetrics.studentsEvaluated} / {activeStudentsCount}</div>
               <p className="text-xs text-muted-foreground">
-                Active in selected period
+                Tracked in range / Active total
               </p>
             </CardContent>
           </Card>
-
-          <EvaluationsCountCard
-            startDate={format(subDays(getCurrentDate(), parseInt(dateRange) - 1), 'yyyy-MM-dd')}
-            endDate={format(getCurrentDate(), 'yyyy-MM-dd')}
-          />
-
-          <IncidentsCountCard
-            startDate={format(subDays(getCurrentDate(), parseInt(dateRange) - 1), 'yyyy-MM-dd')}
-            endDate={format(getCurrentDate(), 'yyyy-MM-dd')}
-          />
-
-          <ContactLogsCountCard
-            startDate={format(subDays(getCurrentDate(), parseInt(dateRange) - 1), 'yyyy-MM-dd')}
-            endDate={format(getCurrentDate(), 'yyyy-MM-dd')}
-          />
-
-          <ActiveStudentsCard />
         </div>
 
         {/* Charts Grid */}
@@ -723,8 +720,11 @@ const exportAllCSVs = async () => {
 
           {/* Student Performance Comparison */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 flex items-center justify-between">
               <CardTitle className="text-base sm:text-lg">Student Performance Overview</CardTitle>
+              <Button onClick={exportStudentPerformanceCSV} variant="outline" className="h-9">
+                <Download className="w-4 h-4 mr-2" /> CSV
+              </Button>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
               <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
