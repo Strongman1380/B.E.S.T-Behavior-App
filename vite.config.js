@@ -15,7 +15,7 @@ export default defineConfig({
   envPrefix: ['VITE_', 'NEXT_PUBLIC_', 'SUPABASE_'],
   build: {
     chunkSizeWarningLimit: 1000,
-    minify: 'esbuild',
+    minify: 'terser',
     rollupOptions: {
       output: {
         manualChunks: {
