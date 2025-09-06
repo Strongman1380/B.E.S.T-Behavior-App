@@ -3,11 +3,13 @@ import { Student } from "@/api/entities";
 import { BehaviorSummary } from "@/api/entities";
 import { Settings } from "@/api/entities";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Users, FileText } from "lucide-react";
+import { ArrowLeft, ArrowRight, Users, FileText, Printer } from "lucide-react";
 import { Toaster, toast } from 'sonner';
 
 import StudentList from "../components/behavior-summary/StudentList";
 import SummaryForm from "../components/behavior-summary/SummaryForm";
+import PrintBehaviorSummariesDialog from "../components/behavior/PrintBehaviorSummariesDialog";
+import { todayYmd } from "@/utils";
 
 export default function BehaviorSummaryReports() {
   const [students, setStudents] = useState([]);
@@ -17,6 +19,7 @@ export default function BehaviorSummaryReports() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isStudentListOpen, setIsStudentListOpen] = useState(false);
+  const [showPrintAllDialog, setShowPrintAllDialog] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -46,28 +49,43 @@ export default function BehaviorSummaryReports() {
     setIsLoading(false);
   };
 
-  const saveSummary = async (formData) => {
+  // Find a summary for a given student and exact date range
+  const findSummaryForRange = (studentId, startYmd, endYmd) => {
+    return summaries.find(s => s.student_id === studentId && s.date_range_start === startYmd && s.date_range_end === endYmd) || null;
+  };
+
+  const saveSummary = async (formData, opts = {}) => {
+    const { silent = false } = opts || {};
     const studentId = students[currentStudentIndex]?.id;
     if (!studentId) return;
 
     setIsSaving(true);
     try {
-      const existingSummary = summaries.find(s => s.student_id === studentId);
+      // Persist by student + date range so multiple summaries per student are allowed
+      const existingSummary = findSummaryForRange(
+        studentId,
+        formData.date_range_start,
+        formData.date_range_end
+      );
       
       if (existingSummary) {
         await BehaviorSummary.update(existingSummary.id, formData);
-        console.log("Updated existing summary for student:", students[currentStudentIndex].student_name);
+        console.log("Updated existing summary for student/date range:", students[currentStudentIndex].student_name, formData.date_range_start, formData.date_range_end);
       } else {
-        await BehaviorSummary.create({ student_id: studentId, ...formData });
-        console.log("Created new summary for student:", students[currentStudentIndex].student_name);
+        const created = await BehaviorSummary.create({ student_id: studentId, ...formData });
+        console.log("Created new summary for student/date range:", students[currentStudentIndex].student_name, formData.date_range_start, formData.date_range_end);
+        // Ensure created object has id and mapped fields
+        formData = { ...created };
       }
       
-      toast.success(`${students[currentStudentIndex].student_name}'s behavior summary saved!`);
+      if (!silent) {
+        toast.success(`${students[currentStudentIndex].student_name}'s behavior summary saved!`);
+      }
       
       // Update local state
       const updatedSummaries = existingSummary 
         ? summaries.map(s => s.id === existingSummary.id ? { ...s, ...formData } : s)
-        : [...summaries, { id: Date.now(), student_id: studentId, ...formData }];
+        : [...summaries, { ...formData }];
       
       setSummaries(updatedSummaries);
       
@@ -93,7 +111,11 @@ export default function BehaviorSummaryReports() {
   };
 
   const currentStudent = students[currentStudentIndex];
-  const currentSummary = currentStudent ? summaries.find(s => s.student_id === currentStudent.id) : null;
+  // Show today's summary by default; if none exists for today, form will start blank for a new entry
+  const today = todayYmd();
+  const currentSummary = currentStudent 
+    ? summaries.find(s => s.student_id === currentStudent.id && s.date_range_start === today && s.date_range_end === today) || null
+    : null;
   const navigateStudent = (dir) => setCurrentStudentIndex(p => Math.max(0, Math.min(p + dir, students.length - 1)));
 
   if (isLoading) return <div className="flex h-screen items-center justify-center">Loading Behavior Summary Reports...</div>;
@@ -137,17 +159,27 @@ export default function BehaviorSummaryReports() {
                   <h2 className="text-xl font-bold text-slate-900">{currentStudent.student_name} - Behavior Summary</h2>
                   <p className="text-sm text-slate-500">Student {currentStudentIndex + 1} of {students.length}</p>
                 </div>
-                <Button onClick={() => navigateStudent(1)} disabled={currentStudentIndex === students.length - 1} variant="outline">
-                  Next <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button onClick={() => setShowPrintAllDialog(true)} variant="outline">
+                    <Printer className="w-4 h-4 mr-2" /> Print All
+                  </Button>
+                  <Button onClick={() => navigateStudent(1)} disabled={currentStudentIndex === students.length - 1} variant="outline">
+                    Next <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
               </div>
               <div className="flex md:hidden items-center justify-between mt-4 gap-2">
                 <Button onClick={() => navigateStudent(-1)} disabled={currentStudentIndex === 0} variant="outline" className="flex-1">
                   <ArrowLeft className="w-4 h-4 mr-2" /> Prev
                 </Button>
-                <Button onClick={() => navigateStudent(1)} disabled={currentStudentIndex === students.length - 1} variant="outline" className="flex-1">
-                  Next <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
+                <div className="flex-1 flex gap-2">
+                  <Button onClick={() => setShowPrintAllDialog(true)} variant="outline" className="flex-1">
+                    <Printer className="w-4 h-4 mr-2" /> All
+                  </Button>
+                  <Button onClick={() => navigateStudent(1)} disabled={currentStudentIndex === students.length - 1} variant="outline" className="flex-1">
+                    Next <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
               </div>
             </header>
             <div className="p-4 md:p-8 flex-1">
@@ -158,11 +190,18 @@ export default function BehaviorSummaryReports() {
                 onSave={saveSummary} 
                 isSaving={isSaving}
                 studentId={currentStudent.id}
+                student={currentStudent}
               />
             </div>
           </>
         )}
       </main>
+      <PrintBehaviorSummariesDialog 
+        open={showPrintAllDialog} 
+        onOpenChange={setShowPrintAllDialog} 
+        students={students} 
+        settings={settings} 
+      />
     </div>
   );
 }

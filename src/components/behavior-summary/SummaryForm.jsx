@@ -1,18 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Save, Sparkles, Loader2 } from "lucide-react";
+import { CalendarIcon, Save, Sparkles, Loader2, Printer } from "lucide-react";
 import { format } from "date-fns";
-import { parseYmd } from "@/utils";
+import { parseYmd, formatDateRange } from "@/utils";
 import { DailyEvaluation, IncidentReport, ContactLog } from "@/api/entities";
 import { toast } from 'sonner';
 import OpenAI from 'openai';
 
-export default function SummaryForm({ summary, settings, onSave, isSaving, studentId }) {
+export default function SummaryForm({ summary, settings, onSave, isSaving, studentId, student }) {
   const [formData, setFormData] = useState({
     date_range_start: new Date(),
     date_range_end: new Date(),
@@ -24,6 +24,18 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
     summary_recommendations: ''
   });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Debounce helper reused from evaluation form
+  const useDebounce = (callback, delay) => {
+    const [debounceTimer, setDebounceTimer] = useState(null);
+    const debouncedCallback = useCallback((...args) => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      const newTimer = setTimeout(() => { callback(...args); }, delay);
+      setDebounceTimer(newTimer);
+    }, [callback, delay, debounceTimer]);
+    return debouncedCallback;
+  };
 
   useEffect(() => {
     const newFormData = {
@@ -40,8 +52,23 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
   }, [summary, settings]);
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    const newData = { ...formData, [field]: value };
+    setFormData(newData);
+    setHasUnsavedChanges(true);
+    // Debounced auto-save, silent
+    const payload = {
+      ...newData,
+      date_range_start: format(newData.date_range_start, 'yyyy-MM-dd'),
+      date_range_end: format(newData.date_range_end, 'yyyy-MM-dd')
+    };
+    debouncedSave(payload);
   };
+
+  const debouncedSave = useDebounce((data) => {
+    if (!studentId) return;
+    onSave(data, { silent: true });
+    setHasUnsavedChanges(false);
+  }, 2000);
 
   const handleSave = () => {
     const dataToSave = {
@@ -50,6 +77,123 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       date_range_end: format(formData.date_range_end, 'yyyy-MM-dd')
     };
     onSave(dataToSave);
+  };
+
+  const handlePrintCurrent = () => {
+    const data = {
+      ...formData,
+      date_range_start: format(formData.date_range_start, 'yyyy-MM-dd'),
+      date_range_end: format(formData.date_range_end, 'yyyy-MM-dd')
+    };
+    const printWindow = window.open('', '', 'height=800,width=800');
+    if (!printWindow) return;
+    const studentName = student?.student_name || '';
+    const preparedBy = data.prepared_by || settings?.teacher_name || '';
+    const schoolName = settings?.school_name || '';
+    const dateRangeStr = formatDateRange(data.date_range_start, data.date_range_end);
+    const contentHtml = `
+      <div class="behavior-form">
+        <div class="form-title">Student Behavior Summary Report</div>
+        <div class="header-info">
+          <div class="info-row">
+            <span class="info-label">Student Name:</span>
+            <div class="info-box">${studentName}</div>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Report Period:</span>
+            <div class="info-box">${dateRangeStr}</div>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Prepared By:</span>
+            <div class="info-box">${preparedBy}</div>
+          </div>
+          <div class="info-row">
+            <span class="info-label">School:</span>
+            <div class="info-box">${schoolName}</div>
+          </div>
+        </div>
+        <div class="content-sections">
+          <div class="content-section">
+            <div class="section-label">General Behavior Overview</div>
+            <div class="content-box large-content-box">${(data.general_behavior_overview || '').toString().replace(/</g,'&lt;')}</div>
+          </div>
+          <div class="two-column">
+            <div class="column">
+              <div class="content-section">
+                <div class="section-label">Strengths</div>
+                <div class="content-box">${(data.strengths || '').toString().replace(/</g,'&lt;')}</div>
+              </div>
+            </div>
+            <div class="column">
+              <div class="content-section">
+                <div class="section-label">Areas for Improvement</div>
+                <div class="content-box">${(data.improvements_needed || '').toString().replace(/</g,'&lt;')}</div>
+              </div>
+            </div>
+          </div>
+          ${data.behavioral_incidents && data.behavioral_incidents.trim() ? `
+            <div class="content-section">
+              <div class="section-label">Behavioral Incident Summary</div>
+              <div class="content-box">${data.behavioral_incidents.toString().replace(/</g,'&lt;')}</div>
+            </div>
+          ` : ''}
+          <div class="content-section">
+            <div class="section-label">Recommendations</div>
+            <div class="content-box large-content-box">${(data.summary_recommendations || '').toString().replace(/</g,'&lt;')}</div>
+          </div>
+        </div>
+        <div class="signature-section">
+          <div class="signature-block">
+            <div class="signature-line"></div>
+            <div class="signature-text">Teacher Signature</div>
+          </div>
+          <div class="signature-block">
+            <div class="signature-line"></div>
+            <div class="signature-text">Date</div>
+          </div>
+        </div>
+      </div>`;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print Behavior Summary</title>
+          <style>
+            @page { size: letter; margin: 0.6in; }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 11px; line-height: 1.3; color: #000; }
+            .behavior-form { margin-bottom: 0; background: white; min-height: 9in; display: flex; flex-direction: column; }
+            .form-title { font-size: 18px; font-weight: bold; text-align: center; margin: 0 0 18px 0; text-transform: uppercase; letter-spacing: 1px; }
+            .header-info { margin-bottom: 20px; flex-shrink: 0; }
+            .info-row { display: flex; align-items: center; margin-bottom: 10px; gap: 8px; }
+            .info-label { font-weight: bold; min-width: 110px; font-size: 11px; }
+            .info-box { border: 1px solid #000; padding: 5px 8px; min-width: 180px; background-color: #fff; font-size: 11px; }
+            .content-sections { flex-grow: 1; display: flex; flex-direction: column; }
+            .content-section { margin-bottom: 15px; page-break-inside: avoid; }
+            .section-label { font-weight: bold; font-size: 12px; margin-bottom: 6px; text-align: left; color: #000; }
+            .content-box { border: 2px solid #000; padding: 10px; min-height: 60px; background-color: #fff; font-size: 10px; line-height: 1.4; }
+            .large-content-box { min-height: 80px; }
+            .two-column { display: flex; gap: 15px; margin-bottom: 15px; }
+            .column { flex: 1; }
+            .signature-section { margin-top: auto; padding-top: 20px; display: flex; justify-content: space-between; gap: 50px; flex-shrink: 0; }
+            .signature-block { flex: 1; }
+            .signature-line { border-bottom: 2px solid #000; height: 20px; margin-bottom: 5px; }
+            .signature-text { font-size: 10px; text-align: center; font-weight: bold; }
+            @media print {
+              body { font-size: 10px !important; }
+              .behavior-form { min-height: 9.5in !important; max-height: 9.5in !important; }
+              .form-title { font-size: 16px !important; margin-bottom: 15px !important; }
+              .content-box { min-height: 50px !important; font-size: 9px !important; padding: 8px !important; }
+              .large-content-box { min-height: 70px !important; }
+              .info-box { font-size: 10px !important; padding: 4px 6px !important; }
+              .signature-section { padding-top: 15px !important; }
+            }
+          </style>
+        </head>
+        <body>${contentHtml}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 400);
   };
 
   const generateSummaryFromComments = async () => {
@@ -416,11 +560,19 @@ Use everyday language that's easy to read, but keep it appropriate for school do
             )}
             {isGenerating ? 'Analyzing...' : 'Generate from Comments'}
           </Button>
+          <Button onClick={handlePrintCurrent} variant="outline">
+            <Printer className="w-4 h-4 mr-2" />
+            Print Current
+          </Button>
           <Button onClick={handleSave} disabled={isSaving} className="bg-blue-600 hover:bg-blue-700">
             <Save className="w-4 h-4 mr-2" />
             {isSaving ? 'Saving...' : 'Save Summary'}
           </Button>
         </div>
+
+        {hasUnsavedChanges && (
+          <div className="text-right text-xs text-slate-500 mt-1">Auto-saving...</div>
+        )}
       </div>
     </div>
   );
