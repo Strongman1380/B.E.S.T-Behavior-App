@@ -83,6 +83,17 @@ CREATE TABLE IF NOT EXISTS behavior_summaries (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Grades table
+CREATE TABLE IF NOT EXISTS grades (
+  id BIGSERIAL PRIMARY KEY,
+  student_id BIGINT REFERENCES students(id) ON DELETE CASCADE,
+  class_name TEXT NOT NULL,
+  percentage NUMERIC(5,2) NOT NULL,
+  letter_grade TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Users table (for future authentication)
 CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL PRIMARY KEY,
@@ -101,6 +112,7 @@ ALTER TABLE contact_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE incident_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE behavior_summaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE grades ENABLE ROW LEVEL SECURITY;
 
 -- Ensure anon/authenticated roles can access objects (required in addition to RLS)
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
@@ -154,6 +166,12 @@ CREATE POLICY IF NOT EXISTS "Allow anon to insert users" ON users FOR INSERT TO 
 CREATE POLICY IF NOT EXISTS "Allow anon to update users" ON users FOR UPDATE TO anon USING (true);
 CREATE POLICY IF NOT EXISTS "Allow anon to delete users" ON users FOR DELETE TO anon USING (true);
 
+-- Grades policies
+CREATE POLICY IF NOT EXISTS "Allow anon to read grades" ON grades FOR SELECT TO anon USING (true);
+CREATE POLICY IF NOT EXISTS "Allow anon to insert grades" ON grades FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS "Allow anon to update grades" ON grades FOR UPDATE TO anon USING (true);
+CREATE POLICY IF NOT EXISTS "Allow anon to delete grades" ON grades FOR DELETE TO anon USING (true);
+
 -- Add updated_at triggers
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -171,6 +189,7 @@ CREATE TRIGGER update_contact_logs_updated_at BEFORE UPDATE ON contact_logs FOR 
 CREATE TRIGGER update_incident_reports_updated_at BEFORE UPDATE ON incident_reports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_behavior_summaries_updated_at BEFORE UPDATE ON behavior_summaries FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_grades_updated_at BEFORE UPDATE ON grades FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert sample data (optional - remove if you don't want sample data)
 INSERT INTO students (student_name, grade_level, teacher_name) VALUES

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { LayoutDashboard, MessageSquare, Zap, Settings, ShieldCheck, Menu, FileText, AlertTriangle, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Zap, Settings, ShieldCheck, Menu, FileText, AlertTriangle, BarChart3, BookOpen } from 'lucide-react';
 import RealTimeSync from '../components/sync/RealTimeSync';
 import SupabaseStatus from '../components/SupabaseStatus';
 import SupabaseHealth from '../components/SupabaseHealth';
@@ -14,6 +14,7 @@ const navItems = [
     { title: 'Quick Score', icon: Zap, url: createPageUrl('QuickScore') },
     { title: 'KPI Dashboard', icon: BarChart3, url: createPageUrl('KPIDashboard') },
     { title: 'Behavior Summaries', icon: FileText, url: createPageUrl('BehaviorSummaryReports') },
+    { title: 'Grade Reports', icon: BookOpen, url: createPageUrl('GradeReports') },
     { title: 'Incident Reports', icon: AlertTriangle, url: createPageUrl('IncidentReports') },
     { title: 'Settings', icon: Settings, url: createPageUrl('Settings') },
 ];

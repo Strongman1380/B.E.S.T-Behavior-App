@@ -12,6 +12,7 @@ const StudentProfile = lazy(() => import('./StudentProfile'));
 const BehaviorSummaryReports = lazy(() => import('./BehaviorSummaryReports'));
 const IncidentReports = lazy(() => import('./IncidentReports'));
 const KPIDashboard = lazy(() => import('./KPIDashboard'));
+const GradeReports = lazy(() => import('./GradeReports'));
 
 // Create a wrapper component that uses useLocation inside the Router context
 function PagesContent() {
@@ -40,6 +41,8 @@ function PagesContent() {
                 <Route path="/BehaviorSummaryReports" element={<BehaviorSummaryReports />} />
                 
                 <Route path="/IncidentReports" element={<IncidentReports />} />
+                
+                <Route path="/GradeReports" element={<GradeReports />} />
                 
             </Routes>
             </Suspense>
