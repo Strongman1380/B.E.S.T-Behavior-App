@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog } from "@/api/entities";
+import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog, Grade } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ const IncidentTypesBar = lazy(() => import('@/components/kpi/IncidentTypesBar'))
 const RatingDistributionPie = lazy(() => import('@/components/kpi/RatingDistributionPie'));
 const TimeSlotAnalysisBar = lazy(() => import('@/components/kpi/TimeSlotAnalysisBar'));
 const WeeklyTrendsArea = lazy(() => import('@/components/kpi/WeeklyTrendsArea'));
+const GradesLineChart = lazy(() => import('@/components/kpi/GradesLineChart'));
 const StudentComparisonList = lazy(() => import('@/components/kpi/StudentComparisonList'));
 
 const INCIDENT_TYPE_COLORS = {
@@ -36,6 +37,7 @@ export default function KPIDashboard() {
   const [evaluations, setEvaluations] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [behaviorSummaries, setBehaviorSummaries] = useState([]);
+  const [grades, setGrades] = useState([]);
   const [contactLogs, setContactLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState('7'); // days
@@ -57,12 +59,13 @@ export default function KPIDashboard() {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [studentsData, evaluationsData, incidentsData, summariesData, contactsData] = await Promise.all([
+      const [studentsData, evaluationsData, incidentsData, summariesData, contactsData, gradesData] = await Promise.all([
         Student.filter({ active: true }),
         DailyEvaluation.list('date'),
         IncidentReport.list('incident_date'),
         BehaviorSummary.list('date_from'),
-        ContactLog.list('contact_date')
+        ContactLog.list('contact_date'),
+        Grade.list('created_at')
       ]);
       
       setStudents(studentsData);
@@ -70,6 +73,7 @@ export default function KPIDashboard() {
       setIncidents(incidentsData);
       setBehaviorSummaries(summariesData);
       setContactLogs(contactsData);
+      setGrades(gradesData);
     } catch (error) {
       console.error("Error loading KPI data:", error);
       const msg = typeof error?.message === 'string' ? error.message : ''
@@ -511,6 +515,7 @@ const exportAllCSVs = async () => {
   const studentComparison = getStudentComparison();
   const timeSlotAnalysis = getTimeSlotAnalysis();
   const weeklyTrends = getWeeklyTrends();
+  const gradesTrend = getGradesTrend();
   const activeStudentsCount = students.length;
 
   // Export only the Student Performance Overview section as CSV
@@ -582,6 +587,20 @@ const exportAllCSVs = async () => {
               </Button>
             </div>
           </div>
+        </div>
+
+        {/* Grades Trend */}
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-lg">Grades Over Time {selectedStudent === 'all' ? '(All Students)' : ''}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6">
+              <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
+                <GradesLineChart data={gradesTrend.data} seriesKeys={gradesTrend.seriesKeys} />
+              </Suspense>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Filters */}
@@ -847,4 +866,38 @@ const exportAllCSVs = async () => {
       </div>
     </div>
   );
+  // Grades trend per day; 'all' plots one line per student, otherwise single student line
+  const getGradesTrend = () => {
+    const daysBack = parseInt(dateRange);
+    const dates = eachDayOfInterval({ start: subDays(getCurrentDate(), daysBack - 1), end: getCurrentDate() });
+    const dayKeys = dates.map(d => ({ key: format(d, 'yyyy-MM-dd'), label: format(d, 'MMM dd') }));
+    const inRange = (g) => {
+      const createdDay = (g.created_at || '').slice(0, 10);
+      return createdDay >= dayKeys[0].key && createdDay <= dayKeys[dayKeys.length - 1].key;
+    };
+    const filtered = grades.filter(inRange);
+
+    if (selectedStudent !== 'all') {
+      const sid = selectedStudent;
+      const rows = dayKeys.map(({ key, label }) => {
+        const dayGrades = filtered.filter(g => g.student_id === sid && (g.created_at || '').slice(0,10) === key);
+        const avg = dayGrades.length ? dayGrades.reduce((a, b) => a + Number(b.percentage || 0), 0) / dayGrades.length : null;
+        return { date: label, value: avg };
+      });
+      return { data: rows, seriesKeys: ['value'] };
+    }
+
+    const nameById = Object.fromEntries(students.map(s => [s.id, s.student_name]));
+    const seriesKeys = students.map(s => nameById[s.id]).filter(Boolean);
+    const rows = dayKeys.map(({ key, label }) => {
+      const row = { date: label };
+      students.forEach(s => {
+        const dayGrades = filtered.filter(g => g.student_id === s.id && (g.created_at || '').slice(0,10) === key);
+        const avg = dayGrades.length ? dayGrades.reduce((a, b) => a + Number(b.percentage || 0), 0) / dayGrades.length : null;
+        row[nameById[s.id]] = avg;
+      });
+      return row;
+    });
+    return { data: rows, seriesKeys };
+  };
 }

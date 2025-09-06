@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { Student, Grade } from '@/api/entities'
 import { Button } from '@/components/ui/button'
 import { Toaster, toast } from 'sonner'
-import { User, Plus, Trash2 } from 'lucide-react'
+import { User, Plus, Trash2, Printer } from 'lucide-react'
+import PrintGradesDialog from '@/components/grades/PrintGradesDialog'
 import AddGradeDialog from '@/components/grades/AddGradeDialog'
 import DeleteConfirmationDialog from '@/components/behavior/DeleteConfirmationDialog'
 
@@ -14,6 +15,7 @@ export default function GradeReports() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selection, setSelection] = useState([])
+  const [showPrintDialog, setShowPrintDialog] = useState(false)
 
   const loadStudents = useCallback(async () => {
     try {
@@ -126,6 +128,9 @@ export default function GradeReports() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => setShowPrintDialog(true)}>
+                  <Printer className="w-4 h-4 mr-2" /> Print
+                </Button>
                 <Button onClick={() => setShowAddDialog(true)} className="bg-blue-600 hover:bg-blue-700">
                   <Plus className="w-4 h-4 mr-2" /> Add Grade
                 </Button>
@@ -171,8 +176,8 @@ export default function GradeReports() {
       </main>
 
       <AddGradeDialog open={showAddDialog} onOpenChange={setShowAddDialog} onAdd={handleAddGrade} />
+      <PrintGradesDialog open={showPrintDialog} onOpenChange={setShowPrintDialog} students={students} currentStudentId={currentStudent?.id} />
       <DeleteConfirmationDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog} onConfirm={deleteSelected} count={selection.length} actionText="delete" description={`This will permanently delete ${selection.length} grade(s).`} />
     </div>
   )
 }
-
