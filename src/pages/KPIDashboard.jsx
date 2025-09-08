@@ -8,7 +8,7 @@ import {
   Users, AlertTriangle, Star, 
   Calendar, Target, BarChart3, RefreshCw, Download, Trash2
 } from "lucide-react";
-import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks } from "date-fns";
 import { parseYmd } from "@/utils";
 import { toast } from 'sonner';
 import ClearDataDialog from "@/components/kpi/ClearDataDialog";
@@ -44,17 +44,8 @@ export default function KPIDashboard() {
   const [selectedStudent, setSelectedStudent] = useState('all');
   const [showClearDataDialog, setShowClearDataDialog] = useState(false);
 
-  // Helper function to get current date with correct year
-  const getCurrentDate = () => {
-    const now = new Date();
-    // If the system date is set to 2025 but we're likely still in 2024
-    // (this is a common issue with system clocks being set incorrectly)
-    if (now.getFullYear() === 2025) {
-      // Assume it should be 2024 for now
-      return new Date(2024, now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds());
-    }
-    return now;
-  };
+  // Helper: current date in local time
+  const getCurrentDate = () => new Date();
 
   const loadData = useCallback(async () => {
     try {
@@ -345,17 +336,32 @@ export default function KPIDashboard() {
     });
   };
 
-  // Get weekly progress trends
+  // Get weekly progress trends respecting the selected date range
   const getWeeklyTrends = () => {
     const { filteredEvaluations } = getFilteredData();
+
+    // Determine weekly range to cover
+    let rangeStart = null;
+    let rangeEnd = null;
+
+    if (dateRange === 'all') {
+      const evalDates = filteredEvaluations.map(e => parseYmd(e.date)).filter(Boolean);
+      if (evalDates.length === 0) return [];
+      rangeStart = startOfWeek(new Date(Math.min(...evalDates)));
+      rangeEnd = endOfWeek(new Date(Math.max(...evalDates)));
+    } else {
+      const daysBack = parseInt(dateRange);
+      const end = getCurrentDate();
+      const start = subDays(end, daysBack - 1);
+      rangeStart = startOfWeek(start);
+      rangeEnd = endOfWeek(end);
+    }
+
     const weeks = [];
-    const now = getCurrentDate();
-    
-    // Get last 4 weeks
-    for (let i = 3; i >= 0; i--) {
-      const weekStart = startOfWeek(subDays(now, i * 7));
+    for (let ws = rangeStart; ws <= rangeEnd; ws = addWeeks(ws, 1)) {
+      const weekStart = ws;
       const weekEnd = endOfWeek(weekStart);
-      
+
       const weekEvals = filteredEvaluations.filter(evaluation => {
         const evalDate = parseYmd(evaluation.date);
         return evalDate >= weekStart && evalDate <= weekEnd;

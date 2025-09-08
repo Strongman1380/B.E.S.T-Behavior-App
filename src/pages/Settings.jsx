@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Save, School } from "lucide-react";
+import { Save, School, Server, RefreshCw, Trash2 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 
 export default function Settings() {
@@ -12,8 +12,31 @@ export default function Settings() {
   const [settingsId, setSettingsId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  // Backend switcher state
+  const [backendUrl, setBackendUrl] = useState('');
+  const [backendKey, setBackendKey] = useState('');
+  const [hasOverride, setHasOverride] = useState(false);
 
   useEffect(() => { loadSettings(); }, []);
+  useEffect(() => {
+    try {
+      const lsUrl = typeof window !== 'undefined' ? window.localStorage.getItem('SUPABASE_URL') : '';
+      const lsKey = typeof window !== 'undefined' ? window.localStorage.getItem('SUPABASE_ANON_KEY') : '';
+      const envUrl = import.meta?.env?.NEXT_PUBLIC_SUPABASE_URL || import.meta?.env?.VITE_SUPABASE_URL || import.meta?.env?.SUPABASE_URL || '';
+      const envKey = import.meta?.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY || import.meta?.env?.VITE_SUPABASE_ANON_KEY || import.meta?.env?.SUPABASE_ANON_KEY || '';
+      if (lsUrl && lsKey) {
+        setBackendUrl(lsUrl);
+        setBackendKey(lsKey);
+        setHasOverride(true);
+      } else {
+        setBackendUrl(envUrl);
+        setBackendKey(envKey ? '••••••••' : '');
+        setHasOverride(false);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
 
   const loadSettings = async () => {
     setIsLoading(true);
@@ -61,6 +84,32 @@ export default function Settings() {
       }
     }
     setIsSaving(false);
+  };
+
+  const applyBackendOverride = () => {
+    if (!backendUrl || !backendKey || backendKey === '••••••••') {
+      toast.error('Enter Supabase URL and anon key');
+      return;
+    }
+    try {
+      window.localStorage.setItem('SUPABASE_URL', backendUrl);
+      window.localStorage.setItem('SUPABASE_ANON_KEY', backendKey);
+      toast.success('Backend updated. Reloading...');
+      setTimeout(() => window.location.reload(), 500);
+    } catch (e) {
+      toast.error('Failed to save override');
+    }
+  };
+
+  const resetBackendOverride = () => {
+    try {
+      window.localStorage.removeItem('SUPABASE_URL');
+      window.localStorage.removeItem('SUPABASE_ANON_KEY');
+      toast.success('Backend reset to build env. Reloading...');
+      setTimeout(() => window.location.reload(), 500);
+    } catch (e) {
+      toast.error('Failed to reset override');
+    }
   };
 
   return (
@@ -113,6 +162,52 @@ export default function Settings() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Backend Switcher */}
+        <div className="mt-6">
+          <Card className="bg-white shadow-sm border-slate-200">
+            <CardHeader className="border-b border-slate-100 p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl text-slate-900">
+                <Server className="w-4 h-4 sm:w-5 sm:h-5" />
+                Backend Configuration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              <p className="text-sm text-slate-600">
+                {hasOverride ? 'Using runtime override from this browser.' : 'Using build-time environment from deployment.'}
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="supabase_url" className="text-sm font-medium text-slate-700">Supabase URL</Label>
+                <Input
+                  id="supabase_url"
+                  value={backendUrl}
+                  onChange={(e) => setBackendUrl(e.target.value)}
+                  placeholder="https://YOUR-PROJECT.supabase.co"
+                  className="border-slate-300 focus:border-blue-500 h-10 sm:h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="supabase_key" className="text-sm font-medium text-slate-700">Supabase Anon Key</Label>
+                <Input
+                  id="supabase_key"
+                  type="password"
+                  value={backendKey}
+                  onChange={(e) => setBackendKey(e.target.value)}
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI..."
+                  className="border-slate-300 focus:border-blue-500 h-10 sm:h-11"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Button onClick={applyBackendOverride} className="h-10 sm:h-11">
+                  <RefreshCw className="w-4 h-4 mr-2" /> Apply Backend Override
+                </Button>
+                <Button onClick={resetBackendOverride} variant="outline" className="h-10 sm:h-11 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700">
+                  <Trash2 className="w-4 h-4 mr-2" /> Reset to Build Env
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

@@ -15,12 +15,13 @@ let supabaseAnonKey =
   import.meta?.env?.SUPABASE_ANON_KEY
 
 try {
-  if ((!supabaseUrl || !supabaseAnonKey) && typeof window !== 'undefined' && window.localStorage) {
+  if (typeof window !== 'undefined' && window.localStorage) {
     const lsUrl = window.localStorage.getItem('SUPABASE_URL')
     const lsKey = window.localStorage.getItem('SUPABASE_ANON_KEY')
+    // Prefer runtime override if both are present
     if (lsUrl && lsKey) {
-      supabaseUrl = supabaseUrl || lsUrl
-      supabaseAnonKey = supabaseAnonKey || lsKey
+      supabaseUrl = lsUrl
+      supabaseAnonKey = lsKey
     }
   }
 } catch {
