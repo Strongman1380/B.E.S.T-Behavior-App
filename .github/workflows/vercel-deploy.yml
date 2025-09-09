@@ -13,20 +13,75 @@ jobs:
       # Allow either GitHub Secrets or Repository Variables to provide the hook URLs
       VERCEL_DEPLOY_HOOK_PROD: ${{ secrets.VERCEL_DEPLOY_HOOK_PROD || vars.VERCEL_DEPLOY_HOOK_PROD || '' }}
       VERCEL_DEPLOY_HOOK_PREVIEW: ${{ secrets.VERCEL_DEPLOY_HOOK_PREVIEW || vars.VERCEL_DEPLOY_HOOK_PREVIEW || '' }}
+      # Optional: Personal/Team Vercel token for CLI-based fallback deploys
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN || '' }}
     steps:
-      - name: Trigger production deploy (main)
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 1) Prefer Deploy Hooks if configured
+      - name: Trigger production deploy via hook (main)
         if: github.ref == 'refs/heads/main' && env.VERCEL_DEPLOY_HOOK_PROD != ''
         run: |
           echo "Triggering Vercel production deploy via hook"
           curl -sS -X POST "$VERCEL_DEPLOY_HOOK_PROD" || exit 1
 
-      - name: Trigger preview deploy (non-main)
+      - name: Trigger preview deploy via hook (non-main)
         if: github.ref != 'refs/heads/main' && env.VERCEL_DEPLOY_HOOK_PREVIEW != ''
         run: |
           echo "Triggering Vercel preview deploy via hook for $GITHUB_REF_NAME"
           curl -sS -X POST "$VERCEL_DEPLOY_HOOK_PREVIEW" || exit 1
 
-      - name: No deploy hook configured
-        if: env.VERCEL_DEPLOY_HOOK_PROD == '' && env.VERCEL_DEPLOY_HOOK_PREVIEW == ''
+      # 2) Fallback to Vercel CLI deploy if no hooks set, when VERCEL_TOKEN is available
+      - name: Setup Node (for Vercel CLI)
+        if: env.VERCEL_DEPLOY_HOOK_PROD == '' && env.VERCEL_DEPLOY_HOOK_PREVIEW == '' && env.VERCEL_TOKEN != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Vercel CLI
+        if: env.VERCEL_DEPLOY_HOOK_PROD == '' && env.VERCEL_DEPLOY_HOOK_PREVIEW == '' && env.VERCEL_TOKEN != ''
+        run: npm i -g vercel@latest
+
+      - name: Pull Vercel env
+        if: env.VERCEL_DEPLOY_HOOK_PROD == '' && env.VERCEL_DEPLOY_HOOK_PREVIEW == '' && env.VERCEL_TOKEN != ''
+        env:
+          VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
         run: |
-          echo "No Vercel deploy hooks set. Add secrets VERCEL_DEPLOY_HOOK_PROD and/or VERCEL_DEPLOY_HOOK_PREVIEW to enable automatic deploys."
+          ENVIRONMENT=$([ "${{ github.ref }}" = "refs/heads/main" ] && echo "production" || echo "preview")
+          echo "Pulling Vercel env for $ENVIRONMENT"
+          vercel pull --yes --environment=$ENVIRONMENT --token "$VERCEL_TOKEN"
+
+      - name: Build (Vercel)
+        if: env.VERCEL_DEPLOY_HOOK_PROD == '' && env.VERCEL_DEPLOY_HOOK_PREVIEW == '' && env.VERCEL_TOKEN != ''
+        env:
+          VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
+        run: vercel build --token "$VERCEL_TOKEN"
+
+      - name: Deploy (Preview)
+        if: env.VERCEL_DEPLOY_HOOK_PROD == '' && env.VERCEL_DEPLOY_HOOK_PREVIEW == '' && env.VERCEL_TOKEN != '' && github.ref != 'refs/heads/main'
+        env:
+          VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
+        run: |
+          URL=$(vercel deploy --prebuilt --token "$VERCEL_TOKEN")
+          echo "preview_url=$URL" >> $GITHUB_OUTPUT
+        id: vercel_preview
+
+      - name: Deploy (Production)
+        if: env.VERCEL_DEPLOY_HOOK_PROD == '' && env.VERCEL_DEPLOY_HOOK_PREVIEW == '' && env.VERCEL_TOKEN != '' && github.ref == 'refs/heads/main'
+        env:
+          VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
+        run: |
+          URL=$(vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN")
+          echo "prod_url=$URL" >> $GITHUB_OUTPUT
+        id: vercel_prod
+
+      - name: No deploy method configured
+        if: env.VERCEL_DEPLOY_HOOK_PROD == '' && env.VERCEL_DEPLOY_HOOK_PREVIEW == '' && env.VERCEL_TOKEN == ''
+        run: |
+          echo "No Vercel deploy hooks set AND no VERCEL_TOKEN provided."
+          echo "Set either:"
+          echo "  - Secrets VERCEL_DEPLOY_HOOK_PROD / VERCEL_DEPLOY_HOOK_PREVIEW"
+          echo "  - Or Secret VERCEL_TOKEN to enable CLI fallback deploys"
+          exit 1
