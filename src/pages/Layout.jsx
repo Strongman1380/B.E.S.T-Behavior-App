@@ -23,14 +23,14 @@ const NavLink = ({ item, currentPath, onNavigate }) => (
     <Link
         to={item.url}
         onClick={onNavigate}
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
+        className={`group flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
             currentPath === item.url
-                ? 'bg-blue-100 text-blue-700 font-semibold'
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'bg-blue-50 text-blue-700 font-semibold ring-1 ring-blue-200'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
         }`}
     >
-        <item.icon className="w-5 h-5" />
-        <span>{item.title}</span>
+        <item.icon className="w-5 h-5 transition-transform group-hover:scale-110" />
+        <span className="tracking-tight">{item.title}</span>
     </Link>
 );
 
@@ -49,14 +49,14 @@ export default function Layout({ children }) {
             )}
 
             {/* Sidebar */}
-            <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex-col flex transform md:relative md:translate-x-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-white/80 backdrop-blur border-r border-slate-200 flex-col flex transform md:relative md:translate-x-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="p-6 border-b border-slate-200">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-md">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
                             <ShieldCheck className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold text-slate-800">Heartland School Hub</h1>
+                            <h1 className="text-lg font-bold text-slate-800 tracking-tight">Heartland School Hub</h1>
                             <p className="text-xs text-slate-500">Behavior & Contact Hub</p>
                         </div>
                     </div>
@@ -75,7 +75,7 @@ export default function Layout({ children }) {
             {/* Main content */}
             <div className="flex-1 flex flex-col">
                 {/* Mobile Header */}
-                <header className="sticky top-0 z-10 flex items-center justify-between bg-white p-2 border-b md:hidden safe-area-top">
+                <header className="sticky top-0 z-10 flex items-center justify-between bg-white/80 backdrop-blur p-2 border-b md:hidden safe-area-top">
                     <button 
                         onClick={() => setIsSidebarOpen(true)} 
                         className="p-2 touch-target rounded-lg hover:bg-slate-100 transition-colors"
@@ -89,8 +89,10 @@ export default function Layout({ children }) {
                         {/* User profile removed - no authentication required */}
                     </div>
                 </header>
-                <main className="flex-1 overflow-y-auto mobile-scroll safe-area-bottom">
-                    {children}
+                <main className="flex-1 overflow-y-auto mobile-scroll safe-area-bottom p-4 md:p-6 lg:p-8">
+                    <div className="mx-auto w-full max-w-[1400px]">
+                        {children}
+                    </div>
                 </main>
             </div>
         </div>

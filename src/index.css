@@ -152,8 +152,12 @@ button:focus-visible {
   * {
     @apply border-border outline-ring/50;
   }
+  html, body, #root {
+    height: 100%;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-gradient-to-b from-white to-slate-50 text-foreground antialiased;
+    font-feature-settings: "liga" 1, "calt" 1;
   }
 }
 
