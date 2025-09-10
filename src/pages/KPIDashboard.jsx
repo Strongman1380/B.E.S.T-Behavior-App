@@ -48,16 +48,30 @@ export default function KPIDashboard() {
   const getCurrentDate = () => new Date();
 
   const loadData = useCallback(async () => {
+    setIsLoading(true);
+    
+    // Load data individually to handle failures gracefully
+    const loadDataSafely = async (loadFn, name) => {
+      try {
+        const data = await loadFn();
+        return data || [];
+      } catch (error) {
+        console.warn(`Failed to load ${name}:`, error?.message);
+        return [];
+      }
+    };
+
     try {
-      setIsLoading(true);
       const [studentsData, evaluationsData, incidentsData, summariesData, contactsData, gradesData] = await Promise.all([
-        Student.filter({ active: true }),
-        DailyEvaluation.list('date'),
-        IncidentReport.list('incident_date'),
-        BehaviorSummary.list('date_from'),
-        ContactLog.list('contact_date'),
-        Grade.list('created_at')
+        loadDataSafely(() => Student.filter({ active: true }), 'Students'),
+        loadDataSafely(() => DailyEvaluation.list('date'), 'Evaluations'),
+        loadDataSafely(() => IncidentReport.list('incident_date'), 'Incidents'),
+        loadDataSafely(() => BehaviorSummary.list('date_from'), 'Summaries'),
+        loadDataSafely(() => ContactLog.list('contact_date'), 'Contacts'),
+        loadDataSafely(() => Grade.list('created_at'), 'Grades')
       ]);
+      
+
       
       setStudents(studentsData);
       setEvaluations(evaluationsData);
@@ -65,15 +79,18 @@ export default function KPIDashboard() {
       setBehaviorSummaries(summariesData);
       setContactLogs(contactsData);
       setGrades(gradesData);
+      
     } catch (error) {
       console.error("Error loading KPI data:", error);
+      console.error("Error message:", error?.message);
+      console.error("Error stack:", error?.stack);
       const msg = typeof error?.message === 'string' ? error.message : ''
       if (msg.includes('Supabase not configured')) {
         toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
       } else if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('row-level security')) {
         toast.error('RLS/permissions preventing reads. Apply supabase-schema.sql policies/grants in Supabase.')
       } else {
-        toast.error("Failed to load KPI data.");
+        toast.error("Failed to load KPI data: " + msg);
       }
     }
     setIsLoading(false);
@@ -673,6 +690,8 @@ const exportAllCSVs = async () => {
             </CardContent>
           </Card>
         </div>
+
+
 
         {/* Filters */}
         <Card className="mb-4 sm:mb-6">
