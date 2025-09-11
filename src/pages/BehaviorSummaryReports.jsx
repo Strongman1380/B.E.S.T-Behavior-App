@@ -20,6 +20,8 @@ export default function BehaviorSummaryReports() {
   const [isSaving, setIsSaving] = useState(false);
   const [isStudentListOpen, setIsStudentListOpen] = useState(false);
   const [showPrintAllDialog, setShowPrintAllDialog] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [currentFormData, setCurrentFormData] = useState(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -105,9 +107,25 @@ export default function BehaviorSummaryReports() {
     setIsSaving(false);
   };
 
-  const handleSelectStudent = (index) => {
+  const getCurrentSummaryData = () => {
+    return currentFormData;
+  };
+
+  const handleSelectStudent = async (index) => {
+    // Save current student's data before switching if there are unsaved changes
+    if (currentStudent && hasUnsavedChanges && currentFormData) {
+      try {
+        await saveSummary(currentFormData, { silent: true });
+      } catch (error) {
+        console.error('Failed to save before switching students:', error);
+        // Continue with navigation even if save fails
+      }
+    }
+    
     setCurrentStudentIndex(index);
     setIsStudentListOpen(false);
+    setHasUnsavedChanges(false);
+    setCurrentFormData(null);
   };
 
   const currentStudent = students[currentStudentIndex];
@@ -116,7 +134,12 @@ export default function BehaviorSummaryReports() {
   const currentSummary = currentStudent 
     ? summaries.find(s => s.student_id === currentStudent.id && s.date_range_start === today && s.date_range_end === today) || null
     : null;
-  const navigateStudent = (dir) => setCurrentStudentIndex(p => Math.max(0, Math.min(p + dir, students.length - 1)));
+  const navigateStudent = async (dir) => {
+    const newIndex = Math.max(0, Math.min(currentStudentIndex + dir, students.length - 1));
+    if (newIndex !== currentStudentIndex) {
+      await handleSelectStudent(newIndex);
+    }
+  };
 
   if (isLoading) return <div className="flex h-screen items-center justify-center">Loading Behavior Summary Reports...</div>;
 
@@ -191,6 +214,8 @@ export default function BehaviorSummaryReports() {
                 isSaving={isSaving}
                 studentId={currentStudent.id}
                 student={currentStudent}
+                onFormDataChange={setCurrentFormData}
+                onUnsavedChanges={setHasUnsavedChanges}
               />
             </div>
           </>

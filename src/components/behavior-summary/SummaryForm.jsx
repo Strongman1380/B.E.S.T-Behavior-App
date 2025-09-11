@@ -5,14 +5,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Save, Sparkles, Loader2, Printer } from "lucide-react";
+import { CalendarIcon, Save, Sparkles, Loader2, Printer, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { parseYmd, formatDateRange } from "@/utils";
 import { DailyEvaluation, IncidentReport, ContactLog } from "@/api/entities";
 import { toast } from 'sonner';
 import OpenAI from 'openai';
 
-export default function SummaryForm({ summary, settings, onSave, isSaving, studentId, student }) {
+export default function SummaryForm({ summary, settings, onSave, isSaving, studentId, student, onFormDataChange, onUnsavedChanges }) {
   const [formData, setFormData] = useState({
     date_range_start: new Date(),
     date_range_end: new Date(),
@@ -25,6 +25,8 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
+  const [lastSaved, setLastSaved] = useState(null);
 
   // Debounce helper reused from evaluation form
   const useDebounce = (callback, delay) => {
@@ -49,26 +51,113 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       summary_recommendations: summary?.summary_recommendations || ''
     };
     setFormData(newFormData);
+    setHasUnsavedChanges(false);
+    setAutoSaveStatus('saved');
+    if (summary) {
+      setLastSaved(new Date());
+    }
+    
+    // Notify parent about initial form data
+    if (onFormDataChange) {
+      const payload = {
+        ...newFormData,
+        date_range_start: format(newFormData.date_range_start, 'yyyy-MM-dd'),
+        date_range_end: format(newFormData.date_range_end, 'yyyy-MM-dd')
+      };
+      onFormDataChange(payload);
+    }
+    if (onUnsavedChanges) {
+      onUnsavedChanges(false);
+    }
   }, [summary, settings]);
 
   const handleChange = (field, value) => {
     const newData = { ...formData, [field]: value };
     setFormData(newData);
     setHasUnsavedChanges(true);
-    // Debounced auto-save, silent
+    setAutoSaveStatus('saving');
+    
+    // Notify parent component about form data changes
     const payload = {
       ...newData,
       date_range_start: format(newData.date_range_start, 'yyyy-MM-dd'),
       date_range_end: format(newData.date_range_end, 'yyyy-MM-dd')
     };
+    
+    if (onFormDataChange) {
+      onFormDataChange(payload);
+    }
+    if (onUnsavedChanges) {
+      onUnsavedChanges(true);
+    }
+    
+    // Debounced auto-save, silent
     debouncedSave(payload);
   };
 
-  const debouncedSave = useDebounce((data) => {
+  const debouncedSave = useDebounce(async (data) => {
     if (!studentId) return;
-    onSave(data, { silent: true });
-    setHasUnsavedChanges(false);
+    
+    try {
+      await onSave(data, { silent: true });
+      setHasUnsavedChanges(false);
+      setAutoSaveStatus('saved');
+      setLastSaved(new Date());
+      
+      // Notify parent that changes are saved
+      if (onUnsavedChanges) {
+        onUnsavedChanges(false);
+      }
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+      setAutoSaveStatus('error');
+      // Don't show toast for auto-save errors to avoid spam, but keep the error state
+    }
   }, 2000);
+
+  // Immediate save function for navigation events
+  const saveImmediately = async () => {
+    if (!hasUnsavedChanges || !studentId) return;
+    
+    const dataToSave = {
+      ...formData,
+      date_range_start: format(formData.date_range_start, 'yyyy-MM-dd'),
+      date_range_end: format(formData.date_range_end, 'yyyy-MM-dd')
+    };
+    
+    try {
+      await onSave(dataToSave, { silent: true });
+      setHasUnsavedChanges(false);
+      setAutoSaveStatus('saved');
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error('Immediate save failed:', error);
+      setAutoSaveStatus('error');
+    }
+  };
+
+  // Add beforeunload event listener to warn about unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Save immediately when component unmounts or student changes
+  useEffect(() => {
+    return () => {
+      if (hasUnsavedChanges) {
+        saveImmediately();
+      }
+    };
+  }, [hasUnsavedChanges, studentId]);
 
   const handleSave = () => {
     const dataToSave = {
@@ -570,9 +659,30 @@ Use everyday language that's easy to read, but keep it appropriate for school do
           </Button>
         </div>
 
-        {hasUnsavedChanges && (
-          <div className="text-right text-xs text-slate-500 mt-1">Auto-saving...</div>
-        )}
+        {/* Auto-save status indicator */}
+        <div className="flex justify-between items-center text-xs mt-1">
+          <div></div>
+          <div className="flex items-center gap-2">
+            {autoSaveStatus === 'saving' && (
+              <div className="flex items-center gap-1 text-blue-600">
+                <Clock className="w-3 h-3 animate-pulse" />
+                <span>Auto-saving...</span>
+              </div>
+            )}
+            {autoSaveStatus === 'saved' && lastSaved && (
+              <div className="flex items-center gap-1 text-green-600">
+                <CheckCircle className="w-3 h-3" />
+                <span>Saved {lastSaved.toLocaleTimeString()}</span>
+              </div>
+            )}
+            {autoSaveStatus === 'error' && (
+              <div className="flex items-center gap-1 text-red-600">
+                <AlertCircle className="w-3 h-3" />
+                <span>Auto-save failed - click Save to retry</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
