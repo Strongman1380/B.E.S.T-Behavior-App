@@ -10,6 +10,7 @@ const BehaviorDashboard = lazy(() => import('./BehaviorDashboard'));
 const ContactLogs = lazy(() => import('./ContactLogs'));
 const StudentProfile = lazy(() => import('./StudentProfile'));
 const BehaviorSummaryReports = lazy(() => import('./BehaviorSummaryReports'));
+const SummaryReports = lazy(() => import('./SummaryReports'));
 const IncidentReports = lazy(() => import('./IncidentReports'));
 const KPIDashboard = lazy(() => import('./KPIDashboard'));
 const CreditsEarned = lazy(() => import('./CreditsEarned'));
@@ -39,6 +40,7 @@ function PagesContent() {
                 <Route path="/KPIDashboard" element={<KPIDashboard />} />
                 
                 <Route path="/BehaviorSummaryReports" element={<BehaviorSummaryReports />} />
+                <Route path="/SummaryReports" element={<SummaryReports />} />
                 
                 <Route path="/IncidentReports" element={<IncidentReports />} />
                 

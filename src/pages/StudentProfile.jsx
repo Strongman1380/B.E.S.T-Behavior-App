@@ -18,6 +18,8 @@ export default function StudentProfile() {
     const studentId = searchParams.get('id');
 
     const [student, setStudent] = useState(null);
+    const [editGrade, setEditGrade] = useState(false);
+    const [gradeLevel, setGradeLevel] = useState('');
     const [contactLogs, setContactLogs] = useState([]);
     const [evaluations, setEvaluations] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +34,7 @@ export default function StudentProfile() {
                 DailyEvaluation.filter({ student_id: studentId }, '-date')
             ]);
             setStudent(studentData);
+            setGradeLevel(studentData?.grade_level || '');
             setContactLogs(logsData);
             setEvaluations(evalsData);
         } catch (error) {
@@ -92,7 +95,40 @@ export default function StudentProfile() {
                     </Link>
                     <div className="flex-1">
                         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">{student.student_name}</h1>
-                        <p className="text-slate-600 text-sm sm:text-base">
+                        <div className="mt-2 flex items-center gap-2">
+                            <span className="text-slate-600 text-sm">Grade Level:</span>
+                            {editGrade ? (
+                                <select
+                                    className="border rounded px-2 py-1 text-sm"
+                                    value={gradeLevel}
+                                    onChange={e => setGradeLevel(e.target.value)}
+                                >
+                                    <option value="">Select grade</option>
+                                    <option value="8th grade">8th grade</option>
+                                    <option value="freshman">Freshman</option>
+                                    <option value="sophomore">Sophomore</option>
+                                    <option value="junior">Junior</option>
+                                    <option value="senior">Senior</option>
+                                </select>
+                            ) : (
+                                <span className="font-semibold text-slate-800">{gradeLevel || 'N/A'}</span>
+                            )}
+                            <button
+                                className="ml-2 text-xs text-blue-600 underline"
+                                onClick={() => {
+                                    if (editGrade && gradeLevel !== student.grade_level) {
+                                        // Save grade level
+                                        Student.update(student.id, { grade_level: gradeLevel })
+                                            .then(updated => setStudent(updated))
+                                            .catch(err => alert('Failed to update grade'));
+                                    }
+                                    setEditGrade(!editGrade);
+                                }}
+                            >
+                                {editGrade ? 'Save' : 'Edit'}
+                            </button>
+                        </div>
+                        <p className="text-slate-600 text-sm sm:text-base mt-1">
                             <span className="hidden sm:inline">Complete historical overview</span>
                             <span className="sm:hidden">Student profile</span>
                         </p>

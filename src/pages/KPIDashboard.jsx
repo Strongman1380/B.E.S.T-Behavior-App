@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog } from "@/api/entities";
+import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog, CreditsEarned } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,10 @@ const TimeSlotAnalysisBar = lazy(() => import('@/components/kpi/TimeSlotAnalysis
 const WeeklyTrendsArea = lazy(() => import('@/components/kpi/WeeklyTrendsArea'));
 
 const StudentComparisonList = lazy(() => import('@/components/kpi/StudentComparisonList'));
+const TotalCreditsCard = lazy(() => import('@/components/kpi/TotalCreditsCard'));
+const CreditsPerStudentChart = lazy(() => import('@/components/kpi/CreditsPerStudentChart'));
+const TopStudentCredits = lazy(() => import('@/components/kpi/TopStudentCredits'));
+const CreditsTimelineChart = lazy(() => import('@/components/kpi/CreditsTimelineChart'));
 
 const INCIDENT_TYPE_COLORS = {
   "Aggressive Behavior": "#EF4444",
@@ -39,6 +43,7 @@ export default function KPIDashboard() {
   const [behaviorSummaries, setBehaviorSummaries] = useState([]);
   
   const [contactLogs, setContactLogs] = useState([]);
+  const [creditsEarned, setCreditsEarned] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState('all'); // days
   const [selectedStudent, setSelectedStudent] = useState('all');
@@ -62,13 +67,13 @@ export default function KPIDashboard() {
     };
 
     try {
-      const [studentsData, evaluationsData, incidentsData, summariesData, contactsData] = await Promise.all([
+      const [studentsData, evaluationsData, incidentsData, summariesData, contactsData, creditsData] = await Promise.all([
         loadDataSafely(() => Student.filter({ active: true }), 'Students'),
         loadDataSafely(() => DailyEvaluation.list('date'), 'Evaluations'),
         loadDataSafely(() => IncidentReport.list('incident_date'), 'Incidents'),
         loadDataSafely(() => BehaviorSummary.list('date_from'), 'Summaries'),
         loadDataSafely(() => ContactLog.list('contact_date'), 'Contacts'),
-        
+        loadDataSafely(() => CreditsEarned.list('date_earned'), 'Credits'),
       ]);
       
 
@@ -78,6 +83,7 @@ export default function KPIDashboard() {
       setIncidents(incidentsData);
       setBehaviorSummaries(summariesData);
       setContactLogs(contactsData);
+      setCreditsEarned(creditsData);
       
       
     } catch (error) {
@@ -567,44 +573,132 @@ const exportAllCSVs = async () => {
   const studentComparison = getStudentComparison();
   const timeSlotAnalysis = getTimeSlotAnalysis();
   const weeklyTrends = getWeeklyTrends();
-  // Grades trend per day; 'all' plots one line per student, otherwise single student line
-  const getGradesTrend = () => {
-    const daysBack = parseInt(dateRange);
-    const dates = eachDayOfInterval({ start: subDays(getCurrentDate(), daysBack - 1), end: getCurrentDate() });
-    const dayKeys = dates.map(d => ({ key: format(d, 'yyyy-MM-dd'), label: format(d, 'MMM dd') }));
-    const inRange = (g) => {
-      const createdDay = (g.created_at || '').slice(0, 10);
-      return createdDay >= dayKeys[0].key && createdDay <= dayKeys[dayKeys.length - 1].key;
-    };
-    const filtered = grades.filter(inRange);
+  const activeStudentsCount = students.length;
 
+  // Credits processing functions
+  const getCreditsData = () => {
     const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
+    
+    let filteredCredits = creditsEarned;
+    
+    // Apply date filtering only if not 'all'
+    if (dateRange !== 'all') {
+      const daysBack = parseInt(dateRange);
+      const cutoffDate = subDays(getCurrentDate(), daysBack);
+      
+      filteredCredits = creditsEarned.filter(credit => 
+        parseYmd(credit.date_earned) >= cutoffDate
+      );
+    }
+    
+    // Apply student filtering
     if (selectedId != null) {
-      const sid = selectedId;
-      const rows = dayKeys.map(({ key, label }) => {
-        const dayGrades = filtered.filter(g => g.student_id === sid && (g.created_at || '').slice(0,10) === key);
-        const avg = dayGrades.length ? dayGrades.reduce((a, b) => a + Number(b.percentage || 0), 0) / dayGrades.length : null;
-        return { date: label, value: avg };
-      });
-      return { data: rows, seriesKeys: ['value'] };
+      filteredCredits = filteredCredits.filter(credit => credit.student_id === selectedId);
     }
 
-    const nameById = Object.fromEntries(students.map(s => [s.id, s.student_name]));
-    const seriesKeys = students.map(s => nameById[s.id]).filter(Boolean);
-    const rows = dayKeys.map(({ key, label }) => {
-      const row = { date: label };
-      students.forEach(s => {
-        const dayGrades = filtered.filter(g => g.student_id === s.id && (g.created_at || '').slice(0,10) === key);
-        const avg = dayGrades.length ? dayGrades.reduce((a, b) => a + Number(b.percentage || 0), 0) / dayGrades.length : null;
-        row[nameById[s.id]] = avg;
-      });
-      return row;
-    });
-    return { data: rows, seriesKeys };
+    return filteredCredits;
   };
 
-  const gradesTrend = getGradesTrend();
-  const activeStudentsCount = students.length;
+  const getTotalCreditsData = () => {
+    const filteredCredits = getCreditsData();
+    const totalCredits = filteredCredits.reduce((sum, credit) => sum + (credit.credit_value || 0), 0);
+    const studentsWithCredits = new Set(filteredCredits.map(credit => credit.student_id)).size;
+    const avgCreditsPerStudent = studentsWithCredits > 0 ? Math.round((totalCredits / studentsWithCredits) * 100) / 100 : 0;
+
+    return {
+      totalCredits: Math.round(totalCredits * 100) / 100,
+      totalStudents: studentsWithCredits,
+      avgCreditsPerStudent
+    };
+  };
+
+  const getCreditsPerStudentData = () => {
+    const filteredCredits = getCreditsData();
+    
+    const studentCreditsMap = {};
+    filteredCredits.forEach(credit => {
+      if (!studentCreditsMap[credit.student_id]) {
+        const student = students.find(s => s.id === credit.student_id);
+        if (student) {
+          studentCreditsMap[credit.student_id] = {
+            studentId: credit.student_id,
+            fullName: student.student_name,
+            initials: student.student_name.split(' ').map(n => n[0]).join(''),
+            grade: student.grade_level,
+            credits: 0,
+            courses: 0
+          };
+        }
+      }
+      if (studentCreditsMap[credit.student_id]) {
+        studentCreditsMap[credit.student_id].credits += credit.credit_value || 0;
+        studentCreditsMap[credit.student_id].courses += 1;
+      }
+    });
+
+    return Object.values(studentCreditsMap).map(student => ({
+      ...student,
+      credits: Math.round(student.credits * 100) / 100
+    }));
+  };
+
+  const getTopStudentCreditsData = () => {
+    const creditsPerStudent = getCreditsPerStudentData();
+    
+    return creditsPerStudent.map(student => {
+      const studentCredits = getCreditsData().filter(credit => credit.student_id === student.studentId);
+      const recentCredit = studentCredits.sort((a, b) => new Date(b.date_earned) - new Date(a.date_earned))[0];
+      
+      return {
+        ...student,
+        recentCourse: recentCredit?.course_name
+      };
+    });
+  };
+
+  const getCreditsTimelineData = () => {
+    const filteredCredits = getCreditsData();
+    
+    // Group credits by month
+    const monthlyCredits = {};
+    let cumulativeTotal = 0;
+    
+    filteredCredits
+      .sort((a, b) => new Date(a.date_earned) - new Date(b.date_earned))
+      .forEach(credit => {
+        const date = new Date(credit.date_earned);
+        const monthKey = format(date, 'yyyy-MM');
+        const monthLabel = format(date, 'MMM yyyy');
+        
+        if (!monthlyCredits[monthKey]) {
+          monthlyCredits[monthKey] = {
+            period: monthLabel,
+            creditsEarned: 0,
+            cumulative: 0
+          };
+        }
+        
+        monthlyCredits[monthKey].creditsEarned += credit.credit_value || 0;
+      });
+
+    // Calculate cumulative totals
+    return Object.keys(monthlyCredits)
+      .sort()
+      .map(monthKey => {
+        cumulativeTotal += monthlyCredits[monthKey].creditsEarned;
+        return {
+          ...monthlyCredits[monthKey],
+          creditsEarned: Math.round(monthlyCredits[monthKey].creditsEarned * 100) / 100,
+          cumulative: Math.round(cumulativeTotal * 100) / 100
+        };
+      });
+  };
+
+  // Get processed credits data
+  const totalCreditsData = getTotalCreditsData();
+  const creditsPerStudentData = getCreditsPerStudentData();
+  const topStudentCreditsData = getTopStudentCreditsData();
+  const creditsTimelineData = getCreditsTimelineData();
 
   // Export only the Student Performance Overview section as CSV
   const exportStudentPerformanceCSV = () => {
@@ -676,22 +770,6 @@ const exportAllCSVs = async () => {
             </div>
           </div>
         </div>
-
-        {/* Grades Trend */}
-        <div className="grid grid-cols-1 gap-4 sm:gap-6 mb-6 sm:mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base sm:text-lg">Grades Over Time {selectedStudent === 'all' ? '(All Students)' : ''}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-6">
-              <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
-                <GradesLineChart data={gradesTrend.data} seriesKeys={gradesTrend.seriesKeys} />
-              </Suspense>
-            </CardContent>
-          </Card>
-        </div>
-
-
 
         {/* Filters */}
         <Card className="mb-4 sm:mb-6">
@@ -871,6 +949,65 @@ const exportAllCSVs = async () => {
               </Suspense>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Credits Earned Section */}
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6">Credits Earned Analytics</h2>
+          
+          {/* Credits Overview Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
+            {/* Total Credits Summary */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Credits Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6">
+                <Suspense fallback={<div className="h-[200px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
+                  <TotalCreditsCard data={totalCreditsData} />
+                </Suspense>
+              </CardContent>
+            </Card>
+
+            {/* Top Student Credits */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Top Performers</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6">
+                <Suspense fallback={<div className="h-[200px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
+                  <TopStudentCredits data={topStudentCreditsData} />
+                </Suspense>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Credits Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Credits per Student Chart */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Credits by Student</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6">
+                <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
+                  <CreditsPerStudentChart data={creditsPerStudentData} />
+                </Suspense>
+              </CardContent>
+            </Card>
+
+            {/* Credits Timeline Chart */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Credits Over Time</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6">
+                <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
+                  <CreditsTimelineChart data={creditsTimelineData} />
+                </Suspense>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Additional KPI Insights */}

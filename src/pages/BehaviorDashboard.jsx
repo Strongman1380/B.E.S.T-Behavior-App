@@ -19,10 +19,30 @@ import PrintAllDialog from "../components/behavior/PrintAllDialog";
 import ResetDialog from "../components/behavior/ResetDialog";
 import PrintDialog from "../components/behavior/PrintDialog";
 import PrintBehaviorSummariesDialog from "../components/behavior/PrintBehaviorSummariesDialog";
+import CombinedPrintDialog from "../components/behavior/CombinedPrintDialog";
 import IncidentReportDialog from "../components/behavior/IncidentReportDialog";
 import RealTimeSync from "../components/sync/RealTimeSync";
 
 export default function BehaviorDashboard() {
+  // ...existing code...
+  // Print all reports alphabetically
+  const [showCombinedPrintDialog, setShowCombinedPrintDialog] = useState(false);
+  const [combinedPrintData, setCombinedPrintData] = useState([]);
+
+  const handlePrintAllReportsAlphabetically = async () => {
+    // Sort students alphabetically by name
+    const sortedStudents = [...students].sort((a, b) => a.student_name.localeCompare(b.student_name));
+    // Gather combined data for each student
+    const combinedData = sortedStudents.map(student => {
+      const evaluation = getStudentEvaluation(student.id);
+      // Find summary for student (today's summary or most recent)
+      // You may want to filter by date or use the latest
+      // For now, just pass student and evaluation
+      return { student, evaluation };
+    });
+    setCombinedPrintData(combinedData);
+    setShowCombinedPrintDialog(true);
+  };
   const [students, setStudents] = useState([]);
   const [evaluations, setEvaluations] = useState([]);
   const [settings, setSettings] = useState(null);
@@ -252,8 +272,8 @@ export default function BehaviorDashboard() {
                   className="justify-center border-purple-300 text-purple-600 hover:bg-purple-50 h-10 sm:h-11 text-sm sm:text-base"
                 >
                   <FileText className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
-                  <span className="hidden sm:inline">Print Summaries</span>
-                  <span className="sm:hidden">Summaries</span>
+                  <span className="hidden sm:inline">Print Beh. Summaries</span>
+                  <span className="sm:hidden">Beh. Summaries</span>
                 </Button>
                 <Button 
                   variant="outline" 
@@ -262,8 +282,8 @@ export default function BehaviorDashboard() {
                   className="justify-center border-slate-300 hover:bg-slate-50 h-10 sm:h-11 text-sm sm:text-base"
                 >
                   <FileText className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
-                  <span className="hidden sm:inline">Print All ({todayEvaluations.length})</span>
-                  <span className="sm:hidden">Print ({todayEvaluations.length})</span>
+                  <span className="hidden sm:inline">All Behavior Sheets ({todayEvaluations.length})</span>
+                  <span className="sm:hidden">All Sheets ({todayEvaluations.length})</span>
                 </Button>
                 <Button 
                   onClick={() => setIsSelectMode(true)} 
@@ -289,15 +309,6 @@ export default function BehaviorDashboard() {
                   disabled={selection.length === 0} 
                   className="justify-center h-10 sm:h-11 text-sm sm:text-base"
                 >
-                  <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
-                  Inactivate ({selection.length})
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => { setIsSelectMode(false); setSelection([]); }} 
-                  className="justify-center h-10 sm:h-11 text-sm sm:text-base"
-                >
-                  <X className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
                   Cancel
                 </Button>
               </>

@@ -14,12 +14,27 @@ export default function CreditsEarned() {
   const [credits, setCredits] = useState([]);
   const [classes, setClasses] = useState([]);
   const [newCredit, setNewCredit] = useState({ course_name: '', credit_value: '', date_earned: '', grade: '' });
+  useEffect(() => {
+    if (selectedStudent) {
+      const studentObj = students.find(s => s.id === selectedStudent);
+      if (studentObj && studentObj.grade_level) {
+        setNewCredit(credit => ({ ...credit, grade: studentObj.grade_level }));
+      }
+    }
+  }, [selectedStudent, students]);
   const [newClass, setNewClass] = useState({ course_name: '', priority_level: '' });
 
   useEffect(() => {
     async function fetchStudents() {
-      const allStudents = await Student.all();
-      setStudents(allStudents);
+      try {
+        // Load active students, ordered by name
+        const allStudents = await Student.filter({ active: true }, 'student_name');
+        setStudents(allStudents || []);
+      } catch (error) {
+        console.error('Error loading students:', error);
+        toast.error('Failed to load students');
+        setStudents([]);
+      }
     }
     fetchStudents();
   }, []);
@@ -53,14 +68,35 @@ export default function CreditsEarned() {
       toast.error('Please select a student first.');
       return;
     }
+    
+    // Validate required fields
+    if (!newCredit.course_name.trim()) {
+      toast.error('Please enter a course name.');
+      return;
+    }
+    if (!newCredit.credit_value || parseFloat(newCredit.credit_value) <= 0) {
+      toast.error('Please enter a valid credit value.');
+      return;
+    }
+    if (!newCredit.date_earned) {
+      toast.error('Please select the date when the credit was earned.');
+      return;
+    }
+    
     try {
-      await CreditsEarnedEntity.create({ ...newCredit, student_id: selectedStudent });
+      const creditData = {
+        ...newCredit,
+        student_id: parseInt(selectedStudent),
+        credit_value: parseFloat(newCredit.credit_value)
+      };
+      
+      await CreditsEarnedEntity.create(creditData);
       toast.success('Credit added successfully!');
       fetchStudentData(selectedStudent);
       setNewCredit({ course_name: '', credit_value: '', date_earned: '', grade: '' });
     } catch (error) {
-      toast.error('Error adding credit.');
-      console.error(error);
+      toast.error('Error adding credit: ' + (error.message || 'Unknown error'));
+      console.error('Error adding credit:', error);
     }
   }
 
@@ -191,14 +227,21 @@ export default function CreditsEarned() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="grade">Grade</Label>
-                      <Input 
+                      <Label htmlFor="grade">Grade Level</Label>
+                      <select
                         id="grade"
-                        name="grade" 
-                        placeholder="e.g., A, B+, 95%" 
-                        value={newCredit.grade} 
-                        onChange={handleCreditChange} 
-                      />
+                        name="grade"
+                        value={newCredit.grade}
+                        onChange={handleCreditChange}
+                        className="border rounded px-2 py-1 w-full"
+                      >
+                        <option value="">Select grade</option>
+                        <option value="8th grade">8th grade</option>
+                        <option value="freshman">Freshman</option>
+                        <option value="sophomore">Sophomore</option>
+                        <option value="junior">Junior</option>
+                        <option value="senior">Senior</option>
+                      </select>
                     </div>
                   </div>
                   <Button onClick={addCredit} className="mt-4 w-full md:w-auto">
