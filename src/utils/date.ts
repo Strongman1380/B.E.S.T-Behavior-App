@@ -1,4 +1,4 @@
-import { format, parse, isSameYear, isSameMonth } from 'date-fns'
+import { format, parse, isSameYear, isSameMonth, setHours } from 'date-fns'
 
 export const YMD = 'yyyy-MM-dd'
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -8,8 +8,10 @@ export function isYmd(value: unknown): value is string {
 }
 
 // Parse a local calendar date from a 'yyyy-MM-dd' string
+// We set the time to noon to avoid timezone issues where the date could be shifted to the previous day.
 export function parseYmd(ymd: string, fallback: Date = new Date()): Date {
-  return parse(ymd, YMD, fallback)
+  const d = parse(ymd, YMD, fallback)
+  return setHours(d, 12)
 }
 
 // Format a Date or a 'yyyy-MM-dd' string in local time
