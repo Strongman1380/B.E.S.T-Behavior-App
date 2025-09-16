@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@
 import { Button } from "@/components/ui/button";
 import { BehaviorSummary } from "@/api/entities";
 import { format } from 'date-fns';
-import { formatDateRange } from '@/utils';
+import { formatDateRange, todayYmd } from '@/utils';
 import { Printer, X, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -18,10 +18,11 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
   useEffect(() => {
     if (open) {
       loadSummaries();
-      // Reset filters on open
+      // Default to today's date range to show only current day's reports
+      const today = todayYmd();
       setStudentMode('all');
-      setFilterStart('');
-      setFilterEnd('');
+      setFilterStart(today);
+      setFilterEnd(today);
     }
   }, [open]);
 
@@ -247,6 +248,9 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
             Print Behavior Summaries ({filteredSummaries.length})
+            {filterStart === filterEnd && filterStart === todayYmd() && (
+              <span className="text-sm font-normal text-slate-600">- Today's Reports</span>
+            )}
           </DialogTitle>
           <div className="flex items-center gap-2">
             <Button onClick={handlePrint} disabled={filteredSummaries.length === 0 || isLoading}>
@@ -297,9 +301,14 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
                 onChange={(e) => setFilterEnd(e.target.value)}
                 className="border border-slate-300 rounded px-2 py-1 text-sm"
               />
-              {(filterStart || filterEnd || studentMode !== 'all') && (
-                <Button variant="ghost" onClick={() => { setFilterStart(''); setFilterEnd(''); setStudentMode('all'); }} className="h-8">
-                  Clear
+              {(filterStart !== todayYmd() || filterEnd !== todayYmd() || studentMode !== 'all') && (
+                <Button variant="ghost" onClick={() => { 
+                  const today = todayYmd();
+                  setFilterStart(today); 
+                  setFilterEnd(today); 
+                  setStudentMode('all'); 
+                }} className="h-8">
+                  Reset to Today
                 </Button>
               )}
             </div>

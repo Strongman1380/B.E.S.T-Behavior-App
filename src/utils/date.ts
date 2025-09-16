@@ -32,6 +32,12 @@ export function formatDateRange(start: Date | string, end: Date | string): strin
   if (!start || !end) return ''
   const s = typeof start === 'string' && isYmd(start) ? parseYmd(start) : new Date(start)
   const e = typeof end === 'string' && isYmd(end) ? parseYmd(end) : new Date(end)
+  
+  // If start and end are the same date, show single date
+  if (format(s, 'yyyy-MM-dd') === format(e, 'yyyy-MM-dd')) {
+    return format(s, 'MMM d, yyyy')
+  }
+  
   if (isSameYear(s, e)) {
     if (isSameMonth(s, e)) {
       return `${format(s, 'MMM d')}–${format(e, 'd, yyyy')}`

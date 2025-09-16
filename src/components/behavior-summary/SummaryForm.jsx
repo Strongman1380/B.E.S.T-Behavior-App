@@ -409,7 +409,7 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       }
 
       // Use AI to analyze and generate comprehensive summaries from ALL data
-      const analysis = await analyzeCommentsWithAI(allComments);
+      const analysis = await analyzeCommentsWithAI(allComments, startDate, endDate);
 
       // Update form data with AI-generated content
       setFormData(prev => ({
@@ -421,7 +421,8 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
         summary_recommendations: analysis.recommendations
       }));
 
-      toast.success(`AI-powered comprehensive summary generated from ALL ${allComments.length} behavioral records!`);
+      const dateRangeText = startDate === endDate ? `${startDate}` : `${startDate} to ${endDate}`;
+      toast.success(`AI summary generated from ${allComments.length} behavioral records for ${dateRangeText}!`);
 
     } catch (error) {
       console.error('Error generating AI summary:', error);
@@ -431,7 +432,7 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
     }
   };
 
-  const analyzeCommentsWithAI = async (comments) => {
+  const analyzeCommentsWithAI = async (comments, startDate, endDate) => {
     const openai = new OpenAI({
       apiKey: import.meta.env.VITE_OPENAI_API_KEY,
       dangerouslyAllowBrowser: true
@@ -456,31 +457,32 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       }
     }).join('\n\n');
 
-    const prompt = `You are a friendly but professional educational specialist analyzing student behavior data. Based on ALL the behavioral information from daily evaluations, incident reports, and contact logs, create a casual yet professional behavior summary that feels natural and conversational.
+    const dateRangeText = startDate === endDate ? `${startDate}` : `${startDate} to ${endDate}`;
+    const prompt = `You are a behavioral analyst documenting student behavior data. Based on the behavioral information from daily evaluations, incident reports, and contact logs for the period ${dateRangeText}, create a factual behavior summary using objective, observable language.
 
-BEHAVIORAL DATA TO ANALYZE:
+BEHAVIORAL DATA TO ANALYZE (${dateRangeText}):
 ${commentsText}
 
-Please analyze ALL the behavioral information and create content for each section. Keep it conversational and natural, like you're talking to a colleague about the student, but still professional and appropriate for educational documentation.
+Write in a professional, factual tone using behavioral terminology. Focus strictly on observable behaviors and documented facts from the data provided. Avoid subjective language, praise words, or elaborative descriptions.
 
-Focus on:
-1. Daily patterns and consistency across time slots
-2. How the student interacts with others throughout the day
-3. Both the good stuff and areas that need attention
-4. Any specific incidents and what happened
-5. Communication with parents and how that went
+Guidelines:
+1. Use objective, measurable language
+2. Report only what is documented in the data
+3. Avoid words like "commendable," "excellent," "wonderful," "concerning," etc.
+4. State behaviors as they occurred without interpretation
+5. Use behavioral terminology when appropriate
 
 Create content for these sections:
 
-1. GENERAL BEHAVIOR OVERVIEW: Write 2-3 sentences in a conversational tone about the student's overall behavior. Make it feel like you're chatting about the student with another teacher - friendly but professional.
+1. GENERAL BEHAVIOR OVERVIEW: Summarize the student's behavioral patterns based on documented observations. State frequency, duration, and context of behaviors as recorded.
 
-2. STRENGTHS: List 3-5 positive qualities or behaviors you've noticed, with specific examples. Keep it encouraging and specific, like you're highlighting what the student does well.
+2. STRENGTHS: List specific positive behaviors observed, with frequency and context. Use factual language (e.g., "completed tasks independently," "followed directions on first request," "remained in assigned area").
 
-3. IMPROVEMENTS NEEDED: Mention 2-4 areas where the student could use some extra support or practice. Be gentle and constructive, focusing on growth opportunities rather than just problems.
+3. IMPROVEMENTS NEEDED: Identify specific behaviors that require intervention based on data. State what was observed and how often, without subjective commentary.
 
-4. BEHAVIORAL INCIDENTS: Note any specific incidents or challenging moments, including what happened and any follow-up. Keep it factual and neutral, like you're documenting events for the record.
+4. BEHAVIORAL INCIDENTS: Document any incidents exactly as reported, including antecedents, behaviors, and consequences. Maintain factual, neutral language.
 
-5. SUMMARY & RECOMMENDATIONS: Share 2-3 practical suggestions for supporting the student's growth. Make them feel actionable and realistic, like helpful tips you'd give to another educator.
+5. SUMMARY & RECOMMENDATIONS: Provide data-based recommendations using behavioral intervention terminology. Focus on specific, measurable strategies.
 
 Format your response as a JSON object with these exact keys:
 {
@@ -491,7 +493,7 @@ Format your response as a JSON object with these exact keys:
   "recommendations": "content here"
 }
 
-Use everyday language that's easy to read, but keep it appropriate for school documentation. Focus on being supportive and solution-oriented rather than just pointing out problems. Make it feel like helpful feedback from someone who genuinely cares about the student's success.`;
+Use professional behavioral documentation language. Report only what is documented in the provided data without adding interpretations or subjective assessments.`;
 
     try {
       const completion = await openai.chat.completions.create({
@@ -499,7 +501,7 @@ Use everyday language that's easy to read, but keep it appropriate for school do
         messages: [
           {
             role: "system",
-            content: "You are a friendly educational specialist who creates helpful, conversational behavior summaries that feel natural and supportive while remaining professional for school documentation."
+            content: "You are a behavioral analyst who creates objective, factual behavior summaries using professional behavioral documentation standards. Focus on observable behaviors and documented data without subjective interpretations or elaborative language."
           },
           {
             role: "user",
