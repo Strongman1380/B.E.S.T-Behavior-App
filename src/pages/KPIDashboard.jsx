@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog, Grade } from "@/api/entities";
+import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ const IncidentTypesBar = lazy(() => import('@/components/kpi/IncidentTypesBar'))
 const RatingDistributionPie = lazy(() => import('@/components/kpi/RatingDistributionPie'));
 const TimeSlotAnalysisBar = lazy(() => import('@/components/kpi/TimeSlotAnalysisBar'));
 const WeeklyTrendsArea = lazy(() => import('@/components/kpi/WeeklyTrendsArea'));
-const GradesLineChart = lazy(() => import('@/components/kpi/GradesLineChart'));
+
 const StudentComparisonList = lazy(() => import('@/components/kpi/StudentComparisonList'));
 
 const INCIDENT_TYPE_COLORS = {
@@ -37,7 +37,7 @@ export default function KPIDashboard() {
   const [evaluations, setEvaluations] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [behaviorSummaries, setBehaviorSummaries] = useState([]);
-  const [grades, setGrades] = useState([]);
+  
   const [contactLogs, setContactLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState('all'); // days
@@ -62,13 +62,13 @@ export default function KPIDashboard() {
     };
 
     try {
-      const [studentsData, evaluationsData, incidentsData, summariesData, contactsData, gradesData] = await Promise.all([
+      const [studentsData, evaluationsData, incidentsData, summariesData, contactsData] = await Promise.all([
         loadDataSafely(() => Student.filter({ active: true }), 'Students'),
         loadDataSafely(() => DailyEvaluation.list('date'), 'Evaluations'),
         loadDataSafely(() => IncidentReport.list('incident_date'), 'Incidents'),
         loadDataSafely(() => BehaviorSummary.list('date_from'), 'Summaries'),
         loadDataSafely(() => ContactLog.list('contact_date'), 'Contacts'),
-        loadDataSafely(() => Grade.list('created_at'), 'Grades')
+        
       ]);
       
 
@@ -78,7 +78,7 @@ export default function KPIDashboard() {
       setIncidents(incidentsData);
       setBehaviorSummaries(summariesData);
       setContactLogs(contactsData);
-      setGrades(gradesData);
+      
       
     } catch (error) {
       console.error("Error loading KPI data:", error);
