@@ -14,7 +14,7 @@ const navItems = [
     { title: 'Quick Score', icon: Zap, url: createPageUrl('QuickScore') },
     { title: 'KPI Dashboard', icon: BarChart3, url: createPageUrl('KPIDashboard') },
     { title: 'Behavior Summaries', icon: FileText, url: createPageUrl('BehaviorSummaryReports') },
-    { title: 'Grade Reports', icon: BookOpen, url: createPageUrl('GradeReports') },
+    { title: 'Credits Earned', icon: BookOpen, url: createPageUrl('CreditsEarned') },
     { title: 'Incident Reports', icon: AlertTriangle, url: createPageUrl('IncidentReports') },
     { title: 'Settings', icon: Settings, url: createPageUrl('Settings') },
 ];

@@ -131,7 +131,8 @@ export const Student = new SupabaseEntity('students')
 export const DailyEvaluation = new SupabaseEntity('daily_evaluations')
 export const Settings = new SupabaseEntity('settings')
 export const ContactLog = new SupabaseEntity('contact_logs')
-export const Grade = new SupabaseEntity('grades')
+export const CreditsEarned = new SupabaseEntity('credits_earned')
+export const ClassesNeeded = new SupabaseEntity('classes_needed')
 // BehaviorSummary entity with schema mapping
 class SupabaseBehaviorSummaryEntity extends SupabaseEntity {
   constructor() {
