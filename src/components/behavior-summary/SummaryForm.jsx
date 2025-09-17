@@ -460,6 +460,12 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
     const dateRangeText = startDate === endDate ? `${startDate}` : `${startDate} to ${endDate}`;
     const prompt = `You are a behavioral analyst documenting student behavior data. Based on the behavioral information from daily evaluations, incident reports, and contact logs for the period ${dateRangeText}, create a factual behavior summary using objective, observable language.
 
+BEHAVIORAL RATING SYSTEM:
+- 4 = Exceeds expectations (exceptional performance, goes above and beyond)
+- 3 = Meets expectations (appropriate behavior, follows guidelines)
+- 2 = Needs improvement (some issues, requires attention)
+- 1 = Does not meet expectations (significant concerns, needs intervention)
+
 BEHAVIORAL DATA TO ANALYZE (${dateRangeText}):
 ${commentsText}
 
@@ -471,18 +477,19 @@ Guidelines:
 3. Avoid words like "commendable," "excellent," "wonderful," "concerning," etc.
 4. State behaviors as they occurred without interpretation
 5. Use behavioral terminology when appropriate
+6. Reference the rating system definitions when analyzing behavioral patterns
 
 Create content for these sections:
 
-1. GENERAL BEHAVIOR OVERVIEW: Summarize the student's behavioral patterns based on documented observations. State frequency, duration, and context of behaviors as recorded.
+1. GENERAL BEHAVIOR OVERVIEW: Summarize the student's behavioral patterns based on documented observations. State frequency, duration, and context of behaviors as recorded. Include analysis of rating distributions (4's, 3's, 2's, 1's) and what they indicate about behavioral performance.
 
-2. STRENGTHS: List specific positive behaviors observed, with frequency and context. Use factual language (e.g., "completed tasks independently," "followed directions on first request," "remained in assigned area").
+2. STRENGTHS: List specific positive behaviors observed, with frequency and context. Use factual language (e.g., "completed tasks independently," "followed directions on first request," "remained in assigned area"). Reference ratings of 4 and 3 as indicators of meeting/exceeding expectations.
 
-3. IMPROVEMENTS NEEDED: Identify specific behaviors that require intervention based on data. State what was observed and how often, without subjective commentary.
+3. IMPROVEMENTS NEEDED: Identify specific behaviors that require intervention based on data. State what was observed and how often, without subjective commentary. Focus on ratings of 2 and 1 as indicators of areas needing attention.
 
 4. BEHAVIORAL INCIDENTS: Document any incidents exactly as reported, including antecedents, behaviors, and consequences. Maintain factual, neutral language.
 
-5. SUMMARY & RECOMMENDATIONS: Provide data-based recommendations using behavioral intervention terminology. Focus on specific, measurable strategies.
+5. SUMMARY & RECOMMENDATIONS: Provide data-based recommendations using behavioral intervention terminology. Focus on specific, measurable strategies. Consider the rating patterns to suggest targeted interventions.
 
 Format your response as a JSON object with these exact keys:
 {
@@ -493,7 +500,7 @@ Format your response as a JSON object with these exact keys:
   "recommendations": "content here"
 }
 
-Use professional behavioral documentation language. Report only what is documented in the provided data without adding interpretations or subjective assessments.`;
+Use professional behavioral documentation language. Report only what is documented in the provided data without adding interpretations or subjective assessments. Always reference accurate dates from the data when discussing specific incidents or observations.`;
 
     try {
       const completion = await openai.chat.completions.create({

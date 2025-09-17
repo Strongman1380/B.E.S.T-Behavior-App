@@ -52,7 +52,7 @@ export default function SummaryReports() {
     const summariesInRange = summaries.filter(s => s.date_range_start >= start && s.date_range_end <= end);
 
     // Calculate stats and collect problematic behaviors
-    let totalScore = 0, scoreCount = 0, count4 = 0, count2 = 0, count1 = 0;
+    let totalScore = 0, scoreCount = 0, count4 = 0, count3 = 0, count2 = 0, count1 = 0;
     let problematicBehaviors = [];
     evalsInRange.forEach(ev => {
       Object.entries(ev.time_slots || {}).forEach(([slotName, slot]) => {
@@ -68,6 +68,7 @@ export default function SummaryReports() {
             totalScore += numericValue;
             scoreCount++;
             if (numericValue === 4) count4++;
+            if (numericValue === 3) count3++;
             if (numericValue === 2) count2++;
             if (numericValue === 1) count1++;
             if (numericValue === 2 || numericValue === 1) {
@@ -87,6 +88,7 @@ export default function SummaryReports() {
             totalScore += fallbackValue;
             scoreCount++;
             if (fallbackValue === 4) count4++;
+            if (fallbackValue === 3) count3++;
             if (fallbackValue === 2) count2++;
             if (fallbackValue === 1) count1++;
             if (fallbackValue === 2 || fallbackValue === 1) {
@@ -146,21 +148,22 @@ export default function SummaryReports() {
         else trend = "Behavioral scores remained stable over the period.";
       }
 
-      // Compose summary
-      progressSummary = `During this reporting period, ${student.student_name} received an average score of ${avgScore}. ${trend} The student received ${count4} ratings of 4 (exceeds expectations), ${count2} ratings of 2, and ${count1} ratings of 1 (does not meet expectations).`;
+      // Compose summary with accurate rating terminology
+      progressSummary = `During the reporting period from ${start} to ${end}, ${student.student_name} received an average behavioral rating of ${avgScore} out of 4. ${trend} The student received ${count4} ratings of 4 (exceeds expectations), indicating exceptional performance and going above and beyond expectations. There were ${count3} ratings of 3 (meets expectations), showing appropriate behavior and following guidelines. The student received ${count2} ratings of 2 (needs improvement), suggesting some behavioral issues requiring attention, and ${count1} ratings of 1 (does not meet expectations), indicating significant concerns needing intervention.`;
+      
       if (problematicBehaviors.length) {
-        progressSummary += ` There were ${problematicBehaviors.length} instances where behaviors were rated as needing improvement (2) or not meeting expectations (1).`;
+        progressSummary += ` There were ${problematicBehaviors.length} specific instances where behaviors were rated as needing improvement (2) or not meeting expectations (1), documented on the following dates: ${problematicBehaviors.map(pb => pb.date).join(', ')}.`;
       }
       if (summaryIncidents.length) {
-        progressSummary += ` Additional behavioral concerns were noted in summary reports.`;
+        progressSummary += ` Additional behavioral concerns were documented in summary reports during this period.`;
       }
       if (allIncidents.length === 0) {
-        progressSummary += ` No major incidents or problematic behaviors were recorded.`;
+        progressSummary += ` No major incidents or problematic behaviors were recorded during this reporting period.`;
       }
     }
 
     // Compose report
-    const summary = `Summary for ${student.student_name} (${start} to ${end}):\n\nAverage Score: ${avgScore}\nNumber of 4's: ${count4} (4 = Exceeds expectations)\nNumber of 2's: ${count2} (2 = Needs Improvement)\nNumber of 1's: ${count1} (1 = Does not meet expectations)\n\nIncidents:\n${allIncidents.length ? allIncidents.join('\n') : 'None'}\n\nBehavioral Progress:\n${progressSummary}\n`;
+    const summary = `Summary for ${student.student_name} (${start} to ${end}):\n\nAverage Score: ${avgScore}\nNumber of 4's: ${count4} (4 = Exceeds expectations)\nNumber of 3's: ${count3} (3 = Meets expectations)\nNumber of 2's: ${count2} (2 = Needs Improvement)\nNumber of 1's: ${count1} (1 = Does not meet expectations)\n\nIncidents:\n${allIncidents.length ? allIncidents.join('\n') : 'None'}\n\nBehavioral Progress:\n${progressSummary}\n`;
     setReport(summary);
     // HTML for PDF/print
     const html = `<div style='font-family:Arial;padding:24px;max-width:700px;'>
@@ -169,6 +172,7 @@ export default function SummaryReports() {
       <p><b>Reporting Period:</b> ${start} to ${end}</p>
       <p><b>Average Score:</b> ${avgScore}</p>
       <p><b>Number of 4's:</b> ${count4} <span style='color:green;'>(4 = Exceeds expectations)</span></p>
+      <p><b>Number of 3's:</b> ${count3} <span style='color:blue;'>(3 = Meets expectations)</span></p>
       <p><b>Number of 2's:</b> ${count2} <span style='color:orange;'>(2 = Needs Improvement)</span></p>
       <p><b>Number of 1's:</b> ${count1} <span style='color:red;'>(1 = Does not meet expectations)</span></p>
       <h4>Incidents</h4>
