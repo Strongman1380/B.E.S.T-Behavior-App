@@ -196,7 +196,7 @@ export default function BehaviorDashboard() {
   const calculateMetrics = (evaluation) => {
     const totalSlots = deriveTotalSlotCount(settings);
     if (!evaluation || !evaluation.time_slots) {
-      const sectionAverages = calculateSectionAverages(evaluation.time_slots);
+      const sectionAverages = calculateSectionAverages(evaluation?.time_slots);
       return {
         completedSlots: 0,
         totalSlots,

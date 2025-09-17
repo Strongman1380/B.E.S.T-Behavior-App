@@ -12,7 +12,7 @@ const SECTION_DEFINITIONS = [
   { key: 'ce', label: 'Classroom Expectations', short: 'CE' }
 ];
 
-const SCORE_OPTIONS = ['4', '3', '2', '1', 'A', 'B', 'NS'];
+const SCORE_OPTIONS = ['4', '3', '2', '1', 'A/B', 'NS'];
 
 const getInitialValue = (data, section) => {
   if (!data) return undefined;

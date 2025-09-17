@@ -1,7 +1,7 @@
 import { TIME_SLOT_KEYS } from "@/config/timeSlots";
 
 export const BEHAVIOR_SECTION_KEYS = ['ai', 'pi', 'ce'];
-export const BEHAVIOR_SCORE_OPTIONS = ['4', '3', '2', '1', 'A', 'B', 'NS'];
+export const BEHAVIOR_SCORE_OPTIONS = ['4', '3', '2', '1', 'A/B', 'NS'];
 
 const hasValue = (value) => value !== undefined && value !== null && `${value}`.trim().length > 0;
 
