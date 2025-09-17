@@ -316,16 +316,17 @@ export default function KPIDashboard() {
   // Get student performance comparison
   const getStudentComparison = () => {
     const { filteredEvaluations, filteredIncidents } = getFilteredData();
-    
+
     return students.map(student => {
       const studentEvals = filteredEvaluations.filter(evaluation => evaluation.student_id === student.id);
       const studentIncidents = filteredIncidents.filter(incident => incident.student_id === student.id);
-      
+
       let totalRatings = 0;
       let ratingSum = 0;
       let foursCount = 0;
       let totalSlots = 0;
 
+      // Calculate behavioral ratings average
       studentEvals.forEach(evaluation => {
         if (evaluation.time_slots) {
           Object.values(evaluation.time_slots).forEach(slot => {
@@ -342,17 +343,60 @@ export default function KPIDashboard() {
         }
       });
 
-      const avgRating = totalRatings > 0 ? ratingSum / totalRatings : 0;
+      // Initialize academic metrics (to be populated when academic data is available)
+      let academicMetrics = [];
+      let academicSum = 0;
+      let academicCount = 0;
+
+      // TODO: Include GPA data when GPA entity is implemented
+      // const studentGPA = await GPA.filter({ student_id: student.id });
+      // if (studentGPA.length > 0) {
+      //   const avgGPA = studentGPA.reduce((sum, gpa) => sum + gpa.gpa_value, 0) / studentGPA.length;
+      //   const normalizedGPA = (avgGPA / 4) * 4; // Convert 0-4 GPA scale to 0-4 rating scale
+      //   academicMetrics.push(normalizedGPA);
+      //   academicSum += normalizedGPA;
+      //   academicCount++;
+      // }
+
+      // TODO: Include grades data when Grades entity is implemented
+      // const studentGrades = await Grades.filter({ student_id: student.id });
+      // if (studentGrades.length > 0) {
+      //   const avgGrade = studentGrades.reduce((sum, grade) => sum + (grade.grade_value / 100) * 4, 0) / studentGrades.length;
+      //   academicMetrics.push(avgGrade);
+      //   academicSum += avgGrade;
+      //   academicCount++;
+      // }
+
+      // TODO: Include steps data when StepsCompleted entity is implemented
+      // const studentSteps = await StepsCompleted.filter({ student_id: student.id });
+      // if (studentSteps.length > 0) {
+      //   const avgSteps = studentSteps.reduce((sum, steps) => sum + Math.min(steps.steps_count / 10000, 1) * 4, 0) / studentSteps.length;
+      //   academicMetrics.push(avgSteps);
+      //   academicSum += avgSteps;
+      //   academicCount++;
+      // }
+
+      // Calculate combined average (behavioral + academic)
+      const behavioralAvg = totalRatings > 0 ? ratingSum / totalRatings : 0;
+      const academicAvg = academicCount > 0 ? academicSum / academicCount : 0;
+
+      // Weight behavioral ratings at 70% and academic at 30% (adjustable)
+      const combinedAvg = totalRatings > 0 || academicCount > 0 ?
+        (behavioralAvg * 0.7) + (academicAvg * 0.3) : 0;
+
       const foursRate = totalSlots > 0 ? (foursCount / totalSlots) * 100 : 0;
 
       return {
         name: student.student_name,
-        avgRating: Math.round(avgRating * 100) / 100,
+        avgRating: Math.round(combinedAvg * 100) / 100,
+        behavioralAvg: Math.round(behavioralAvg * 100) / 100,
+        academicAvg: Math.round(academicAvg * 100) / 100,
         smileyRate: Math.round(foursRate * 100) / 100,
         incidents: studentIncidents.length,
-        evaluations: studentEvals.length
+        evaluations: studentEvals.length,
+        academicMetrics: academicCount
       };
-    }).filter(student => student.evaluations > 0); // Only show students with data
+    }).filter(student => student.evaluations > 0 || student.academicMetrics > 0); // Show students with any data
   };
 
   // Get time slot performance analysis
@@ -905,8 +949,8 @@ const exportAllCSVs = async () => {
 
   // Export only the Student Performance Overview section as CSV
   const exportStudentPerformanceCSV = () => {
-    const headers = ['Name','Avg Rating','4\'s Rate %','Incidents','Evaluations'];
-    const rows = studentComparison.map(s => [s.name, s.avgRating, s.smileyRate, s.incidents, s.evaluations]);
+    const headers = ['Name','Combined Avg Rating','Behavioral Avg','Academic Avg','4\'s Rate %','Incidents','Evaluations','Academic Metrics'];
+    const rows = studentComparison.map(s => [s.name, s.avgRating, s.behavioralAvg || 0, s.academicAvg || 0, s.smileyRate, s.incidents, s.evaluations, s.academicMetrics || 0]);
     const csv = [headers.join(',')]
       .concat(rows.map(r => r.map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')))
       .join('\n');

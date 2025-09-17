@@ -30,16 +30,18 @@ export default function RatingDistributionBar({ data }) {
           tick={{ fontSize: 12 }}
           axisLine={false}
           tickLine={false}
+          domain={[0, 100]}
+          tickFormatter={(value) => `${value}%`}
         />
         <Tooltip
           contentStyle={{ fontSize: '12px' }}
           formatter={(value, _, props) => [
-            `${value} ratings (${props.payload.percentage}%)`,
+            `${props.payload.count} ratings (${value}%)`,
             props.payload.rating
           ]}
         />
         <Bar
-          dataKey="count"
+          dataKey="percentage"
           fill="#3B82F6"
           radius={[4, 4, 0, 0]}
         />
