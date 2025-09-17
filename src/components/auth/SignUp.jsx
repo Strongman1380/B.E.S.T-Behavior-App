@@ -63,18 +63,17 @@ export default function SignUp({ onToggleMode }) {
     } catch (error) {
       let errorMessage = 'Failed to create account';
       
-      switch (error.code) {
-        case 'auth/email-already-in-use':
+      // Handle Supabase error messages
+      if (error.message) {
+        if (error.message.includes('User already registered')) {
           errorMessage = 'An account with this email already exists';
-          break;
-        case 'auth/invalid-email':
+        } else if (error.message.includes('Invalid email')) {
           errorMessage = 'Invalid email address';
-          break;
-        case 'auth/weak-password':
+        } else if (error.message.includes('Password should be at least')) {
           errorMessage = 'Password is too weak';
-          break;
-        default:
+        } else {
           errorMessage = error.message;
+        }
       }
       
       toast.error(errorMessage);
@@ -87,17 +86,15 @@ export default function SignUp({ onToggleMode }) {
     setLoading(true);
     try {
       await signInWithGoogle();
+      // Note: For OAuth redirect, user will be redirected and success will be handled on return
     } catch (error) {
       let errorMessage = 'Failed to sign up with Google';
       
-      if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Sign up cancelled';
-      } else if (error.code === 'auth/popup-blocked') {
-        errorMessage = 'Popup blocked. Please allow popups and try again';
+      if (error.message) {
+        errorMessage = error.message;
       }
       
       toast.error(errorMessage);
-    } finally {
       setLoading(false);
     }
   };

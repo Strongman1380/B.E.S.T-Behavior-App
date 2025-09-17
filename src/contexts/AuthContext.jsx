@@ -1,17 +1,6 @@
 /* eslint react-refresh/only-export-components: off */
 import { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  signInWithPhoneNumber,
-  signOut,
-  sendPasswordResetEmail,
-  updateProfile,
-  sendEmailVerification
-} from 'firebase/auth';
-import { auth, googleProvider, setupRecaptcha } from '../config/firebase';
+import { supabase } from '../config/supabase';
 import { toast } from 'sonner';
 
 const AuthContext = createContext();
@@ -27,51 +16,77 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState(null);
 
   useEffect(() => {
-    // Check if Firebase is properly configured
-    const isFirebaseConfigured = import.meta.env.VITE_FIREBASE_API_KEY && 
-                                 import.meta.env.VITE_FIREBASE_API_KEY !== "demo-api-key";
+    // Check if Supabase is properly configured
+    const isSupabaseConfigured = supabase && 
+                                import.meta.env.VITE_SUPABASE_URL && 
+                                import.meta.env.VITE_SUPABASE_ANON_KEY;
     
-    if (!isFirebaseConfigured) {
-      // For development/demo mode, create a mock user
-      console.log('Using demo mode - bypassing Firebase authentication');
-      const mockUser = {
-        uid: 'demo-user-123',
-        email: 'demo@brighttrack.local',
-        displayName: 'Demo User',
-        emailVerified: true,
-        providerData: [{ providerId: 'demo' }]
-      };
-      setUser(mockUser);
+    if (!isSupabaseConfigured) {
+      if (import.meta.env.DEV) {
+        // Development/demo mode only
+        console.log('Using demo mode - bypassing Supabase authentication (DEV only)');
+        const mockUser = {
+          id: 'demo-user-123',
+          email: 'demo@brighttrack.local',
+          user_metadata: { 
+            full_name: 'Demo User',
+            avatar_url: null 
+          },
+          email_confirmed_at: new Date().toISOString(),
+          app_metadata: { provider: 'demo' }
+        };
+        setUser(mockUser);
+      } else {
+        console.warn('Supabase not configured in production - showing login screen');
+        setUser(null);
+      }
       setLoading(false);
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    // Get initial session
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
       setLoading(false);
-    });
+    };
 
-    return unsubscribe;
+    getInitialSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Email/Password Sign Up
   const signUp = async (email, password, displayName) => {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      
-      // Update display name
-      if (displayName) {
-        await updateProfile(result.user, { displayName });
-      }
-      
-      // Send email verification
-      await sendEmailVerification(result.user);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: displayName,
+          }
+        }
+      });
+
+      if (error) throw error;
+
       toast.success('Account created! Please check your email to verify your account.');
-      
-      return result;
+      return data;
     } catch (error) {
       console.error('Sign up error:', error);
       throw error;
@@ -80,17 +95,20 @@ export const AuthProvider = ({ children }) => {
 
   // Email/Password Sign In
   const signIn = async (email, password) => {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+
     try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      
-      if (!result.user.emailVerified) {
-        toast.warning('Please verify your email address before signing in.');
-        await signOut(auth);
-        throw new Error('Email not verified');
-      }
-      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
       toast.success('Successfully signed in!');
-      return result;
+      return data;
     } catch (error) {
       console.error('Sign in error:', error);
       throw error;
@@ -99,38 +117,38 @@ export const AuthProvider = ({ children }) => {
 
   // Google Sign In
   const signInWithGoogle = async () => {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      toast.success('Successfully signed in with Google!');
-      return result;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+
+      if (error) throw error;
+
+      // Note: For OAuth, the success toast will be shown after redirect
+      return data;
     } catch (error) {
       console.error('Google sign in error:', error);
       throw error;
     }
   };
 
-  // Phone Sign In
-  const signInWithPhone = async (phoneNumber) => {
-    try {
-      if (!recaptchaVerifier) {
-        const verifier = setupRecaptcha('recaptcha-container');
-        setRecaptchaVerifier(verifier);
-        const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, verifier);
-        return confirmationResult;
-      } else {
-        const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
-        return confirmationResult;
-      }
-    } catch (error) {
-      console.error('Phone sign in error:', error);
-      throw error;
-    }
-  };
-
   // Sign Out
   const logout = async () => {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+
     try {
-      await signOut(auth);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
       toast.success('Successfully signed out!');
     } catch (error) {
       console.error('Sign out error:', error);
@@ -140,24 +158,20 @@ export const AuthProvider = ({ children }) => {
 
   // Reset Password
   const resetPassword = async (email) => {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+
     try {
-      await sendPasswordResetEmail(auth, email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+
+      if (error) throw error;
+
       toast.success('Password reset email sent! Check your inbox.');
     } catch (error) {
       console.error('Password reset error:', error);
-      throw error;
-    }
-  };
-
-  // Resend Email Verification
-  const resendEmailVerification = async () => {
-    try {
-      if (auth.currentUser) {
-        await sendEmailVerification(auth.currentUser);
-        toast.success('Verification email sent! Check your inbox.');
-      }
-    } catch (error) {
-      console.error('Resend verification error:', error);
       throw error;
     }
   };
@@ -168,10 +182,8 @@ export const AuthProvider = ({ children }) => {
     signUp,
     signIn,
     signInWithGoogle,
-    signInWithPhone,
     logout,
-    resetPassword,
-    resendEmailVerification
+    resetPassword
   };
 
   return (

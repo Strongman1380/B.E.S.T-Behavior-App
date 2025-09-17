@@ -21,8 +21,10 @@ export default function ProtectedRoute({ children }) {
   }
 
   // Check if user signed up with email/password and hasn't verified their email
-  const isEmailUser = user.providerData?.some(provider => provider.providerId === 'password');
-  if (isEmailUser && !user.emailVerified) {
+  // Note: Supabase handles email verification differently - users can sign in even without verification
+  // but we can check if they used email/password vs OAuth
+  const isEmailUser = user.app_metadata?.provider === 'email';
+  if (isEmailUser && !user.email_confirmed_at) {
     return <EmailVerification />;
   }
 

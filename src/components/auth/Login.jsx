@@ -4,27 +4,19 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Eye, EyeOff, Mail, Lock, Phone, Chrome } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Chrome } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatPhoneInput, isValidPhoneNumber } from '../../utils/phoneUtils';
 
 export default function Login({ onToggleMode }) {
-  const { signIn, signInWithGoogle, signInWithPhone, resetPassword } = useAuth();
+  const { signIn, signInWithGoogle, resetPassword } = useAuth();
   
   // Email/Password state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
-  // Phone state
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [confirmationResult, setConfirmationResult] = useState(null);
-  
   // Loading states
   const [loading, setLoading] = useState(false);
-  const [phoneLoading, setPhoneLoading] = useState(false);
   
   // Reset password state
   const [resetEmail, setResetEmail] = useState('');
@@ -43,21 +35,17 @@ export default function Login({ onToggleMode }) {
     } catch (error) {
       let errorMessage = 'Failed to sign in';
       
-      switch (error.code) {
-        case 'auth/user-not-found':
-          errorMessage = 'No account found with this email';
-          break;
-        case 'auth/wrong-password':
-          errorMessage = 'Incorrect password';
-          break;
-        case 'auth/invalid-email':
-          errorMessage = 'Invalid email address';
-          break;
-        case 'auth/too-many-requests':
+      // Handle Supabase error messages
+      if (error.message) {
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Please check your email and confirm your account';
+        } else if (error.message.includes('Too many requests')) {
           errorMessage = 'Too many failed attempts. Please try again later';
-          break;
-        default:
+        } else {
           errorMessage = error.message;
+        }
       }
       
       toast.error(errorMessage);
@@ -70,73 +58,16 @@ export default function Login({ onToggleMode }) {
     setLoading(true);
     try {
       await signInWithGoogle();
+      // Note: For OAuth redirect, user will be redirected and success will be handled on return
     } catch (error) {
       let errorMessage = 'Failed to sign in with Google';
       
-      if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Sign in cancelled';
-      } else if (error.code === 'auth/popup-blocked') {
-        errorMessage = 'Popup blocked. Please allow popups and try again';
+      if (error.message) {
+        errorMessage = error.message;
       }
       
       toast.error(errorMessage);
-    } finally {
       setLoading(false);
-    }
-  };
-
-  const handlePhoneSignIn = async (e) => {
-    e.preventDefault();
-    if (!phoneNumber) {
-      toast.error('Please enter your phone number');
-      return;
-    }
-
-    if (!isValidPhoneNumber(phoneNumber)) {
-      toast.error('Please enter a valid phone number with country code');
-      return;
-    }
-
-    setPhoneLoading(true);
-    try {
-      const result = await signInWithPhone(phoneNumber);
-      setConfirmationResult(result);
-      toast.success('Verification code sent to your phone');
-    } catch (error) {
-      let errorMessage = 'Failed to send verification code';
-      
-      switch (error.code) {
-        case 'auth/invalid-phone-number':
-          errorMessage = 'Invalid phone number format';
-          break;
-        case 'auth/too-many-requests':
-          errorMessage = 'Too many requests. Please try again later';
-          break;
-        default:
-          errorMessage = error.message;
-      }
-      
-      toast.error(errorMessage);
-    } finally {
-      setPhoneLoading(false);
-    }
-  };
-
-  const handleVerifyCode = async (e) => {
-    e.preventDefault();
-    if (!verificationCode) {
-      toast.error('Please enter the verification code');
-      return;
-    }
-
-    setPhoneLoading(true);
-    try {
-      await confirmationResult.confirm(verificationCode);
-      toast.success('Successfully signed in!');
-    } catch {
-      toast.error('Invalid verification code');
-    } finally {
-      setPhoneLoading(false);
     }
   };
 
@@ -154,8 +85,8 @@ export default function Login({ onToggleMode }) {
     } catch (error) {
       let errorMessage = 'Failed to send reset email';
       
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = 'No account found with this email';
+      if (error.message) {
+        errorMessage = error.message;
       }
       
       toast.error(errorMessage);
@@ -175,15 +106,30 @@ export default function Login({ onToggleMode }) {
             <CardTitle className="text-center text-lg sm:text-xl">Sign In</CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 pt-0">
-            <Tabs defaultValue="email" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="email" className="text-xs sm:text-sm">Email</TabsTrigger>
-                <TabsTrigger value="phone" className="text-xs sm:text-sm">Phone</TabsTrigger>
-              </TabsList>
+            <div className="space-y-4">
+              {!showResetForm ? (
+                <>
+                  {/* Google Sign In Button - Primary Option */}
+                  <Button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    className="w-full h-12 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                    disabled={loading}
+                  >
+                    <Chrome className="w-5 h-5 mr-3" />
+                    {loading ? 'Signing in...' : 'Continue with Google'}
+                  </Button>
 
-              {/* Email/Password Tab */}
-              <TabsContent value="email" className="space-y-4">
-                {!showResetForm ? (
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-slate-500">Or sign in with email</span>
+                    </div>
+                  </div>
+
+                  {/* Email/Password Form */}
                   <form onSubmit={handleEmailSignIn} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
@@ -238,132 +184,42 @@ export default function Login({ onToggleMode }) {
                       </button>
                     </div>
                   </form>
-                ) : (
-                  <form onSubmit={handleResetPassword} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="resetEmail">Email</Label>
-                      <Input
-                        id="resetEmail"
-                        type="email"
-                        value={resetEmail}
-                        onChange={(e) => setResetEmail(e.target.value)}
-                        placeholder="Enter your email"
-                        className="h-11"
-                        required
-                      />
-                    </div>
+                </>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="resetEmail">Email</Label>
+                    <Input
+                      id="resetEmail"
+                      type="email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      placeholder="Enter your email"
+                      className="h-11"
+                      required
+                    />
+                  </div>
 
-                    <Button type="submit" className="w-full h-11">
-                      Send Reset Email
-                    </Button>
+                  <Button type="submit" className="w-full h-11">
+                    Send Reset Email
+                  </Button>
 
-                    <div className="text-center">
-                      <button
-                        type="button"
-                        onClick={() => setShowResetForm(false)}
-                        className="text-sm text-slate-600 hover:text-slate-800"
-                      >
-                        Back to sign in
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {!showResetForm && (
-                  <>
-                    <div className="relative my-6">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white px-2 text-slate-500">Or continue with</span>
-                      </div>
-                    </div>
-
-                    <Button
+                  <div className="text-center">
+                    <button
                       type="button"
-                      variant="outline"
-                      onClick={handleGoogleSignIn}
-                      className="w-full h-11"
-                      disabled={loading}
+                      onClick={() => setShowResetForm(false)}
+                      className="text-sm text-slate-600 hover:text-slate-800"
                     >
-                      <Chrome className="w-4 h-4 mr-2" />
-                      Google
-                    </Button>
-                  </>
-                )}
-              </TabsContent>
-
-              {/* Phone Tab */}
-              <TabsContent value="phone" className="space-y-4">
-                {!confirmationResult ? (
-                  <form onSubmit={handlePhoneSignIn} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                        <Input
-                          id="phone"
-                          type="tel"
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(formatPhoneInput(e.target.value))}
-                          placeholder="+1 (555) 123-4567"
-                          className="pl-10 h-11"
-                          required
-                        />
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        Include country code (e.g., +1 for US)
-                      </p>
-                    </div>
-
-                    <Button type="submit" className="w-full h-11" disabled={phoneLoading}>
-                      {phoneLoading ? 'Sending...' : 'Send Verification Code'}
-                    </Button>
-                  </form>
-                ) : (
-                  <form onSubmit={handleVerifyCode} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="code">Verification Code</Label>
-                      <Input
-                        id="code"
-                        type="text"
-                        value={verificationCode}
-                        onChange={(e) => setVerificationCode(e.target.value)}
-                        placeholder="Enter 6-digit code"
-                        className="h-11"
-                        maxLength={6}
-                        required
-                      />
-                      <p className="text-xs text-slate-500">
-                        Enter the code sent to {phoneNumber}
-                      </p>
-                    </div>
-
-                    <Button type="submit" className="w-full h-11" disabled={phoneLoading}>
-                      {phoneLoading ? 'Verifying...' : 'Verify Code'}
-                    </Button>
-
-                    <div className="text-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setConfirmationResult(null);
-                          setVerificationCode('');
-                        }}
-                        className="text-sm text-slate-600 hover:text-slate-800"
-                      >
-                        Use different number
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </TabsContent>
-            </Tabs>
+                      Back to sign in
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
 
             <div className="mt-6 text-center">
               <p className="text-sm text-slate-600">
-                Don’t have an account?{' '}
+                Don't have an account?{' '}
                 <button
                   onClick={onToggleMode}
                   className="text-blue-600 hover:text-blue-800 font-medium"
@@ -374,9 +230,6 @@ export default function Login({ onToggleMode }) {
             </div>
           </CardContent>
         </Card>
-
-        {/* Recaptcha container */}
-        <div id="recaptcha-container"></div>
       </div>
     </div>
   );

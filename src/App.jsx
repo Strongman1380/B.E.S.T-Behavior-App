@@ -4,7 +4,9 @@ import { useEffect } from 'react'
 import Pages from "@/pages/index.jsx"
 import { Toaster } from "@/components/ui/toaster"
 import ErrorBoundary from './components/auth/ErrorBoundary'
-// Removed hard database gate to avoid blocking the UI
+import { AuthProvider } from './contexts/AuthContext'
+import ProtectedRoute from './components/auth/ProtectedRoute'
+// Enforce auth wrapping
 
 function App() {
   // Auto-reload on stale chunk errors to recover from deploy cache mismatches
@@ -46,11 +48,15 @@ function App() {
     }
   }, [])
 
-  // Always render the app; DB issues can be handled in features that need it
+  // Always render the app; protect routes behind auth in production
   return (
     <ErrorBoundary>
-      <Pages />
-      <Toaster />
+      <AuthProvider>
+        <ProtectedRoute>
+          <Pages />
+        </ProtectedRoute>
+        <Toaster />
+      </AuthProvider>
     </ErrorBoundary>
   )
 }

@@ -7,6 +7,7 @@ import RealTimeSync from '../components/sync/RealTimeSync';
 import SupabaseStatus from '../components/SupabaseStatus';
 import SupabaseHealth from '../components/SupabaseHealth';
 import DeploymentLinks from '../components/DeploymentLinks';
+import UserProfile from '@/components/auth/UserProfile';
 
 const navItems = [
     { title: 'Dashboard', icon: LayoutDashboard, url: createPageUrl('BehaviorDashboard') },
@@ -87,7 +88,8 @@ export default function Layout({ children }) {
                         BEST Hub
                     </div>
                     <div className="p-2">
-                        {/* User profile removed - no authentication required */}
+                        {/* User profile menu when authenticated */}
+                        <UserProfile />
                     </div>
                 </header>
                 <main className="flex-1 overflow-y-auto mobile-scroll safe-area-bottom p-4 md:p-6 lg:p-8">
