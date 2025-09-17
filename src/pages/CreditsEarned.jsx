@@ -7,6 +7,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner';
 import { Student, CreditsEarned as CreditsEarnedEntity, ClassesNeeded as ClassesNeededEntity } from '@/api/entities';
 import { User, Plus, Calendar, BookOpen, Award } from 'lucide-react';
+import { Suspense, lazy } from 'react';
+
+const GPAEntryCard = lazy(() => import('@/components/kpi/GPAEntryCard'));
+const GradesEntryCard = lazy(() => import('@/components/kpi/GradesEntryCard'));
+const StepsTrackingCard = lazy(() => import('@/components/kpi/StepsTrackingCard'));
 
 export default function CreditsEarned() {
   const [students, setStudents] = useState([]);
@@ -122,7 +127,7 @@ export default function CreditsEarned() {
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
         <Award className="h-6 w-6" />
-        Credits Earned
+        Academic Progress Dashboard
       </h1>
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -177,6 +182,45 @@ export default function CreditsEarned() {
                   </CardTitle>
                 </CardHeader>
               </Card>
+
+              {/* Academic Progress Entry Cards */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Daily Steps */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base sm:text-lg">Daily Steps</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 sm:p-6">
+                    <Suspense fallback={<div className="h-[200px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
+                      <StepsTrackingCard students={students} />
+                    </Suspense>
+                  </CardContent>
+                </Card>
+
+                {/* GPA Entry */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base sm:text-lg">GPA Entry</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 sm:p-6">
+                    <Suspense fallback={<div className="h-[200px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
+                      <GPAEntryCard students={students} />
+                    </Suspense>
+                  </CardContent>
+                </Card>
+
+                {/* Grades Entry */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base sm:text-lg">Course Grades</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 sm:p-6">
+                    <Suspense fallback={<div className="h-[200px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
+                      <GradesEntryCard students={students} />
+                    </Suspense>
+                  </CardContent>
+                </Card>
+              </div>
 
               {/* Add New Credit Form */}
               <Card>
