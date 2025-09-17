@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, MessageSquare, ArrowLeft, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatDate } from '@/utils';
+import { calculateAverageFromSlots } from '@/utils/behaviorMetrics';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Toaster } from 'sonner';
@@ -77,10 +78,9 @@ export default function StudentProfile() {
     
     const calculateAvgScore = (evaluation) => {
         if (!evaluation || !evaluation.time_slots) return 'N/A';
-        const ratedSlots = Object.values(evaluation.time_slots).filter(slot => slot && typeof slot.rating === 'number');
-        if (ratedSlots.length === 0) return 'N/A';
-        const sum = ratedSlots.reduce((acc, slot) => acc + slot.rating, 0);
-        return (sum / ratedSlots.length).toFixed(2);
+        const { average, count } = calculateAverageFromSlots(evaluation.time_slots);
+        if (count === 0) return 'N/A';
+        return average.toFixed(2);
     };
 
     return (

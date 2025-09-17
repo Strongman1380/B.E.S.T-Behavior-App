@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Student, DailyEvaluation, Settings, IncidentReport } from "@/api/entities";
 import { Button } from "@/components/ui/button";
-import { Plus, FileText, Trash2, X, CheckSquare, Calendar, RotateCcw, Edit, Eye, User, AlertTriangle } from "lucide-react";
+import { Plus, FileText, Trash2, X, CheckSquare, Calendar, RotateCcw, Edit, Eye, User, AlertTriangle, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 import { Toaster, toast } from 'sonner';
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
 import { createPageUrl, todayYmd } from "@/utils";
+import { BEHAVIOR_SECTION_KEYS, calculateAverageFromSlots, calculateSectionAverages, countCompletedSlots, deriveTotalSlotCount } from "@/utils/behaviorMetrics";
 
 import AddStudentDialog from "../components/behavior/AddStudentDialog";
 import EditStudentDialog from "../components/behavior/EditStudentDialog";
@@ -20,8 +21,15 @@ import ResetDialog from "../components/behavior/ResetDialog";
 import PrintDialog from "../components/behavior/PrintDialog";
 import PrintBehaviorSummariesDialog from "../components/behavior/PrintBehaviorSummariesDialog";
 import CombinedPrintDialog from "../components/behavior/CombinedPrintDialog";
+import EndOfDayReportDialog from "../components/behavior/EndOfDayReportDialog";
 import IncidentReportDialog from "../components/behavior/IncidentReportDialog";
 import RealTimeSync from "../components/sync/RealTimeSync";
+
+const SECTION_SHORT_LABELS = {
+  ai: 'AI',
+  pi: 'PI',
+  ce: 'CE',
+};
 
 export default function BehaviorDashboard() {
   // ...existing code...
@@ -54,6 +62,7 @@ export default function BehaviorDashboard() {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showIncidentReportDialog, setShowIncidentReportDialog] = useState(false);
   const [incidentStudent, setIncidentStudent] = useState(null);
+  const [showEndOfDayReport, setShowEndOfDayReport] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selection, setSelection] = useState([]);
@@ -185,28 +194,89 @@ export default function BehaviorDashboard() {
   };
 
   const calculateMetrics = (evaluation) => {
+    const totalSlots = deriveTotalSlotCount(settings);
     if (!evaluation || !evaluation.time_slots) {
-      return { completedSlots: 0, totalSlots: 9, averageScore: 0, status: "Not Started" };
+      const sectionAverages = calculateSectionAverages(evaluation.time_slots);
+      return {
+        completedSlots: 0,
+        totalSlots,
+        averageScore: 0,
+        averageCount: 0,
+        roundedAverage: null,
+        sectionAverages,
+        roundedSections: computeRoundedSections(sectionAverages),
+        status: "Not Started"
+      };
     }
-    const slots = evaluation.time_slots;
-    const ratedSlots = Object.values(slots).filter(slot => slot && typeof slot.rating === 'number');
-    const completedCount = Object.values(slots).filter(slot => slot && (slot.rating || slot.status)).length;
-    const totalSlots = 9;
-    
-    if (ratedSlots.length === 0) {
-      return { completedSlots: completedCount, totalSlots, averageScore: 0, status: completedCount > 0 ? "In Progress" : "Not Started" };
+
+    const completedCount = countCompletedSlots(evaluation.time_slots);
+
+    if (completedCount === 0) {
+      const sectionAverages = calculateSectionAverages(evaluation.time_slots);
+      return {
+        completedSlots: 0,
+        totalSlots,
+        averageScore: 0,
+        averageCount: 0,
+        roundedAverage: null,
+        sectionAverages,
+        roundedSections: computeRoundedSections(sectionAverages),
+        status: "Not Started"
+      };
     }
-    const sum = ratedSlots.reduce((acc, slot) => acc + slot.rating, 0);
-    const average = sum / ratedSlots.length;
-    const status = completedCount === totalSlots ? "Completed" : "In Progress";
-    return { completedSlots: completedCount, totalSlots, averageScore: average, status };
+
+    const limitedCompleted = Math.min(completedCount, totalSlots);
+    const overall = calculateAverageFromSlots(evaluation.time_slots);
+    const sectionAverages = calculateSectionAverages(evaluation.time_slots);
+
+    const roundValue = (avg, count) => (count > 0 ? Math.round(avg) : null);
+
+    const roundedSections = computeRoundedSections(sectionAverages);
+
+    const roundedAverage = roundValue(overall.average, overall.count);
+    const status = limitedCompleted >= totalSlots && totalSlots > 0 ? "Completed" : "In Progress";
+    return {
+      completedSlots: limitedCompleted,
+      totalSlots,
+      averageScore: overall.average,
+      averageCount: overall.count,
+      roundedAverage,
+      sectionAverages,
+      roundedSections,
+      status
+    };
   };
   
   const statusColors = {
-    "Not Started": "bg-slate-100 text-slate-600",
-    "In Progress": "bg-blue-100 text-blue-700",
-    "Completed": "bg-green-100 text-green-700",
+    "Not Started": "bg-[#e7f0fb] text-[#5b7294]",
+    "In Progress": "bg-[#dff5ff] text-[#0c6aa0]",
+    "Completed": "bg-[#e0f8d2] text-[#2f7a33]",
   };
+
+  const formatRoundedDisplay = (value) => (typeof value === 'number' ? value.toString() : '--');
+
+  const buildSectionSummary = (roundedSections) => {
+    const segments = BEHAVIOR_SECTION_KEYS
+      .map(key => {
+        const value = roundedSections?.[key];
+        if (typeof value === 'number') {
+          return `${SECTION_SHORT_LABELS[key]} ${value}`;
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    return segments.length > 0 ? segments.join(' • ') : 'No section scores yet';
+  };
+
+  const computeRoundedSections = (sectionAverages) => (
+    BEHAVIOR_SECTION_KEYS.reduce((acc, key) => {
+      const entry = sectionAverages?.[key];
+      const rounded = entry && entry.count > 0 ? Math.round(entry.average) : null;
+      acc[key] = rounded;
+      return acc;
+    }, {})
+  );
 
   const handlePrintStudent = (student) => {
     const evaluation = getStudentEvaluation(student.id);
@@ -215,18 +285,18 @@ export default function BehaviorDashboard() {
 
   if (isLoading) {
     return (
-      <div className="p-4 sm:p-6 md:p-10 bg-slate-50 min-h-screen">
+      <div className="p-4 sm:p-6 md:p-10 bg-gradient-to-br from-[#f3f8ff] via-[#eaf7ff] to-[#e6fbff] min-h-screen">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Behavior Dashboard</h1>
-              <p className="text-slate-600 flex items-center gap-2"><Calendar className="w-5 h-5" /> {format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+              <h1 className="text-3xl md:text-4xl font-bold text-[#0e4e7c] mb-2">Behavior Dashboard</h1>
+              <p className="text-[#3a6a94] flex items-center gap-2"><Calendar className="w-5 h-5" /> {format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
             </div>
           </div>
-          <Card className="shadow-xl border-slate-200 bg-white/80">
+          <Card className="shadow-xl border-[#d2ebff] bg-white/80">
             <CardContent className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-slate-600">Loading dashboard data...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1b9cd8] mx-auto mb-4"></div>
+              <p className="text-[#3a6a94]">Loading dashboard data...</p>
             </CardContent>
           </Card>
         </div>
@@ -235,17 +305,17 @@ export default function BehaviorDashboard() {
   }
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 lg:p-10 bg-slate-50 min-h-screen">
+    <div className="p-3 sm:p-4 md:p-6 lg:p-10 bg-gradient-to-br from-[#f3f8ff] via-[#eaf7ff] to-[#e6fbff] min-h-screen">
       <Toaster richColors />
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col gap-4 mb-6 md:mb-8 lg:mb-10">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div className="flex-1">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900">Behavior Dashboard</h1>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0e4e7c]">Behavior Dashboard</h1>
                 <RealTimeSync />
               </div>
-              <p className="text-slate-600 flex items-center gap-2 text-sm sm:text-base lg:text-lg">
+              <p className="text-[#3a6a94] flex items-center gap-2 text-sm sm:text-base lg:text-lg">
                 <Calendar className="w-4 h-4 sm:w-5 sm:h-5" /> 
                 <span className="hidden sm:inline">{format(new Date(), 'EEEE, MMMM d, yyyy')}</span>
                 <span className="sm:hidden">{format(new Date(), 'MMM d, yyyy')}</span>
@@ -259,9 +329,9 @@ export default function BehaviorDashboard() {
                   <Button 
                     variant="outline" 
                     onClick={() => setShowResetDialog(true)} 
-                    className="justify-center border-orange-300 text-orange-600 hover:bg-orange-50 h-10 sm:h-11 text-sm sm:text-base"
+                    className="justify-center border-[#ffd5a5] text-[#d9780b] hover:bg-[#fff1dd] h-10 sm:h-11 text-sm sm:text-base"
                   >
-                    <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
+                    <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-[#d9780b]" /> 
                     <span className="hidden sm:inline">Reset Day</span>
                     <span className="sm:hidden">Reset</span>
                   </Button>
@@ -269,7 +339,7 @@ export default function BehaviorDashboard() {
                 <Button 
                   variant="outline" 
                   onClick={() => setShowPrintSummariesDialog(true)} 
-                  className="justify-center border-purple-300 text-purple-600 hover:bg-purple-50 h-10 sm:h-11 text-sm sm:text-base"
+                  className="justify-center border-[#bcdfff] text-[#0f6db4] hover:bg-[#e9f4ff] h-10 sm:h-11 text-sm sm:text-base"
                 >
                   <FileText className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
                   <span className="hidden sm:inline">Print Beh. Summaries</span>
@@ -279,7 +349,7 @@ export default function BehaviorDashboard() {
                   variant="outline" 
                   onClick={() => setShowPrintDialog(true)} 
                   disabled={todayEvaluations.length === 0} 
-                  className="justify-center border-slate-300 hover:bg-slate-50 h-10 sm:h-11 text-sm sm:text-base"
+                  className="justify-center border-[#cbe8ff] hover:bg-[#edf8ff] text-[#0f5d92] h-10 sm:h-11 text-sm sm:text-base"
                 >
                   <FileText className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
                   <span className="hidden sm:inline">All Behavior Sheets ({todayEvaluations.length})</span>
@@ -287,14 +357,23 @@ export default function BehaviorDashboard() {
                 </Button>
                 <Button 
                   onClick={() => setIsSelectMode(true)} 
-                  className="justify-center bg-yellow-500 hover:bg-yellow-600 h-10 sm:h-11 text-sm sm:text-base"
+                  className="justify-center bg-accent text-accent-foreground hover:bg-accent/90 h-10 sm:h-11 text-sm sm:text-base shadow-sm shadow-accent/40"
                 >
                   <CheckSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
                   Select
                 </Button>
                 <Button 
+                  variant="outline"
+                  onClick={() => setShowEndOfDayReport(true)}
+                  className="justify-center border-[#9fe2c7] text-[#1f7a53] hover:bg-[#e7f9f1] h-10 sm:h-11 text-sm sm:text-base"
+                  disabled={students.length === 0}
+                >
+                  <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  Daily Averages
+                </Button>
+                <Button 
                   onClick={() => setShowAddDialog(true)} 
-                  className="justify-center bg-blue-600 hover:bg-blue-700 h-10 sm:h-11 text-sm sm:text-base sm:col-span-2 lg:col-span-1"
+                  className="justify-center bg-primary text-primary-foreground hover:bg-primary/90 h-10 sm:h-11 text-sm sm:text-base sm:col-span-2 lg:col-span-1 shadow-md shadow-primary/30"
                 >
                   <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
                   <span className="hidden sm:inline">Add Student</span>
@@ -344,7 +423,7 @@ export default function BehaviorDashboard() {
                       const metrics = calculateMetrics(evaluation);
                       const hasEvaluation = !!evaluation;
                       return (
-                        <div key={student.id} className={`p-4 ${selection.includes(student.id) ? 'bg-blue-50' : ''}`}>
+                        <div key={student.id} className={`p-4 ${selection.includes(student.id) ? 'bg-[#e8f7ff]' : ''}`}>
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-3 flex-1">
                               {isSelectMode && (
@@ -355,13 +434,18 @@ export default function BehaviorDashboard() {
                               )}
                               <div className="flex-1">
                                 <h3 className="font-semibold text-slate-900 text-lg">{student.student_name}</h3>
-                                <div className="flex items-center gap-2 mt-1">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 gap-2 mt-1">
                                   <Badge className={`${statusColors[metrics.status]} font-medium text-xs`}>
                                     {metrics.status}
                                   </Badge>
-                                  <span className="text-sm font-bold text-slate-800">
-                                    {metrics.averageScore > 0 ? `${metrics.averageScore.toFixed(1)}/4` : 'No Score'}
-                                  </span>
+                                  <div className="text-xs sm:text-sm text-slate-600">
+                                    <div className="font-semibold text-slate-900 text-sm">
+                                      Overall {formatRoundedDisplay(metrics.roundedAverage)}
+                                    </div>
+                                    <div className="text-[11px] sm:text-xs text-slate-500">
+                                      {buildSectionSummary(metrics.roundedSections)}
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -372,7 +456,7 @@ export default function BehaviorDashboard() {
                               <span>Progress</span>
                               <span>{metrics.completedSlots}/{metrics.totalSlots} slots</span>
                             </div>
-                            <Progress value={(metrics.completedSlots / metrics.totalSlots) * 100} className="h-2" />
+                            <Progress value={metrics.totalSlots ? (metrics.completedSlots / metrics.totalSlots) * 100 : 0} className="h-2" />
                           </div>
                           
                           <div className="flex items-center justify-between">
@@ -427,7 +511,7 @@ export default function BehaviorDashboard() {
                       <TableHead>Student</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-[200px]">Progress</TableHead>
-                      <TableHead>Avg. Score</TableHead>
+                      <TableHead>Avg. Scores</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -443,11 +527,20 @@ export default function BehaviorDashboard() {
                           <TableCell><Badge className={`${statusColors[metrics.status]} font-semibold`}>{metrics.status}</Badge></TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                                <Progress value={(metrics.completedSlots / metrics.totalSlots) * 100} className="w-24 h-2" />
+                                <Progress value={metrics.totalSlots ? (metrics.completedSlots / metrics.totalSlots) * 100 : 0} className="w-24 h-2" />
                                 <span className="text-sm text-slate-500">{metrics.completedSlots}/{metrics.totalSlots}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="font-bold text-slate-800 text-base">{metrics.averageScore > 0 ? metrics.averageScore.toFixed(2) : 'N/A'}</TableCell>
+                          <TableCell className="text-sm">
+                            <div className="inline-flex flex-col gap-1 rounded-lg border border-[#d7ecff] bg-white/80 px-3 py-2 shadow-sm">
+                              <div className="font-semibold text-[#0e4e7c] text-base">
+                                Overall {formatRoundedDisplay(metrics.roundedAverage)}
+                              </div>
+                              <div className="text-xs text-[#1d7fb8] font-medium">
+                                {buildSectionSummary(metrics.roundedSections)}
+                              </div>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">
                              <div className="flex gap-1 justify-end">
                                 <Link to={createPageUrl(`StudentProfile?id=${student.id}`)}>
@@ -490,7 +583,7 @@ export default function BehaviorDashboard() {
                         const metrics = calculateMetrics(evaluation);
                         const hasEvaluation = !!evaluation;
                         return (
-                            <div key={student.id} className={`p-4 ${selection.includes(student.id) ? 'bg-blue-50' : ''}`}>
+                        <div key={student.id} className={`p-4 ${selection.includes(student.id) ? 'bg-[#e8f7ff]' : ''}`}>
                                 <div className="flex justify-between items-start gap-3">
                                     <div className="flex items-start gap-3 flex-grow">
                                         {isSelectMode && (
@@ -533,11 +626,12 @@ export default function BehaviorDashboard() {
                                 <div className="mt-4 space-y-3">
                                     <div>
                                         <div className="flex justify-between text-sm text-slate-600 mb-1"><span>Progress</span><span>{metrics.completedSlots}/{metrics.totalSlots}</span></div>
-                                        <Progress value={(metrics.completedSlots / metrics.totalSlots) * 100} className="h-2" />
+                                        <Progress value={metrics.totalSlots ? (metrics.completedSlots / metrics.totalSlots) * 100 : 0} className="h-2" />
                                     </div>
-                                     <div>
-                                        <p className="text-sm text-slate-600">Avg. Score</p>
-                                        <p className="font-bold text-slate-800 text-lg">{metrics.averageScore > 0 ? metrics.averageScore.toFixed(2) : 'N/A'}</p>
+                                    <div>
+                                        <p className="text-sm text-slate-600">Avg. Scores</p>
+                                        <p className="font-bold text-slate-800 text-lg">Overall {formatRoundedDisplay(metrics.roundedAverage)}</p>
+                                        <p className="text-xs text-slate-500 mt-1">{buildSectionSummary(metrics.roundedSections)}</p>
                                     </div>
                                 </div>
                                 <div className="mt-4">
@@ -584,6 +678,13 @@ export default function BehaviorDashboard() {
         student={incidentStudent} 
         settings={settings} 
         onSave={handleSaveIncidentReport} 
+      />
+      <EndOfDayReportDialog 
+        open={showEndOfDayReport} 
+        onOpenChange={setShowEndOfDayReport} 
+        students={students} 
+        evaluations={evaluations} 
+        date={today} 
       />
     </div>
   );

@@ -1,6 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" fill="none">
-  <rect width="192" height="192" rx="24" fill="#3b82f6"/>
-  <path d="M48 96L80 128L144 64" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="96" cy="96" r="64" stroke="white" stroke-width="4" fill="none" opacity="0.3"/>
-  <text x="96" y="156" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">BRIGHT</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="bestIconTitle">
+  <title id="bestIconTitle">BEST Hub icon</title>
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f3f8ff" />
+      <stop offset="100%" stop-color="#dff3ff" />
+    </linearGradient>
+    <linearGradient id="textStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f6db4" />
+      <stop offset="100%" stop-color="#0a4f82" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="url(#bgGrad)" />
+  <rect x="64" y="96" width="384" height="240" rx="48" fill="#cdecff" />
+  <ellipse cx="256" cy="332" rx="150" ry="52" fill="#1c9de0" opacity="0.85" />
+  <g fill="#ff9d2a">
+    <polygon points="148,84 164,62 184,92" />
+    <polygon points="208,60 224,30 248,76" />
+    <polygon points="308,60 332,30 348,76" />
+    <polygon points="368,84 352,58 328,98" />
+  </g>
+  <g>
+    <text x="256" y="274" text-anchor="middle" font-family="'Nunito', 'Nunito Sans', 'Helvetica', sans-serif" font-size="170" font-weight="800" fill="#c5ec3c" stroke="url(#textStroke)" stroke-width="14" paint-order="stroke fill">
+      BEST
+    </text>
+  </g>
+  <g fill="#18a164">
+    <circle cx="120" cy="366" r="32" />
+    <circle cx="392" cy="366" r="32" />
+  </g>
 </svg>

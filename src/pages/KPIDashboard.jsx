@@ -10,13 +10,14 @@ import {
 } from "lucide-react";
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks } from "date-fns";
 import { parseYmd } from "@/utils";
+import { getNumericSectionValues } from "@/utils/behaviorMetrics";
 import { toast } from 'sonner';
 import ClearDataDialog from "@/components/kpi/ClearDataDialog";
 import { createZip } from "@/lib/zip";
 
 const BehaviorTrendChart = lazy(() => import('@/components/kpi/BehaviorTrendChart'));
 const IncidentTypesBar = lazy(() => import('@/components/kpi/IncidentTypesBar'));
-const RatingDistributionPie = lazy(() => import('@/components/kpi/RatingDistributionPie'));
+const RatingDistributionBar = lazy(() => import('@/components/kpi/RatingDistributionBar'));
 const TimeSlotAnalysisBar = lazy(() => import('@/components/kpi/TimeSlotAnalysisBar'));
 const WeeklyTrendsArea = lazy(() => import('@/components/kpi/WeeklyTrendsArea'));
 
@@ -44,6 +45,10 @@ export default function KPIDashboard() {
   
   const [contactLogs, setContactLogs] = useState([]);
   const [creditsEarned, setCreditsEarned] = useState([]);
+  // New academic data states (placeholders)
+  const [stepsCompleted, setStepsCompleted] = useState([]);
+  const [grades, setGrades] = useState([]);
+  const [gpas, setGpas] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState('all'); // days
   const [selectedStudent, setSelectedStudent] = useState('all');
@@ -76,7 +81,26 @@ export default function KPIDashboard() {
         loadDataSafely(() => CreditsEarned.list('date_earned'), 'Credits'),
       ]);
       
-
+      // Load new academic data (when entities are available)
+      let stepsData = [], gradesData = [], gpasData = [];
+      try {
+        // Placeholder for when StepsCompleted entity is added
+        // stepsData = await loadDataSafely(() => StepsCompleted.list('date_completed'), 'Steps');
+      } catch (e) {
+        console.log('StepsCompleted entity not yet available');
+      }
+      try {
+        // Placeholder for when Grades entity is added
+        // gradesData = await loadDataSafely(() => Grades.list('date_entered'), 'Grades');
+      } catch (e) {
+        console.log('Grades entity not yet available');
+      }
+      try {
+        // Placeholder for when GPA entity is added
+        // gpasData = await loadDataSafely(() => GPA.list('calculated_date'), 'GPAs');
+      } catch (e) {
+        console.log('GPA entity not yet available');
+      }
       
       setStudents(studentsData);
       setEvaluations(evaluationsData);
@@ -84,6 +108,9 @@ export default function KPIDashboard() {
       setBehaviorSummaries(summariesData);
       setContactLogs(contactsData);
       setCreditsEarned(creditsData);
+      setStepsCompleted(stepsData);
+      setGrades(gradesData);
+      setGpas(gpasData);
       
       
     } catch (error) {
@@ -172,14 +199,15 @@ export default function KPIDashboard() {
       dayEvaluations.forEach(evaluation => {
         if (evaluation.time_slots) {
           Object.values(evaluation.time_slots).forEach(slot => {
-            totalSlots++;
-            if (slot.rating) {
-              totalRatings += slot.rating;
+            const numericValues = getNumericSectionValues(slot);
+            totalSlots += numericValues.length;
+            numericValues.forEach(value => {
+              totalRatings += value;
               ratingCount++;
-              if (slot.rating === 4) {
+              if (value === 4) {
                 foursCount++;
               }
-            }
+            });
           });
         }
       });
@@ -226,10 +254,13 @@ export default function KPIDashboard() {
     filteredEvaluations.forEach(evaluation => {
       if (evaluation.time_slots) {
         Object.values(evaluation.time_slots).forEach(slot => {
-          if (slot.rating) {
-            distribution[slot.rating.toString()]++;
-            totalRatings++;
-          }
+          const numericValues = getNumericSectionValues(slot);
+          numericValues.forEach(value => {
+            if (value >= 1 && value <= 4) {
+              distribution[value.toString()]++;
+              totalRatings++;
+            }
+          });
         });
       }
     });
@@ -255,14 +286,15 @@ export default function KPIDashboard() {
       studentsWithEvaluations.add(evaluation.student_id);
       if (evaluation.time_slots) {
         Object.values(evaluation.time_slots).forEach(slot => {
-          totalSlots++;
-          if (slot.rating) {
+          const numericValues = getNumericSectionValues(slot);
+          totalSlots += numericValues.length;
+          numericValues.forEach(value => {
             totalRatings++;
-            ratingSum += slot.rating;
-            if (slot.rating === 4) {
+            ratingSum += value;
+            if (value === 4) {
               foursCount++;
             }
-          }
+          });
         });
       }
     });
@@ -297,14 +329,15 @@ export default function KPIDashboard() {
       studentEvals.forEach(evaluation => {
         if (evaluation.time_slots) {
           Object.values(evaluation.time_slots).forEach(slot => {
-            totalSlots++;
-            if (slot.rating) {
+            const numericValues = getNumericSectionValues(slot);
+            totalSlots += numericValues.length;
+            numericValues.forEach(value => {
               totalRatings++;
-              ratingSum += slot.rating;
-              if (slot.rating === 4) {
+              ratingSum += value;
+              if (value === 4) {
                 foursCount++;
               }
-            }
+            });
           });
         }
       });
@@ -331,30 +364,31 @@ export default function KPIDashboard() {
       let totalRatings = 0;
       let ratingSum = 0;
       let foursCount = 0;
-      let evaluationCount = 0;
+      let entryCount = 0;
 
       filteredEvaluations.forEach(evaluation => {
         if (evaluation.time_slots && evaluation.time_slots[slot]) {
-          evaluationCount++;
           const slotData = evaluation.time_slots[slot];
-          if (slotData.rating) {
+          const numericValues = getNumericSectionValues(slotData);
+          entryCount += numericValues.length;
+          numericValues.forEach(value => {
             totalRatings++;
-            ratingSum += slotData.rating;
-            if (slotData.rating === 4) {
+            ratingSum += value;
+            if (value === 4) {
               foursCount++;
             }
-          }
+          });
         }
       });
 
       const avgRating = totalRatings > 0 ? ratingSum / totalRatings : 0;
-      const foursRate = evaluationCount > 0 ? (foursCount / evaluationCount) * 100 : 0;
+      const foursRate = entryCount > 0 ? (foursCount / entryCount) * 100 : 0;
 
       return {
         timeSlot: slot,
         avgRating: Math.round(avgRating * 100) / 100,
         smileyRate: Math.round(foursRate * 100) / 100,
-        evaluationCount
+        evaluationCount: entryCount
       };
     });
   };
@@ -398,14 +432,15 @@ export default function KPIDashboard() {
       weekEvals.forEach(evaluation => {
         if (evaluation.time_slots) {
           Object.values(evaluation.time_slots).forEach(slot => {
-            totalSlots++;
-            if (slot.rating) {
+            const numericValues = getNumericSectionValues(slot);
+            totalSlots += numericValues.length;
+            numericValues.forEach(value => {
               totalRatings++;
-              ratingSum += slot.rating;
-              if (slot.rating === 4) {
+              ratingSum += value;
+              if (value === 4) {
                 foursCount++;
               }
-            }
+            });
           });
         }
       });
@@ -434,6 +469,11 @@ export default function KPIDashboard() {
       studentComparison: getStudentComparison(),
       timeSlotAnalysis: getTimeSlotAnalysis(),
       weeklyTrends: getWeeklyTrends(),
+      // New academic KPIs
+      stepsSummary,
+      gradesSummary,
+      gpaSummary,
+      studentImprovementStatus,
       exportDate: getCurrentDate().toISOString(),
       dateRange,
       selectedStudent: selectedStudent === 'all' ? 'All Students' : students.find(s => s.id === selectedStudent)?.student_name
@@ -451,6 +491,23 @@ export default function KPIDashboard() {
       `Total Incidents: ${overallMetrics.totalIncidents}`,
       `Students Tracked: ${overallMetrics.studentsEvaluated}`,
       `Total Evaluations: ${overallMetrics.totalEvaluations}`,
+      '',
+      'Academic KPIs:',
+      `Total Steps: ${stepsSummary.totalSteps}`,
+      `Average Steps per Student: ${stepsSummary.avgStepsPerStudent}`,
+      `Average GPA: ${gpaSummary.avgGPA}`,
+      `Total Grades: ${gradesSummary.totalGrades}`,
+      `Average Grade: ${gradesSummary.avgGrade}`,
+      '',
+      'Student Improvement Status:',
+      `Needs Improvement: ${studentImprovementStatus.improvementCategories.needsImprovement}`,
+      `Average: ${studentImprovementStatus.improvementCategories.average}`,
+      `Excellent: ${studentImprovementStatus.improvementCategories.excellent}`,
+      `Outstanding: ${studentImprovementStatus.improvementCategories.outstanding}`,
+      `Steps Exceeds: ${studentImprovementStatus.stepsCategories.exceeds}`,
+      `Steps Meets: ${studentImprovementStatus.stepsCategories.meets}`,
+      `Steps Needs Work: ${studentImprovementStatus.stepsCategories.needsWork}`,
+      `Fast Credit Earners: ${studentImprovementStatus.creditsPerformance.fastEarners}`,
       '',
       'Student Performance:',
       'Name,Avg Rating,4\'s Rate %,Incidents,Evaluations',
@@ -700,6 +757,152 @@ const exportAllCSVs = async () => {
   const topStudentCreditsData = getTopStudentCreditsData();
   const creditsTimelineData = getCreditsTimelineData();
 
+  // Academic KPI functions
+  const getStepsData = () => {
+    const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
+    
+    let filteredSteps = stepsCompleted;
+    
+    // Apply date filtering only if not 'all'
+    if (dateRange !== 'all') {
+      const daysBack = parseInt(dateRange);
+      const cutoffDate = subDays(getCurrentDate(), daysBack);
+      
+      filteredSteps = stepsCompleted.filter(step => 
+        parseYmd(step.date_completed) >= cutoffDate
+      );
+    }
+    
+    // Apply student filtering
+    if (selectedId != null) {
+      filteredSteps = filteredSteps.filter(step => step.student_id === selectedId);
+    }
+
+    return filteredSteps;
+  };
+
+  const getStepsSummary = () => {
+    const filteredSteps = getStepsData();
+    const totalSteps = filteredSteps.reduce((sum, step) => sum + (step.steps_count || 0), 0);
+    const studentsWithSteps = new Set(filteredSteps.map(step => step.student_id)).size;
+    const avgStepsPerStudent = studentsWithSteps > 0 ? Math.round((totalSteps / studentsWithSteps) * 100) / 100 : 0;
+
+    return {
+      totalSteps: Math.round(totalSteps * 100) / 100,
+      totalStudents: studentsWithSteps,
+      avgStepsPerStudent
+    };
+  };
+
+  const getGradesData = () => {
+    const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
+    
+    let filteredGrades = grades;
+    
+    // Apply date filtering only if not 'all'
+    if (dateRange !== 'all') {
+      const daysBack = parseInt(dateRange);
+      const cutoffDate = subDays(getCurrentDate(), daysBack);
+      
+      filteredGrades = grades.filter(grade => 
+        parseYmd(grade.date_entered) >= cutoffDate
+      );
+    }
+    
+    // Apply student filtering
+    if (selectedId != null) {
+      filteredGrades = filteredGrades.filter(grade => grade.student_id === selectedId);
+    }
+
+    return filteredGrades;
+  };
+
+  const getGradesSummary = () => {
+    const filteredGrades = getGradesData();
+    const totalGrades = filteredGrades.length;
+    const avgGrade = totalGrades > 0 ? 
+      filteredGrades.reduce((sum, grade) => sum + (grade.grade_value || 0), 0) / totalGrades : 0;
+    const studentsWithGrades = new Set(filteredGrades.map(grade => grade.student_id)).size;
+
+    return {
+      totalGrades,
+      avgGrade: Math.round(avgGrade * 100) / 100,
+      totalStudents: studentsWithGrades
+    };
+  };
+
+  const getGPASummary = () => {
+    const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
+    
+    let filteredGPAs = gpas;
+    
+    // Apply student filtering
+    if (selectedId != null) {
+      filteredGPAs = gpas.filter(gpa => gpa.student_id === selectedId);
+    }
+
+    const totalGPAs = filteredGPAs.length;
+    const avgGPA = totalGPAs > 0 ? 
+      filteredGPAs.reduce((sum, gpa) => sum + (gpa.gpa_value || 0), 0) / totalGPAs : 0;
+
+    return {
+      totalGPAs,
+      avgGPA: Math.round(avgGPA * 100) / 100
+    };
+  };
+
+  const getStudentImprovementStatus = () => {
+    // This will combine GPA, steps, credits, and grades to determine improvement status
+    const studentComparison = getStudentComparison();
+    const creditsData = getCreditsPerStudentData();
+
+    // Use behavior ratings as proxy for GPA categories until GPA entity is available
+    const improvementCategories = {
+      needsImprovement: 0, // GPA <= 2.4 (proxy: avg rating < 2.5)
+      average: 0, // GPA 2.5-3.0 (proxy: avg rating 2.5-3.0)
+      excellent: 0, // GPA 3.1-3.5 (proxy: avg rating 3.0-3.5)
+      outstanding: 0 // GPA 3.6-4.0 (proxy: avg rating > 3.5)
+    };
+
+    studentComparison.forEach(student => {
+      if (student.avgRating < 2.5) improvementCategories.needsImprovement++;
+      else if (student.avgRating <= 3.0) improvementCategories.average++;
+      else if (student.avgRating <= 3.5) improvementCategories.excellent++;
+      else improvementCategories.outstanding++;
+    });
+
+    // Steps categories - placeholder until steps entity is available
+    const stepsCategories = {
+      exceeds: 0, // >=16 steps
+      meets: 0, // 15 steps
+      needsWork: 0 // <10 steps
+    };
+
+    // For now, use 4's rate as proxy for steps performance
+    studentComparison.forEach(student => {
+      if (student.smileyRate >= 30) stepsCategories.exceeds++; // High 4's rate = exceeds
+      else if (student.smileyRate >= 20) stepsCategories.meets++; // Medium 4's rate = meets
+      else stepsCategories.needsWork++; // Low 4's rate = needs work
+    });
+
+    // Credits performance - students earning credits quickly
+    const creditsPerformance = {
+      fastEarners: creditsData.filter(student => student.credits > 5).length // More than 5 credits = fast earner
+    };
+
+    return {
+      improvementCategories,
+      stepsCategories,
+      creditsPerformance
+    };
+  };
+
+  // Get processed academic data
+  const stepsSummary = getStepsSummary();
+  const gradesSummary = getGradesSummary();
+  const gpaSummary = getGPASummary();
+  const studentImprovementStatus = getStudentImprovementStatus();
+
   // Export only the Student Performance Overview section as CSV
   const exportStudentPerformanceCSV = () => {
     const headers = ['Name','Avg Rating','4\'s Rate %','Incidents','Evaluations'];
@@ -896,14 +1099,14 @@ const exportAllCSVs = async () => {
 
         {/* Rating Distribution and Student Comparison */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
-          {/* Rating Distribution Pie Chart */}
+          {/* Rating Distribution Bar Chart */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base sm:text-lg">Rating Distribution</CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
               <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
-                <RatingDistributionPie data={ratingDistribution} />
+                <RatingDistributionBar data={ratingDistribution} />
               </Suspense>
             </CardContent>
           </Card>
@@ -1010,7 +1213,116 @@ const exportAllCSVs = async () => {
           </div>
         </div>
 
-        {/* Additional KPI Insights */}
+        {/* Academic Performance KPIs */}
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6">Academic Performance KPIs</h2>
+          
+          {/* Academic Overview Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
+            {/* Steps Completed Summary */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Steps Completed</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6">
+                <div className="text-2xl font-bold text-blue-600">{stepsSummary.totalSteps || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  Avg {stepsSummary.avgStepsPerStudent || 0} per student
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* GPA Summary */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Average GPA</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6">
+                <div className="text-2xl font-bold text-green-600">{gpaSummary.avgGPA || 'N/A'}</div>
+                <p className="text-xs text-muted-foreground">
+                  From {gpaSummary.totalGPAs || 0} GPA records
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Grades Summary */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Grades Overview</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6">
+                <div className="text-2xl font-bold text-purple-600">{gradesSummary.avgGrade || 'N/A'}</div>
+                <p className="text-xs text-muted-foreground">
+                  From {gradesSummary.totalGrades || 0} grade entries
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Student Improvement Status */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-lg">Student Improvement Status</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6">
+              <div className="space-y-4">
+                <div className="text-sm text-slate-600 mb-4">
+                  Based on GPA, steps completed, credits earned, and grades:
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <h4 className="font-semibold text-red-900 text-sm">Needs Improvement</h4>
+                    <p className="text-xs text-red-700 mt-1">GPA ≤ 2.4</p>
+                    <div className="text-lg font-bold text-red-600 mt-2">{studentImprovementStatus.improvementCategories.needsImprovement}</div>
+                    <p className="text-xs text-red-600">Students</p>
+                  </div>
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <h4 className="font-semibold text-yellow-900 text-sm">Average</h4>
+                    <p className="text-xs text-yellow-700 mt-1">GPA 2.5 - 3.0</p>
+                    <div className="text-lg font-bold text-yellow-600 mt-2">{studentImprovementStatus.improvementCategories.average}</div>
+                    <p className="text-xs text-yellow-600">Students</p>
+                  </div>
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 className="font-semibold text-blue-900 text-sm">Excellent</h4>
+                    <p className="text-xs text-blue-700 mt-1">GPA 3.1 - 3.5</p>
+                    <div className="text-lg font-bold text-blue-600 mt-2">{studentImprovementStatus.improvementCategories.excellent}</div>
+                    <p className="text-xs text-blue-600">Students</p>
+                  </div>
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <h4 className="font-semibold text-green-900 text-sm">Outstanding</h4>
+                    <p className="text-xs text-green-700 mt-1">GPA 3.6 - 4.0</p>
+                    <div className="text-lg font-bold text-green-600 mt-2">{studentImprovementStatus.improvementCategories.outstanding}</div>
+                    <p className="text-xs text-green-600">Students</p>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-slate-50 rounded-lg">
+                  <h4 className="font-semibold text-slate-900 text-sm mb-2">Steps Performance</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div className="text-center">
+                      <div className="font-medium text-green-700">Exceeds (≥16)</div>
+                      <div className="text-lg font-bold text-green-600">{studentImprovementStatus.stepsCategories.exceeds}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-medium text-blue-700">Meets (15)</div>
+                      <div className="text-lg font-bold text-blue-600">{studentImprovementStatus.stepsCategories.meets}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-medium text-red-700">Needs Work (&lt;10)</div>
+                      <div className="text-lg font-bold text-red-600">{studentImprovementStatus.stepsCategories.needsWork}</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-slate-50 rounded-lg">
+                  <h4 className="font-semibold text-slate-900 text-sm mb-2">Credits Performance</h4>
+                  <p className="text-xs text-slate-600">Credits earned quickly highlight excellent progress</p>
+                  <div className="mt-2 text-sm">
+                    <span className="font-medium">Fast Earners:</span> {studentImprovementStatus.creditsPerformance.fastEarners} students
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle>Additional Insights & Recommendations</CardTitle>

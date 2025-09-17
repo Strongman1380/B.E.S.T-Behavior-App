@@ -59,7 +59,7 @@ export default function UserProfile() {
         <Button variant="ghost" className="relative h-9 w-9 rounded-full">
           <Avatar className="h-9 w-9">
             <AvatarImage src={user?.photoURL} alt={getDisplayName()} />
-            <AvatarFallback className="bg-blue-600 text-white text-sm">
+            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
               {getInitials(getDisplayName())}
             </AvatarFallback>
           </Avatar>

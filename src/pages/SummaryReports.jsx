@@ -4,6 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
+import { BEHAVIOR_SECTION_KEYS, calculateAverageFromSlots } from "@/utils/behaviorMetrics";
+
+const SECTION_LABELS = {
+  ai: 'Adult Interaction (AI)',
+  pi: 'Peer Interaction (PI)',
+  ce: 'Classroom Expectations (CE)'
+};
 
 export default function SummaryReports() {
   const [students, setStudents] = useState([]);
@@ -49,19 +56,47 @@ export default function SummaryReports() {
     let problematicBehaviors = [];
     evalsInRange.forEach(ev => {
       Object.entries(ev.time_slots || {}).forEach(([slotName, slot]) => {
-        if (typeof slot.rating === 'number') {
-          totalScore += slot.rating;
-          scoreCount++;
-          if (slot.rating === 4) count4++;
-          if (slot.rating === 2) count2++;
-          if (slot.rating === 1) count1++;
-          if (slot.rating === 2 || slot.rating === 1) {
-            problematicBehaviors.push({
-              date: ev.date,
-              slot: slotName,
-              rating: slot.rating,
-              notes: slot.notes || '',
-            });
+        let hasSectionData = false;
+        BEHAVIOR_SECTION_KEYS.forEach(sectionKey => {
+          const rawValue = slot?.[sectionKey];
+          if (rawValue === undefined || rawValue === null || `${rawValue}`.trim().length === 0) {
+            return;
+          }
+          hasSectionData = true;
+          const numericValue = Number(rawValue);
+          if (Number.isFinite(numericValue)) {
+            totalScore += numericValue;
+            scoreCount++;
+            if (numericValue === 4) count4++;
+            if (numericValue === 2) count2++;
+            if (numericValue === 1) count1++;
+            if (numericValue === 2 || numericValue === 1) {
+              problematicBehaviors.push({
+                date: ev.date,
+                slot: `${slotName} • ${SECTION_LABELS[sectionKey] || sectionKey.toUpperCase()}`,
+                rating: numericValue,
+                notes: slot?.comment || slot?.notes || '',
+              });
+            }
+          }
+        });
+
+        if (!hasSectionData) {
+          const fallbackValue = typeof slot?.rating === 'number' ? slot.rating : (typeof slot?.score === 'number' ? slot.score : null);
+          if (typeof fallbackValue === 'number') {
+            totalScore += fallbackValue;
+            scoreCount++;
+            if (fallbackValue === 4) count4++;
+            if (fallbackValue === 2) count2++;
+            if (fallbackValue === 1) count1++;
+            if (fallbackValue === 2 || fallbackValue === 1) {
+              problematicBehaviors.push({
+                date: ev.date,
+                slot: slotName,
+                rating: fallbackValue,
+                notes: slot?.comment || slot?.notes || '',
+              });
+            }
           }
         }
       });
@@ -98,14 +133,8 @@ export default function SummaryReports() {
       let firstAvg = null, lastAvg = null;
       if (firstEval && lastEval) {
         const getAvg = ev => {
-          let t = 0, c = 0;
-          Object.values(ev.time_slots || {}).forEach(slot => {
-            if (typeof slot.rating === 'number') {
-              t += slot.rating;
-              c++;
-            }
-          });
-          return c ? t / c : null;
+          const { average, count } = calculateAverageFromSlots(ev.time_slots || {});
+          return count ? average : null;
         };
         firstAvg = getAvg(firstEval);
         lastAvg = getAvg(lastEval);

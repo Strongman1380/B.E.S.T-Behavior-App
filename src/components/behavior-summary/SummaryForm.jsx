@@ -655,7 +655,7 @@ Use professional behavioral documentation language. Report only what is document
             <Printer className="w-4 h-4 mr-2" />
             Print Current
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleSave} disabled={isSaving} className="bg-primary hover:bg-primary/90 text-primary-foreground">
             <Save className="w-4 h-4 mr-2" />
             {isSaving ? 'Saving...' : 'Save Summary'}
           </Button>

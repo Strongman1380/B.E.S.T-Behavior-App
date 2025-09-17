@@ -6,16 +6,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 
 export default function EditStudentDialog({ open, onOpenChange, student, onUpdateStudent }) {
   const [name, setName] = useState('');
+  const [grade, setGrade] = useState('');
 
   useEffect(() => {
     if (student) {
       setName(student.student_name);
+      setGrade(student.grade_level || '');
+    } else {
+      setName('');
+      setGrade('');
     }
   }, [student]);
 
   const handleSubmit = () => {
     if (name.trim() && student) {
-      onUpdateStudent(student.id, { student_name: name.trim() });
+      const trimmedName = name.trim();
+      const trimmedGrade = grade.trim();
+      onUpdateStudent(student.id, { 
+        student_name: trimmedName, 
+        grade_level: trimmedGrade || null
+      });
       onOpenChange(false);
     }
   };
@@ -24,12 +34,21 @@ export default function EditStudentDialog({ open, onOpenChange, student, onUpdat
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit Student Name</DialogTitle>
-          <DialogDescription>Update the student’s name below.</DialogDescription>
+          <DialogTitle>Edit Student Details</DialogTitle>
+          <DialogDescription>Update the student’s name and grade below.</DialogDescription>
         </DialogHeader>
-        <div className="py-4">
+        <div className="py-4 space-y-4">
           <Label htmlFor="student-name-edit">Student Name</Label>
           <Input id="student-name-edit" value={name} onChange={(e) => setName(e.target.value)} />
+          <div>
+            <Label htmlFor="student-grade-edit">Student Grade</Label>
+            <Input 
+              id="student-grade-edit" 
+              value={grade} 
+              onChange={(e) => setGrade(e.target.value)} 
+              placeholder="e.g., 8th Grade"
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

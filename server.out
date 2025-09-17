@@ -1,31 +1,69 @@
-[dotenv@17.2.1] injecting env (16) from .env -- tip: ⚙️  override existing env vars with { override: true }
-🔄 Initializing PostgreSQL database...
-✅ PostgreSQL connection pool initialized successfully
-(node:16565) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-(Use `node --trace-warnings ...` to show where the warning was created)
-✅ PostgreSQL schema initialized successfully
-🔄 Checking for sample data...
-students using: PostgreSQL direct
-✅ Database initialized successfully
-node:events:496
-      throw er; // Unhandled 'error' event
-      ^
 
-Error: listen EADDRINUSE: address already in use :::3001
-    at Server.setupListenHandle [as _listen2] (node:net:1937:16)
-    at listenInCluster (node:net:1994:12)
-    at Server.listen (node:net:2099:7)
-    at Function.listen (/Users/brandonhinrichs/Local Repositories/Apps/bright-track-3233ad6b/node_modules/express/lib/application.js:635:24)
-    at startServer (file:///Users/brandonhinrichs/Local%20Repositories/Apps/bright-track-3233ad6b/server.js:328:7)
-    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-Emitted 'error' event on Server instance at:
-    at emitErrorNT (node:net:1973:8)
-    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
-  code: 'EADDRINUSE',
-  errno: -48,
-  syscall: 'listen',
-  address: '::',
-  port: 3001
-}
+> bright-track-app@0.0.0 dev
+> vite --host 127.0.0.1
 
-Node.js v22.14.0
+
+  VITE v6.3.5  ready in 65 ms
+
+  ➜  Local:   http://127.0.0.1:5173/
+5:37:40 PM [vite] (client) hmr update /src/components/behavior/TimeSlotRating.jsx, /src/index.css
+5:38:41 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+5:38:57 PM [vite] (client) page reload src/components/dashboard/StudentCard.jsx
+5:40:03 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+5:40:13 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+5:40:46 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+5:41:32 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+5:41:57 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+5:42:37 PM [vite] (client) hmr update /src/pages/SummaryReports.jsx, /src/index.css
+5:44:25 PM [vite] (client) hmr update /src/pages/SummaryReports.jsx, /src/index.css
+5:44:42 PM [vite] (client) hmr update /src/pages/SummaryReports.jsx, /src/index.css
+5:47:07 PM [vite] (client) hmr update /src/pages/SummaryReports.jsx, /src/index.css
+5:48:55 PM [vite] (client) hmr update /src/components/behavior/PrintDialog.jsx, /src/index.css
+5:49:06 PM [vite] (client) hmr update /src/components/behavior/PrintDialog.jsx, /src/index.css
+5:49:57 PM [vite] (client) hmr update /src/components/behavior/CombinedPrintDialog.jsx, /src/index.css
+5:50:42 PM [vite] (client) hmr update /src/components/behavior/PrintAllDialog.jsx, /src/index.css
+5:50:58 PM [vite] (client) hmr update /src/components/behavior/TimeSlotRating.jsx, /src/index.css
+5:53:04 PM [vite] (client) hmr update /src/components/behavior/PrintDialog.jsx, /src/index.css
+5:53:15 PM [vite] (client) hmr update /src/components/behavior/PrintAllDialog.jsx, /src/index.css
+5:53:26 PM [vite] (client) hmr update /src/components/behavior/CombinedPrintDialog.jsx, /src/index.css
+7:56:57 PM [vite] (client) hmr update /src/index.css, /src/pages/BehaviorDashboard.jsx, /src/pages/KPIDashboard.jsx, /src/pages/SummaryReports.jsx
+7:58:05 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:06:34 PM [vite] (client) hmr update /src/index.css, /src/pages/BehaviorDashboard.jsx, /src/pages/KPIDashboard.jsx, /src/pages/SummaryReports.jsx, /src/components/behavior/EndOfDayReportDialog.jsx
+8:06:44 PM [vite] (client) hmr update /src/index.css, /src/pages/BehaviorDashboard.jsx, /src/pages/KPIDashboard.jsx, /src/pages/SummaryReports.jsx, /src/components/behavior/EndOfDayReportDialog.jsx
+8:08:24 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:08:58 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:09:20 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:09:37 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:09:54 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:10:11 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:10:20 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:10:28 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:10:37 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:27:21 PM [vite] (client) hmr update /src/index.css
+8:27:34 PM [vite] (client) page reload tailwind.config.js
+8:28:09 PM [vite] (client) hmr update /src/pages/Layout.jsx, /src/index.css
+8:28:25 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:30:48 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:31:04 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:31:15 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:32:25 PM [vite] (client) page reload index.html
+8:33:35 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:34:01 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:34:41 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:35:23 PM [vite] (client) hmr update /src/index.css
+8:36:16 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:36:36 PM [vite] (client) hmr update /src/pages/Layout.jsx, /src/index.css
+8:36:59 PM [vite] (client) hmr update /src/pages/BehaviorDashboard.jsx, /src/index.css
+8:38:26 PM [vite] (client) hmr update /src/pages/Settings.jsx, /src/index.css
+8:39:00 PM [vite] (client) hmr update /src/components/behavior-summary/SummaryForm.jsx, /src/index.css
+8:39:13 PM [vite] (client) page reload src/components/auth/UserProfile.jsx
+8:56:34 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+8:56:38 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+8:56:51 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+8:56:58 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+8:57:04 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+8:57:12 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+8:57:19 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+8:58:19 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+8:58:27 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css
+8:58:33 PM [vite] (client) hmr update /src/pages/KPIDashboard.jsx, /src/index.css

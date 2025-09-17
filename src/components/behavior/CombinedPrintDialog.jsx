@@ -23,12 +23,10 @@ export default function CombinedPrintDialog({ open, onOpenChange, combinedData, 
             .meta .label { font-weight: 600; }
             table.schedule { width: 100%; border-collapse: collapse; margin-top: 8px; }
             table.schedule th, table.schedule td { border: 1px solid #000; padding: 10px; vertical-align: top; }
-            table.schedule th { background: #f4f4f4; text-align: center; font-weight: 700; }
-            .time-cell { width: 25%; text-align: center; font-size: 12px; }
-            .rating-cell { width: 30%; text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 2px; }
-            .comment-cell { width: 45%; font-size: 12px; min-height: 48px; }
-            .rating-cell .num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 1px solid transparent; margin: 0 6px; font-weight: 700; }
-            .rating-cell .num.selected { border-color: #000; border-width: 4px; }
+            table.schedule th { background: #f4f4f4; text-align: center; font-weight: 700; font-size: 12px; }
+            .time-cell { width: 22%; text-align: center; font-size: 12px; font-weight: 600; }
+            .score-cell { width: 10%; text-align: center; font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+            .comment-cell { width: 48%; font-size: 12px; min-height: 48px; }
             .scale { margin-top: 12px; font-size: 12px; }
             .scale b { display: block; margin-bottom: 4px; }
             .comments { margin-top: 12px; }
@@ -81,23 +79,32 @@ export default function CombinedPrintDialog({ open, onOpenChange, combinedData, 
                     <thead>
                       <tr>
                         <th>Time</th>
-                        <th>Rating</th>
+                        <th>Adult Interaction (AI)</th>
+                        <th>Peer Interaction (PI)</th>
+                        <th>Classroom Expectations (CE)</th>
                         <th>Observation/Notes/Comments</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map(r => {
                         const data = evaluation?.time_slots?.[r.key] || {};
-                        const selected = typeof data?.rating === 'number' ? data.rating : null;
+                        const fallback = typeof data?.rating === 'number'
+                          ? data.rating
+                          : (typeof data?.score === 'number' ? data.score : '');
+                        const getValue = (section) => {
+                          const raw = data?.[section];
+                          if (raw !== undefined && raw !== null && `${raw}`.trim().length > 0) {
+                            return `${raw}`;
+                          }
+                          return fallback !== '' ? `${fallback}` : '';
+                        };
                         return (
                           <tr key={r.key}>
                             <td className="time-cell">{r.label}</td>
-                            <td className="rating-cell">
-                              {[1,2,3,4].map(n => (
-                                <span key={n} className={`num ${selected === n ? 'selected' : ''}`}>{n}</span>
-                              ))}
-                            </td>
-                            <td className="comment-cell">{data?.comment || ''}</td>
+                            <td className="score-cell">{getValue('ai')}</td>
+                            <td className="score-cell">{getValue('pi')}</td>
+                            <td className="score-cell">{getValue('ce')}</td>
+                            <td className="comment-cell">{data?.comment || data?.notes || ''}</td>
                           </tr>
                         );
                       })}
@@ -108,7 +115,8 @@ export default function CombinedPrintDialog({ open, onOpenChange, combinedData, 
                     4 = Exceeds expectations<br/>
                     3 = Meets expectations<br/>
                     2 = Needs Improvement/Does not meet expectations<br/>
-                    1 = Unsatisfactory Behavior
+                    1 = Unsatisfactory Behavior<br/>
+                    A / B / NS = Program-specific codes
                   </div>
                   <div className="comments">
                     <div className="label">COMMENTS:</div>

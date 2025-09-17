@@ -67,6 +67,8 @@ module.exports = {
       },
       fontFamily: {
         sans: [
+          'Nunito',
+          'Nunito Sans',
           'Inter var',
           'Inter',
           'ui-sans-serif',

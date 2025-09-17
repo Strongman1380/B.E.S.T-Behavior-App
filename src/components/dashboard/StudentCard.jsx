@@ -3,15 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { countCompletedSlots } from "@/utils/behaviorMetrics";
+import { TIME_SLOT_KEYS } from "@/config/timeSlots";
 import { User, Edit, CheckCircle, Play, UserCog } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export default function StudentCard({ student, evaluation, today, onEdit, isSelectMode, isSelected, onSelectToggle }) {
   const hasEvaluation = !!evaluation;
-  const completedSlots = evaluation ? 
-    Object.keys(evaluation.time_slots || {}).filter(slot => 
-      evaluation.time_slots[slot]?.rating || evaluation.time_slots[slot]?.status
-    ).length : 0;
+  const completedSlots = evaluation ? countCompletedSlots(evaluation.time_slots) : 0;
+  const totalSlots = evaluation ? (Object.keys(evaluation.time_slots || {}).length || TIME_SLOT_KEYS.length) : TIME_SLOT_KEYS.length;
   
   const handleCardClick = (e) => {
     if (isSelectMode) {
@@ -58,12 +58,12 @@ export default function StudentCard({ student, evaluation, today, onEdit, isSele
             <div className="mb-6 p-4 bg-slate-50 rounded-xl">
               <p className="text-sm text-slate-600 mb-2 font-medium">Today’s Progress</p>
               <div className="text-2xl font-bold text-slate-900 mb-3">
-                {completedSlots}/8 time slots
+                {completedSlots}/{totalSlots} time slots
               </div>
               <div className="w-full bg-slate-200 rounded-full h-3">
                 <div 
                   className="bg-blue-500 h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${(completedSlots / 8) * 100}%` }}
+                  style={{ width: `${totalSlots ? (completedSlots / totalSlots) * 100 : 0}%` }}
                 />
               </div>
             </div>

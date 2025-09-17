@@ -139,7 +139,7 @@ export default function Settings() {
                 value={settings.teacher_name || ''} 
                 onChange={(e) => setSettings({...settings, teacher_name: e.target.value})} 
                 placeholder="Enter your full name" 
-                className="border-slate-300 focus:border-blue-500 h-10 sm:h-11" 
+                className="border-slate-300 focus:border-[#1c9de0] h-10 sm:h-11" 
               />
             </div>
             <div className="space-y-2">
@@ -149,13 +149,13 @@ export default function Settings() {
                 value={settings.school_name || ''} 
                 onChange={(e) => setSettings({...settings, school_name: e.target.value})} 
                 placeholder="Enter school name" 
-                className="border-slate-300 focus:border-blue-500 h-10 sm:h-11" 
+                className="border-slate-300 focus:border-[#1c9de0] h-10 sm:h-11" 
               />
             </div>
             <Button 
               onClick={saveSettings} 
               disabled={isSaving || isLoading} 
-              className="w-full bg-blue-600 hover:bg-blue-700 h-10 sm:h-11"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-10 sm:h-11 shadow-md shadow-primary/20"
             >
               <Save className="w-4 h-4 mr-2" />
               {isSaving ? 'Saving...' : 'Save Settings'}

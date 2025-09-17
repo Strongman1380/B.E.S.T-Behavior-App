@@ -24,10 +24,10 @@ const NavLink = ({ item, currentPath, onNavigate }) => (
     <Link
         to={item.url}
         onClick={onNavigate}
-        className={`group flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+        className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
             currentPath === item.url
-                ? 'bg-blue-50 text-blue-700 font-semibold ring-1 ring-blue-200'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-[#dff5ff] text-[#0c5b8c] font-semibold ring-1 ring-[#9fdcff] shadow-sm'
+                : 'text-[#3a6a94] hover:bg-[#eef7ff] hover:text-[#0e4e7c]'
         }`}
     >
         <item.icon className="w-5 h-5 transition-transform group-hover:scale-110" />
@@ -40,7 +40,7 @@ export default function Layout({ children }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     return (
-        <div className="relative min-h-screen md:flex bg-slate-50">
+        <div className="relative min-h-screen md:flex bg-gradient-to-br from-[#f0f8ff] via-[#eaf7ff] to-[#e6fbff]">
             {/* Mobile overlay */}
             {isSidebarOpen && (
                 <div 
@@ -50,22 +50,22 @@ export default function Layout({ children }) {
             )}
 
             {/* Sidebar */}
-            <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-white/80 backdrop-blur border-r border-slate-200 flex-col flex transform md:relative md:translate-x-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="p-6 border-b border-slate-200">
+            <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-white/75 backdrop-blur-lg border-r border-[#cbe7ff] flex-col flex transform md:relative md:translate-x-0 transition-transform duration-300 ease-in-out shadow-lg shadow-sky-100/40 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className="p-6 border-b border-[#d6ecff] bg-white/70">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                        <div className="w-11 h-11 bg-gradient-to-br from-[#4dd0b5] via-[#1c9de0] to-[#0b6ea0] rounded-2xl flex items-center justify-center shadow-lg shadow-sky-200/60">
                             <ShieldCheck className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold text-slate-800 tracking-tight">Heartland School Hub</h1>
-                            <p className="text-xs text-slate-500">Behavior & Contact Hub</p>
+                            <h1 className="text-lg font-extrabold text-[#0e4e7c] tracking-tight">BEST Hub</h1>
+                            <p className="text-xs font-semibold text-[#1d7fb8] uppercase tracking-wider">Berniklau Solutions</p>
                         </div>
                     </div>
                 </div>
                 <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
                     {navItems.map(item => <NavLink key={item.title} item={item} currentPath={location.pathname} onNavigate={() => setIsSidebarOpen(false)} />)}
                 </nav>
-                <div className="p-4 border-t border-slate-200 space-y-2">
+                <div className="p-4 border-t border-[#d6ecff] space-y-2 bg-gradient-to-b from-transparent to-white/60">
                     <RealTimeSync />
                     <SupabaseStatus />
                     <SupabaseHealth />
@@ -76,15 +76,15 @@ export default function Layout({ children }) {
             {/* Main content */}
             <div className="flex-1 flex flex-col">
                 {/* Mobile Header */}
-                <header className="sticky top-0 z-10 flex items-center justify-between bg-white/80 backdrop-blur p-2 border-b md:hidden safe-area-top">
+                <header className="sticky top-0 z-10 flex items-center justify-between bg-white/80 backdrop-blur p-2 border-b border-[#d0e9ff] md:hidden safe-area-top">
                     <button 
                         onClick={() => setIsSidebarOpen(true)} 
-                        className="p-2 touch-target rounded-lg hover:bg-slate-100 transition-colors"
+                        className="p-2 touch-target rounded-lg hover:bg-[#e6f5ff] transition-colors text-[#0c5b8c]"
                     >
                         <Menu className="w-6 h-6" />
                     </button>
-                    <div className="flex-1 text-center font-semibold text-slate-800">
-                        Heartland School Hub
+                    <div className="flex-1 text-center font-semibold text-[#0e4e7c]">
+                        BEST Hub
                     </div>
                     <div className="p-2">
                         {/* User profile removed - no authentication required */}
