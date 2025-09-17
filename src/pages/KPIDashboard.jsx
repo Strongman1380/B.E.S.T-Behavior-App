@@ -27,6 +27,10 @@ const CreditsPerStudentChart = lazy(() => import('@/components/kpi/CreditsPerStu
 const TopStudentCredits = lazy(() => import('@/components/kpi/TopStudentCredits'));
 const CreditsTimelineChart = lazy(() => import('@/components/kpi/CreditsTimelineChart'));
 
+const GPAEntryCard = lazy(() => import('@/components/kpi/GPAEntryCard'));
+const GradesEntryCard = lazy(() => import('@/components/kpi/GradesEntryCard'));
+const StepsTrackingCard = lazy(() => import('@/components/kpi/StepsTrackingCard'));
+
 const INCIDENT_TYPE_COLORS = {
   "Aggressive Behavior": "#EF4444",
   "Disruptive Behavior": "#F59E0B", 
@@ -1154,9 +1158,9 @@ const exportAllCSVs = async () => {
           </Card>
         </div>
 
-        {/* Credits Earned Section */}
+        {/* Progress Dashboard Section */}
         <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6">Credits Earned Analytics</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6">Progress Dashboard</h2>
           
           {/* Credits Overview Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
@@ -1207,6 +1211,45 @@ const exportAllCSVs = async () => {
               <CardContent className="p-3 sm:p-6">
                 <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
                   <CreditsTimelineChart data={creditsTimelineData} />
+                </Suspense>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Progress Entry Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mt-6">
+            {/* Steps Tracking */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Daily Steps</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6">
+                <Suspense fallback={<div className="h-[200px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
+                  <StepsTrackingCard students={students} />
+                </Suspense>
+              </CardContent>
+            </Card>
+
+            {/* GPA Entry */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">GPA Entry</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6">
+                <Suspense fallback={<div className="h-[200px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
+                  <GPAEntryCard students={students} />
+                </Suspense>
+              </CardContent>
+            </Card>
+
+            {/* Grades Entry */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Course Grades</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-6">
+                <Suspense fallback={<div className="h-[200px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
+                  <GradesEntryCard students={students} />
                 </Suspense>
               </CardContent>
             </Card>

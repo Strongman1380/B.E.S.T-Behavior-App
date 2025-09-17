@@ -22,7 +22,7 @@ export default function CreditsEarned() {
       }
     }
   }, [selectedStudent, students]);
-  const [newClass, setNewClass] = useState({ course_name: '', priority_level: '' });
+  const [newClass, setNewClass] = useState({ course_name: '' });
 
   useEffect(() => {
     async function fetchStudents() {
@@ -109,7 +109,7 @@ export default function CreditsEarned() {
       await ClassesNeededEntity.create({ ...newClass, student_id: selectedStudent });
       toast.success('Class added successfully!');
       fetchStudentData(selectedStudent);
-      setNewClass({ course_name: '', priority_level: '' });
+      setNewClass({ course_name: '' });
     } catch (error) {
       toast.error('Error adding class.');
       console.error(error);
@@ -306,17 +306,11 @@ export default function CreditsEarned() {
                 <CardContent>
                   <div className="mb-4 p-4 border rounded-lg bg-gray-50">
                     <h3 className="font-medium mb-3">Add New Class Needed</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                       <Input 
                         name="course_name" 
                         placeholder="Course Name" 
                         value={newClass.course_name} 
-                        onChange={handleClassChange} 
-                      />
-                      <Input 
-                        name="priority_level" 
-                        placeholder="Priority Level (High, Medium, Low)" 
-                        value={newClass.priority_level} 
                         onChange={handleClassChange} 
                       />
                     </div>
@@ -331,22 +325,12 @@ export default function CreditsEarned() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Course Name</TableHead>
-                          <TableHead>Priority Level</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {classes.map(klass => (
                           <TableRow key={klass.id}>
                             <TableCell>{klass.course_name}</TableCell>
-                            <TableCell>
-                              <span className={`px-2 py-1 rounded-full text-sm ${
-                                klass.priority_level?.toLowerCase() === 'high' ? 'bg-red-100 text-red-800' :
-                                klass.priority_level?.toLowerCase() === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-green-100 text-green-800'
-                              }`}>
-                                {klass.priority_level}
-                              </span>
-                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
