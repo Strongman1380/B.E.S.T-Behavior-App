@@ -3,10 +3,11 @@ import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog, 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Suspense, lazy } from 'react';
 import { 
   Users, AlertTriangle, Star, 
-  Calendar, Target, BarChart3, RefreshCw, Download, Trash2
+  Calendar, Target, BarChart3, RefreshCw, Download, Trash2, FileText, ChevronDown
 } from "lucide-react";
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks } from "date-fns";
 import { parseYmd } from "@/utils";
@@ -42,9 +43,10 @@ export default function KPIDashboard() {
   const [evaluations, setEvaluations] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [behaviorSummaries, setBehaviorSummaries] = useState([]);
-  
   const [contactLogs, setContactLogs] = useState([]);
   const [creditsEarned, setCreditsEarned] = useState([]);
+  const [creditsAvailable, setCreditsAvailable] = useState(true);
+
   // New academic data states (placeholders)
   const [stepsCompleted, setStepsCompleted] = useState([]);
   const [grades, setGrades] = useState([]);
@@ -72,14 +74,28 @@ export default function KPIDashboard() {
     };
 
     try {
-      const [studentsData, evaluationsData, incidentsData, summariesData, contactsData, creditsData] = await Promise.all([
+      const [studentsData, evaluationsData, incidentsData, summariesData, contactsData] = await Promise.all([
         loadDataSafely(() => Student.filter({ active: true }), 'Students'),
         loadDataSafely(() => DailyEvaluation.list('date'), 'Evaluations'),
         loadDataSafely(() => IncidentReport.list('incident_date'), 'Incidents'),
         loadDataSafely(() => BehaviorSummary.list('date_from'), 'Summaries'),
         loadDataSafely(() => ContactLog.list('contact_date'), 'Contacts'),
-        loadDataSafely(() => CreditsEarned.list('date_earned'), 'Credits'),
       ]);
+
+      let creditsData = [];
+      try {
+        creditsData = await CreditsEarned.list('date_earned');
+        setCreditsAvailable(true);
+      } catch (creditError) {
+        const msg = creditError?.message || '';
+        if (msg.includes("Could not find the table")) {
+          console.warn('Credits table not found in Supabase; hiding academic credits widgets.');
+        } else {
+          console.warn('Failed to load Credits:', msg);
+        }
+        setCreditsAvailable(false);
+        creditsData = [];
+      }
       
       // Load new academic data (when entities are available)
       let stepsData = [], gradesData = [], gpasData = [];
@@ -107,7 +123,7 @@ export default function KPIDashboard() {
       setIncidents(incidentsData);
       setBehaviorSummaries(summariesData);
       setContactLogs(contactsData);
-      setCreditsEarned(creditsData);
+      setCreditsEarned(Array.isArray(creditsData) ? creditsData : []);
       setStepsCompleted(stepsData);
       setGrades(gradesData);
       setGpas(gpasData);
@@ -568,7 +584,7 @@ export default function KPIDashboard() {
     toast.success('KPI data exported successfully!');
   };
 
-  // Export all raw rows zipped (evaluations, incidents, contact logs, active students)
+  // Export all raw rows zipped (evaluations, incidents, contact logs, credits, active students)
 const exportAllCSVs = async () => {
     let start, end;
     if (dateRange === 'all') {
@@ -612,6 +628,35 @@ const exportAllCSVs = async () => {
         ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')))
         files.push({ name: `contact-logs-${start}_to_${end}.csv`, data: csv.join('\n') })
       }
+      // Credits earned (if available)
+      if (creditsAvailable) {
+        try {
+          const rows = await CreditsEarned.list('date_earned');
+          const startDate = parseYmd(start);
+          const endDate = parseYmd(end);
+          const filteredRows = Array.isArray(rows)
+            ? rows.filter(r => {
+                const earnedDate = parseYmd(r.date_earned);
+                return earnedDate >= startDate && earnedDate <= endDate;
+              })
+            : [];
+          if (filteredRows.length > 0) {
+            const headers = ['id','student_id','course_name','credit_value','date_earned','grade'];
+            const csv = [headers.join(',')];
+            filteredRows.forEach(r => csv.push([
+              r.id,
+              r.student_id,
+              r.course_name ?? '',
+              r.credit_value ?? 0,
+              r.date_earned ?? '',
+              r.grade ?? ''
+            ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')));
+            files.push({ name: `credits-earned-${start}_to_${end}.csv`, data: csv.join('\n') });
+          }
+        } catch (creditExportError) {
+          console.warn('Skipping credits export:', creditExportError?.message || creditExportError);
+        }
+      }
       // Active students
       {
         const rows = await Student.filter({ active: true })
@@ -632,6 +677,76 @@ const exportAllCSVs = async () => {
     } catch (e) {
       console.error('Export all failed', e);
       toast.error('Failed to export all CSVs');
+    }
+  };
+
+  // Export KPI data as PDF
+  const exportKPIToPDFHandler = async () => {
+    try {
+      console.log('Starting PDF export...');
+      
+      // Calculate overall metrics first
+      const overallMetrics = getOverallMetrics();
+      
+      const data = {
+        overallMetrics,
+        behaviorTrendData: getBehaviorTrendData(),
+        incidentStats: getIncidentStats(),
+        ratingDistribution: getRatingDistribution(),
+        studentComparison: getStudentComparison(),
+        timeSlotAnalysis: getTimeSlotAnalysis(),
+        weeklyTrends: getWeeklyTrends(),
+        stepsSummary,
+        gradesSummary,
+        gpaSummary,
+        studentImprovementStatus,
+        dateRange: dateRange === 'all' ? 'All Time' : dateRange,
+        selectedStudent: selectedStudent === 'all' ? 'All Students' : students.find(s => s.id === Number(selectedStudent))?.student_name || 'Unknown',
+        exportDate: getCurrentDate().toISOString()
+      };
+
+      console.log('PDF export data prepared:', data);
+      
+      // Import the PDF export function dynamically to ensure it's loaded
+      const { exportKPIToPDF } = await import('@/lib/pdfExport');
+      
+      console.log('PDF export function imported, generating PDF...');
+      const filename = exportKPIToPDF(data);
+      
+      console.log('PDF generated successfully:', filename);
+      toast.success(`PDF exported successfully as ${filename}!`);
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      console.error('Error details:', error.message, error.stack);
+      toast.error(`Failed to export PDF: ${error.message}`);
+    }
+  };
+
+  // Export enhanced CSV
+  const exportEnhancedCSVHandler = async () => {
+    try {
+      const data = {
+        overallMetrics,
+        behaviorTrendData: getBehaviorTrendData(),
+        incidentStats: getIncidentStats(),
+        ratingDistribution: getRatingDistribution(),
+        studentComparison: getStudentComparison(),
+        timeSlotAnalysis: getTimeSlotAnalysis(),
+        weeklyTrends: getWeeklyTrends(),
+        stepsSummary,
+        gradesSummary,
+        gpaSummary,
+        studentImprovementStatus,
+        dateRange: dateRange === 'all' ? 'All Time' : dateRange,
+        selectedStudent: selectedStudent === 'all' ? 'All Students' : students.find(s => s.id === Number(selectedStudent))?.student_name || 'Unknown'
+      };
+
+      const { exportEnhancedCSV } = await import('@/lib/pdfExport');
+      const filename = exportEnhancedCSV(data);
+      toast.success(`Enhanced CSV exported successfully as ${filename}!`);
+    } catch (error) {
+      console.error('Enhanced CSV export failed:', error);
+      toast.error('Failed to export enhanced CSV. Please try again.');
     }
   };
 
@@ -679,15 +794,15 @@ const exportAllCSVs = async () => {
   // Credits processing functions
   const getCreditsData = () => {
     const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
-    
-    let filteredCredits = creditsEarned;
+    const sourceCredits = Array.isArray(creditsEarned) ? creditsEarned : [];
+    let filteredCredits = [...sourceCredits];
     
     // Apply date filtering only if not 'all'
     if (dateRange !== 'all') {
       const daysBack = parseInt(dateRange);
       const cutoffDate = subDays(getCurrentDate(), daysBack);
       
-      filteredCredits = creditsEarned.filter(credit => 
+      filteredCredits = filteredCredits.filter(credit => 
         parseYmd(credit.date_earned) >= cutoffDate
       );
     }
@@ -995,11 +1110,64 @@ const exportAllCSVs = async () => {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
-              <Button onClick={exportKPIData} variant="outline" className="h-10 sm:h-auto">
-                <Download className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Export Data</span>
-                <span className="sm:hidden">Export</span>
+              {/* Direct PDF Export Button */}
+              <Button 
+                onClick={exportKPIToPDFHandler} 
+                variant="default" 
+                className="h-10 sm:h-auto bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={isLoading}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Export PDF Report</span>
+                <span className="sm:hidden">PDF</span>
               </Button>
+              
+              {/* Test PDF Button - for debugging */}
+              <Button 
+                onClick={async () => {
+                  try {
+                    const { testPDF } = await import('@/lib/pdfExport');
+                    const filename = testPDF();
+                    toast.success(`Test PDF created: ${filename}`);
+                  } catch (error) {
+                    console.error('Test PDF failed:', error);
+                    toast.error(`Test PDF failed: ${error.message}`);
+                  }
+                }} 
+                variant="outline" 
+                className="h-10 sm:h-auto border-green-200 text-green-600 hover:bg-green-50"
+                disabled={isLoading}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Test PDF</span>
+                <span className="sm:hidden">Test</span>
+              </Button>
+              
+              {/* Other Export Options Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-10 sm:h-auto">
+                    <Download className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">More Exports</span>
+                    <span className="sm:hidden">More</span>
+                    <ChevronDown className="w-4 h-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={exportEnhancedCSVHandler}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Enhanced CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportKPIData}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Basic CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportAllCSVs}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export All Data (ZIP)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button 
                 onClick={() => setShowClearDataDialog(true)} 
                 variant="outline" 
@@ -1201,60 +1369,70 @@ const exportAllCSVs = async () => {
         {/* Progress Dashboard Section */}
         <div className="mb-6 sm:mb-8">
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6">Progress Dashboard</h2>
-          
-          {/* Credits Overview Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
-            {/* Total Credits Summary */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base sm:text-lg">Credits Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6">
-                <Suspense fallback={<div className="h-[200px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
-                  <TotalCreditsCard data={totalCreditsData} />
-                </Suspense>
-              </CardContent>
-            </Card>
 
-            {/* Top Student Credits */}
-            <Card className="lg:col-span-2">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base sm:text-lg">Top Performers</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6">
-                <Suspense fallback={<div className="h-[200px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
-                  <TopStudentCredits data={topStudentCreditsData} />
-                </Suspense>
-              </CardContent>
-            </Card>
-          </div>
+          {creditsAvailable ? (
+            <>
+              {/* Credits Overview Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
+                {/* Total Credits Summary */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base sm:text-lg">Credits Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 sm:p-6">
+                    <Suspense fallback={<div className="h-[200px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
+                      <TotalCreditsCard data={totalCreditsData} />
+                    </Suspense>
+                  </CardContent>
+                </Card>
 
-          {/* Credits Charts Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {/* Credits per Student Chart */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base sm:text-lg">Credits by Student</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6">
-                <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
-                  <CreditsPerStudentChart data={creditsPerStudentData} />
-                </Suspense>
-              </CardContent>
-            </Card>
+                {/* Top Student Credits */}
+                <Card className="lg:col-span-2">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base sm:text-lg">Top Performers</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 sm:p-6">
+                    <Suspense fallback={<div className="h-[200px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
+                      <TopStudentCredits data={topStudentCreditsData} />
+                    </Suspense>
+                  </CardContent>
+                </Card>
+              </div>
 
-            {/* Credits Timeline Chart */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base sm:text-lg">Credits Over Time</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6">
-                <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
-                  <CreditsTimelineChart data={creditsTimelineData} />
-                </Suspense>
+              {/* Credits Charts Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                {/* Credits per Student Chart */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base sm:text-lg">Credits by Student</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 sm:p-6">
+                    <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
+                      <CreditsPerStudentChart data={creditsPerStudentData} />
+                    </Suspense>
+                  </CardContent>
+                </Card>
+
+                {/* Credits Timeline Chart */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base sm:text-lg">Credits Over Time</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 sm:p-6">
+                    <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
+                      <CreditsTimelineChart data={creditsTimelineData} />
+                    </Suspense>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          ) : (
+            <Card className="bg-slate-50 border-dashed">
+              <CardContent className="p-6 text-sm text-slate-600">
+                Academic credit tracking is unavailable because the Supabase table `credits_earned` could not be reached. Run the statements in `supabase-schema.sql` to create the table or re-enable access when ready.
               </CardContent>
             </Card>
-          </div>
+          )}
         </div>
 
         {/* Academic Performance KPIs */}

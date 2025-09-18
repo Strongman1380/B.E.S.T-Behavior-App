@@ -25,7 +25,9 @@ export default function SupabaseHealth() {
         url = url || window.localStorage.getItem('SUPABASE_URL') || ''
         key = key || window.localStorage.getItem('SUPABASE_ANON_KEY') || ''
       }
-    } catch {}
+    } catch (err) {
+      console.warn('Failed to read Supabase overrides from localStorage', err)
+    }
     return { url, key }
   }, [])
 
@@ -107,7 +109,9 @@ export default function SupabaseHealth() {
                     window.localStorage.setItem('SUPABASE_ANON_KEY', tmpKey)
                     window.location.reload()
                   }
-                } catch {}
+                } catch (err) {
+                  console.warn('Failed to persist Supabase overrides', err)
+                }
               }}
             >
               Save & Reload
@@ -119,7 +123,9 @@ export default function SupabaseHealth() {
                   window.localStorage.removeItem('SUPABASE_URL')
                   window.localStorage.removeItem('SUPABASE_ANON_KEY')
                   window.location.reload()
-                } catch {}
+                } catch (err) {
+                  console.warn('Failed to clear Supabase overrides', err)
+                }
               }}
             >
               Clear Override

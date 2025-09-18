@@ -33,7 +33,10 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
                 <tr>
                   <td style="border:1px solid #000; padding:10px; vertical-align:top; text-align:center; width:25%; font-size:12px;">${r.label}</td>
                   <td style="border:1px solid #000; padding:10px; vertical-align:top; text-align:center; width:30%; font-size:16px; font-weight:700; letter-spacing:2px;">
-                    ${[1,2,3,4].map(n => `<span style=\"display:inline-block; width:24px; height:24px; line-height:20px; text-align:center; border-radius:50%; border:4px solid ${'${selected===n?\'#000\':\'transparent\'}'}; margin:0 6px; font-weight:700;\">${n}</span>`).join('')}
+                    ${[1, 2, 3, 4].map(n => {
+                      const borderColor = selected === n ? '#000' : 'transparent';
+                      return `<span style="display:inline-block; width:24px; height:24px; line-height:20px; text-align:center; border-radius:50%; border:4px solid ${borderColor}; margin:0 6px; font-weight:700;">${n}</span>`;
+                    }).join('')}
                   </td>
                   <td style="border:1px solid #000; padding:10px; vertical-align:top; width:45%; font-size:12px;">${d.comment || ''}</td>
                 </tr>

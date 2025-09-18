@@ -56,7 +56,11 @@ ${this.state.errorInfo?.componentStack ?? '(none)'}
                       'Component Stack:',
                       this.state.errorInfo?.componentStack ?? '(none)'
                     ].join('\n');
-                    try { navigator.clipboard.writeText(details); } catch {}
+                    try {
+                      navigator.clipboard.writeText(details);
+                    } catch (err) {
+                      console.warn('Failed to copy error details to clipboard', err);
+                    }
                   }}
                 >
                   <Copy className="w-4 h-4 mr-2" />

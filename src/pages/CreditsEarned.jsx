@@ -18,6 +18,7 @@ export default function CreditsEarned() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [credits, setCredits] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [creditsSupported, setCreditsSupported] = useState(true);
   const [newCredit, setNewCredit] = useState({ course_name: '', credit_value: '', date_earned: '', grade: '' });
   useEffect(() => {
     if (selectedStudent) {
@@ -45,12 +46,27 @@ export default function CreditsEarned() {
   }, []);
 
   async function fetchStudentData(studentId) {
-    const [creditsData, classesData] = await Promise.all([
-      CreditsEarnedEntity.filter({ student_id: studentId }),
-      ClassesNeededEntity.filter({ student_id: studentId })
-    ]);
-    setCredits(creditsData);
-    setClasses(classesData);
+    try {
+      const [creditsData, classesData] = await Promise.all([
+        CreditsEarnedEntity.filter({ student_id: studentId }),
+        ClassesNeededEntity.filter({ student_id: studentId })
+      ]);
+      setCredits(Array.isArray(creditsData) ? creditsData : []);
+      setClasses(Array.isArray(classesData) ? classesData : []);
+      setCreditsSupported(true);
+    } catch (error) {
+      const message = error?.message || 'Unable to load academic records';
+      if (message.includes('Could not find the table')) {
+        toast.error('Academic credits data is not yet enabled in Supabase.');
+        setCreditsSupported(false);
+      } else {
+        toast.error(message);
+        setCreditsSupported(true);
+      }
+      setCredits([]);
+      setClasses([]);
+      console.error('Failed to load credits/classes:', error);
+    }
   }
 
   function handleStudentChange(studentId) {
@@ -71,6 +87,11 @@ export default function CreditsEarned() {
   async function addCredit() {
     if (!selectedStudent) {
       toast.error('Please select a student first.');
+      return;
+    }
+
+    if (!creditsSupported) {
+      toast.error('Credits tracking is currently disabled. Create the `credits_earned` table to continue.');
       return;
     }
     
@@ -129,6 +150,12 @@ export default function CreditsEarned() {
         <Award className="h-6 w-6" />
         Academic Progress Dashboard
       </h1>
+
+      {!creditsSupported && (
+        <div className="mb-6 rounded-lg border border-dashed border-amber-400 bg-amber-50 p-4 text-sm text-amber-800">
+          The Supabase table `credits_earned` is missing or inaccessible, so credit tracking is disabled. Apply the SQL in `supabase-schema.sql` and refresh to enable this view.
+        </div>
+      )}
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Student List - Left Side */}
