@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 
-autoTable(jsPDF.API);
+
 
 // Test if jsPDF is working
 console.log('jsPDF loaded:', typeof jsPDF);
@@ -321,21 +321,7 @@ export class KPIPDFExporter {
   }
 }
 
-// Simple test PDF function
-export const testPDF = () => {
-  try {
-    console.log('Testing basic PDF creation...');
-    const doc = new jsPDF();
-    doc.text('Test PDF', 20, 20);
-    const filename = `test-pdf-${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;
-    doc.save(filename);
-    console.log('Test PDF created successfully:', filename);
-    return filename;
-  } catch (error) {
-    console.error('Test PDF failed:', error);
-    throw error;
-  }
-};
+
 
 // Export function to be used in the component
 export const exportKPIToPDF = (data) => {

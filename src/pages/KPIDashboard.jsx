@@ -681,7 +681,7 @@ const exportAllCSVs = async () => {
   };
 
   // Export KPI data as PDF
-  const exportKPIToPDFHandler = async () => {
+  const handleExportPDF = async () => {
     try {
       console.log('Starting PDF export...');
       
@@ -1112,7 +1112,7 @@ const exportAllCSVs = async () => {
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
               {/* Direct PDF Export Button */}
               <Button 
-                onClick={exportKPIToPDFHandler} 
+                onClick={handleExportPDF} 
                 variant="default" 
                 className="h-10 sm:h-auto bg-blue-600 hover:bg-blue-700 text-white"
                 disabled={isLoading}
@@ -1122,26 +1122,7 @@ const exportAllCSVs = async () => {
                 <span className="sm:hidden">PDF</span>
               </Button>
               
-              {/* Test PDF Button - for debugging */}
-              <Button 
-                onClick={async () => {
-                  try {
-                    const { testPDF } = await import('@/lib/pdfExport');
-                    const filename = testPDF();
-                    toast.success(`Test PDF created: ${filename}`);
-                  } catch (error) {
-                    console.error('Test PDF failed:', error);
-                    toast.error(`Test PDF failed: ${error.message}`);
-                  }
-                }} 
-                variant="outline" 
-                className="h-10 sm:h-auto border-green-200 text-green-600 hover:bg-green-50"
-                disabled={isLoading}
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Test PDF</span>
-                <span className="sm:hidden">Test</span>
-              </Button>
+
               
               {/* Other Export Options Dropdown */}
               <DropdownMenu>
