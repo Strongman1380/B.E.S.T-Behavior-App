@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import autoTable, { applyPlugin } from 'jspdf-autotable';
 import { format } from 'date-fns';
 
 
@@ -22,6 +22,7 @@ const COLORS = {
 export class KPIPDFExporter {
   constructor() {
     this.doc = new jsPDF();
+    applyPlugin(this.doc);
     this.pageWidth = this.doc.internal.pageSize.getWidth();
     this.pageHeight = this.doc.internal.pageSize.getHeight();
     this.margin = 20;
