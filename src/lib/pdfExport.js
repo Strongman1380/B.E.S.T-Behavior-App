@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import autoTable, { applyPlugin } from 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 
 
@@ -22,7 +22,7 @@ const COLORS = {
 export class KPIPDFExporter {
   constructor() {
     this.doc = new jsPDF();
-    applyPlugin(this.doc);
+    // applyPlugin is deprecated and no longer needed with modern jsPDF/jspdf-autotable
     this.pageWidth = this.doc.internal.pageSize.getWidth();
     this.pageHeight = this.doc.internal.pageSize.getHeight();
     this.margin = 20;
@@ -130,20 +130,14 @@ export class KPIPDFExporter {
   }
 
   // Add data table
-  addTable(title, headers, data, options = {}) {
-    this.addSectionTitle(title);
+  addTable(title, headers, body, columnStyles = {}) {
+    this.addSectionHeader(title);
     
-    if (!data || data.length === 0) {
-      this.doc.setFontSize(10);
-      this.doc.text('No data available for this section.', this.margin, this.currentY);
-      this.currentY += 15;
-      return;
-    }
-
-    const tableOptions = {
+    // Use the autoTable method directly on the jsPDF instance
+    this.doc.autoTable({
       startY: this.currentY,
       head: [headers],
-      body: data,
+      body,
       theme: 'grid',
       headStyles: {
         fillColor: COLORS.primary,
@@ -159,11 +153,9 @@ export class KPIPDFExporter {
         fillColor: COLORS.light
       },
       margin: { left: this.margin, right: this.margin },
-      ...options
-    };
-
-    this.doc.autoTable(tableOptions);
-    this.currentY = this.doc.lastAutoTable.finalY + 10;
+      ...columnStyles
+    });
+    this.currentY = this.doc.autoTable.previous.finalY + 10;
   }
 
   // Add chart placeholder (since we can't easily embed actual charts)
@@ -328,14 +320,14 @@ export class KPIPDFExporter {
 export const exportKPIToPDF = (data) => {
   try {
     console.log('Creating PDF exporter...');
-    
-    // First test basic PDF functionality
-    console.log('Testing basic PDF functionality...');
-    const testDoc = new jsPDF();
-    console.log('Basic jsPDF instance created successfully');
-    
     const exporter = new KPIPDFExporter();
     
+    console.log('Testing basic PDF functionality...');
+    if (typeof exporter.doc.text !== 'function') {
+      throw new Error('jsPDF basic functions not available.');
+    }
+    console.log('Basic jsPDF instance created successfully');
+
     console.log('Generating PDF document...');
     const doc = exporter.generateKPIPDF(data);
     
@@ -351,15 +343,16 @@ export const exportKPIToPDF = (data) => {
     console.error('Error in exportKPIToPDF:', error);
     console.error('Error stack:', error.stack);
     
-    // Fallback: try creating a simple PDF
+    // Fallback to a simple error report PDF
     try {
       console.log('Attempting fallback simple PDF...');
-      const fallbackDoc = new jsPDF();
-      fallbackDoc.text('KPI Dashboard Export Failed', 20, 20);
-      fallbackDoc.text('Please check console for errors', 20, 30);
-      const fallbackFilename = `kpi-error-${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;
-      fallbackDoc.save(fallbackFilename);
-      throw new Error(`PDF generation failed, created error report: ${fallbackFilename}`);
+      const errorDoc = new jsPDF();
+      errorDoc.text("PDF Generation Failed", 20, 20);
+      errorDoc.text(`Error: ${error.message}`, 20, 30);
+      errorDoc.text("Please try again or contact support.", 20, 40);
+      const filename = `kpi-error-${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;
+      errorDoc.save(filename);
+      throw new Error(`PDF generation failed, created error report: ${filename}`);
     } catch (fallbackError) {
       console.error('Even fallback PDF failed:', fallbackError);
       throw new Error(`Complete PDF failure: ${error.message}`);
