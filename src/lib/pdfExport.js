@@ -161,7 +161,7 @@ export class KPIPDFExporter {
       ...options
     };
 
-    this.doc.autoTable(tableOptions);
+    autoTable(this.doc, tableOptions);
     this.currentY = this.doc.lastAutoTable.finalY + 10;
   }
 
