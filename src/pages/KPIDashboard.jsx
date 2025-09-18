@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog, CreditsEarned } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,6 +15,8 @@ import { getNumericSectionValues } from "@/utils/behaviorMetrics";
 import { toast } from 'sonner';
 import ClearDataDialog from "@/components/kpi/ClearDataDialog";
 import { createZip } from "@/lib/zip";
+import { useReactToPrint } from 'react-to-print';
+import KPIPrintLayout from '@/components/print/KPIPrintLayout';
 
 const BehaviorTrendChart = lazy(() => import('@/components/kpi/BehaviorTrendChart'));
 const IncidentTypesBar = lazy(() => import('@/components/kpi/IncidentTypesBar'));
@@ -55,6 +57,8 @@ export default function KPIDashboard() {
   const [dateRange, setDateRange] = useState('all'); // days
   const [selectedStudent, setSelectedStudent] = useState('all');
   const [showClearDataDialog, setShowClearDataDialog] = useState(false);
+
+  const printComponentRef = useRef();
 
   // Helper: current date in local time
   const getCurrentDate = () => new Date();
@@ -680,74 +684,14 @@ const exportAllCSVs = async () => {
     }
   };
 
-  // Export KPI data as PDF
-  const handleExportPDF = async () => {
-    try {
-      console.log('Starting PDF export...');
-      
-      // Calculate overall metrics first
-      const overallMetrics = getOverallMetrics();
-      
-      const data = {
-        overallMetrics,
-        behaviorTrendData: getBehaviorTrendData(),
-        incidentStats: getIncidentStats(),
-        ratingDistribution: getRatingDistribution(),
-        studentComparison: getStudentComparison(),
-        timeSlotAnalysis: getTimeSlotAnalysis(),
-        weeklyTrends: getWeeklyTrends(),
-        stepsSummary,
-        gradesSummary,
-        gpaSummary,
-        studentImprovementStatus,
-        dateRange: dateRange === 'all' ? 'All Time' : dateRange,
-        selectedStudent: selectedStudent === 'all' ? 'All Students' : students.find(s => s.id === Number(selectedStudent))?.student_name || 'Unknown',
-        exportDate: getCurrentDate().toISOString()
-      };
+  const handlePrint = useReactToPrint({
+    content: () => printComponentRef.current,
+    documentTitle: `KPI-Dashboard-${format(new Date(), 'yyyy-MM-dd')}`,
+    onAfterPrint: () => toast.success('PDF export prepared successfully!'),
+  });
 
-      console.log('PDF export data prepared:', data);
-      
-      // Import the PDF export function dynamically to ensure it's loaded
-      const { exportKPIToPDF } = await import('@/lib/pdfExport');
-      
-      console.log('PDF export function imported, generating PDF...');
-      const filename = exportKPIToPDF(data);
-      
-      console.log('PDF generated successfully:', filename);
-      toast.success(`PDF exported successfully as ${filename}!`);
-    } catch (error) {
-      console.error('PDF export failed:', error);
-      console.error('Error details:', error.message, error.stack);
-      toast.error(`Failed to export PDF: ${error.message}`);
-    }
-  };
-
-  // Export enhanced CSV
-  const exportEnhancedCSVHandler = async () => {
-    try {
-      const data = {
-        overallMetrics,
-        behaviorTrendData: getBehaviorTrendData(),
-        incidentStats: getIncidentStats(),
-        ratingDistribution: getRatingDistribution(),
-        studentComparison: getStudentComparison(),
-        timeSlotAnalysis: getTimeSlotAnalysis(),
-        weeklyTrends: getWeeklyTrends(),
-        stepsSummary,
-        gradesSummary,
-        gpaSummary,
-        studentImprovementStatus,
-        dateRange: dateRange === 'all' ? 'All Time' : dateRange,
-        selectedStudent: selectedStudent === 'all' ? 'All Students' : students.find(s => s.id === Number(selectedStudent))?.student_name || 'Unknown'
-      };
-
-      const { exportEnhancedCSV } = await import('@/lib/pdfExport');
-      const filename = exportEnhancedCSV(data);
-      toast.success(`Enhanced CSV exported successfully as ${filename}!`);
-    } catch (error) {
-      console.error('Enhanced CSV export failed:', error);
-      toast.error('Failed to export enhanced CSV. Please try again.');
-    }
+  const exportKPIToPDF = async () => {
+    handlePrint();
   };
 
   // Clear all data
@@ -1093,7 +1037,26 @@ const exportAllCSVs = async () => {
   }
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 lg:p-10 bg-slate-50 min-h-screen">
+    <div className="p-3 sm:p-6 bg-slate-50 min-h-screen">
+      <div style={{ display: 'none' }}>
+        <KPIPrintLayout 
+          ref={printComponentRef} 
+          data={{
+            overallMetrics,
+            studentComparison,
+            ratingDistribution,
+            incidentStats,
+            timeSlotAnalysis,
+            weeklyTrends,
+            studentImprovementStatus,
+            stepsSummary,
+            gradesSummary,
+            gpaSummary
+          }}
+          schoolName={settings?.school_name || 'B.E.S.T. Education'}
+          dateRange={dateRange === 'all' ? 'All Time' : `Date Range: ${dateRange.split(' to ').join(' - ')}`}
+        />
+      </div>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 md:mb-8">
@@ -1112,7 +1075,7 @@ const exportAllCSVs = async () => {
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
               {/* Direct PDF Export Button */}
               <Button 
-                onClick={handleExportPDF} 
+                onClick={exportKPIToPDF} 
                 variant="default" 
                 className="h-10 sm:h-auto bg-blue-600 hover:bg-blue-700 text-white"
                 disabled={isLoading}
