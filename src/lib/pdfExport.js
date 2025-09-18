@@ -1,6 +1,8 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
+
+autoTable(jsPDF.API);
 
 // Test if jsPDF is working
 console.log('jsPDF loaded:', typeof jsPDF);
