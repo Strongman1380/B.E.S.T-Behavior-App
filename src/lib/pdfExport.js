@@ -98,11 +98,12 @@ export class KPIPDFExporter {
     const cardWidth = (this.pageWidth - 2 * this.margin - 15) / 4;
     const cardHeight = 35;
     
+    const safeMetrics = metrics || {};
     const cards = [
-      { title: 'Average Rating', value: `${metrics.avgRating}/4`, color: COLORS.primary },
-      { title: "4's Rate", value: `${metrics.smileyRate}%`, color: COLORS.success },
-      { title: 'Total Incidents', value: metrics.totalIncidents, color: COLORS.warning },
-      { title: 'Students Tracked', value: metrics.studentsEvaluated, color: COLORS.secondary }
+      { title: 'Average Rating', value: `${safeMetrics.avgRating ?? 0}/4`, color: COLORS.primary },
+      { title: "4's Rate", value: `${safeMetrics.smileyRate ?? 0}%`, color: COLORS.success },
+      { title: 'Total Incidents', value: safeMetrics.totalIncidents ?? 0, color: COLORS.warning },
+      { title: 'Students Tracked', value: safeMetrics.studentsEvaluated ?? 0, color: COLORS.secondary }
     ];
     
     this.checkPageBreak(cardHeight + 10);
@@ -130,9 +131,27 @@ export class KPIPDFExporter {
   }
 
   // Add data table
+  addSectionTitleRow(title, color = COLORS.primary) {
+    this.checkPageBreak(25);
+
+    this.doc.setFillColor(color);
+    this.doc.rect(this.margin, this.currentY, this.pageWidth - 2 * this.margin, 12, 'F');
+    this.doc.setTextColor(255, 255, 255);
+    this.doc.setFontSize(11);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text(title, this.margin + 4, this.currentY + 8);
+    this.currentY += 18;
+    this.doc.setTextColor(0, 0, 0);
+  }
+
+  addSectionHeader(title, color = COLORS.primary) {
+    // Backwards compatibility helper
+    this.addSectionTitle(title, color);
+  }
+
   addTable(title, headers, body, columnStyles = {}) {
-    this.addSectionHeader(title);
-    
+    this.addSectionTitle(title);
+
     // Use the autoTable method directly on the jsPDF instance
     this.doc.autoTable({
       startY: this.currentY,
@@ -182,33 +201,33 @@ export class KPIPDFExporter {
   // Generate the complete PDF
   generateKPIPDF(data) {
     const {
-      overallMetrics,
-      behaviorTrendData,
-      incidentStats,
-      ratingDistribution,
-      studentComparison,
-      timeSlotAnalysis,
-      weeklyTrends,
-      stepsSummary,
-      gradesSummary,
-      gpaSummary,
-      studentImprovementStatus,
-      dateRange,
-      selectedStudent,
-      exportDate
-    } = data;
+      overallMetrics = {},
+      behaviorTrendData = [],
+      incidentStats = [],
+      ratingDistribution = [],
+      studentComparison = [],
+      timeSlotAnalysis = [],
+      weeklyTrends = [],
+      stepsSummary = {},
+      gradesSummary = {},
+      gpaSummary = {},
+      studentImprovementStatus = {},
+      dateRange = 'All Time',
+      selectedStudent = 'All Students',
+      exportDate = new Date().toISOString()
+    } = data || {};
 
     // Page 1: Header and Overview
     this.addHeader(
       'KPI Dashboard Report',
-      `Date Range: ${dateRange === 'all' ? 'All Time' : `Last ${dateRange} days`} | Student: ${selectedStudent}`
+      `Date Range: ${dateRange} | Student: ${selectedStudent}`
     );
 
     // Overall metrics cards
     this.addMetricsCards(overallMetrics);
 
     // Student Performance Table
-    if (studentComparison && studentComparison.length > 0) {
+    if (studentComparison.length > 0) {
       const studentHeaders = ['Student Name', 'Avg Rating', "4's Rate %", 'Incidents', 'Evaluations'];
       const studentData = studentComparison.map(student => [
         student.name,
@@ -222,7 +241,7 @@ export class KPIPDFExporter {
     }
 
     // Incident Statistics
-    if (incidentStats && incidentStats.length > 0) {
+    if (incidentStats.length > 0) {
       const incidentHeaders = ['Incident Type', 'Count', 'Percentage'];
       const incidentData = incidentStats.map(stat => [
         stat.type,
@@ -234,7 +253,7 @@ export class KPIPDFExporter {
     }
 
     // Rating Distribution
-    if (ratingDistribution && ratingDistribution.length > 0) {
+    if (ratingDistribution.length > 0) {
       const ratingHeaders = ['Rating', 'Count', 'Percentage'];
       const ratingData = ratingDistribution.map(rating => [
         rating.rating,
@@ -246,7 +265,7 @@ export class KPIPDFExporter {
     }
 
     // Time Slot Analysis
-    if (timeSlotAnalysis && timeSlotAnalysis.length > 0) {
+    if (timeSlotAnalysis.length > 0) {
       const timeHeaders = ['Time Slot', 'Avg Rating', "4's Rate %", 'Total Evaluations'];
       const timeData = timeSlotAnalysis.map(slot => [
         slot.timeSlot,
