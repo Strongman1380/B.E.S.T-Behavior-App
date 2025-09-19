@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog, CreditsEarned } from "@/api/entities";
+import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog, CreditsEarned, Settings as SettingsEntity } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ export default function KPIDashboard() {
   const [contactLogs, setContactLogs] = useState([]);
   const [creditsEarned, setCreditsEarned] = useState([]);
   const [creditsAvailable, setCreditsAvailable] = useState(true);
+  const [settings, setSettings] = useState(null);
 
   // New academic data states (placeholders)
   const [stepsCompleted, setStepsCompleted] = useState([]);
@@ -78,12 +79,13 @@ export default function KPIDashboard() {
     };
 
     try {
-      const [studentsData, evaluationsData, incidentsData, summariesData, contactsData] = await Promise.all([
+      const [studentsData, evaluationsData, incidentsData, summariesData, contactsData, settingsData] = await Promise.all([
         loadDataSafely(() => Student.filter({ active: true }), 'Students'),
         loadDataSafely(() => DailyEvaluation.list('date'), 'Evaluations'),
         loadDataSafely(() => IncidentReport.list('incident_date'), 'Incidents'),
         loadDataSafely(() => BehaviorSummary.list('date_from'), 'Summaries'),
         loadDataSafely(() => ContactLog.list('contact_date'), 'Contacts'),
+        loadDataSafely(() => SettingsEntity.list(), 'Settings'),
       ]);
 
       let creditsData = [];
@@ -127,6 +129,7 @@ export default function KPIDashboard() {
       setIncidents(incidentsData);
       setBehaviorSummaries(summariesData);
       setContactLogs(contactsData);
+      setSettings(settingsData?.[0] || null);
       setCreditsEarned(Array.isArray(creditsData) ? creditsData : []);
       setStepsCompleted(stepsData);
       setGrades(gradesData);
@@ -1039,11 +1042,11 @@ const exportAllCSVs = async () => {
   return (
     <div className="p-3 sm:p-6 bg-slate-50 min-h-screen">
       <div style={{ display: 'none' }}>
-        <KPIPrintLayout 
-          ref={printComponentRef} 
-          data={{
-            overallMetrics,
-            studentComparison,
+      <KPIPrintLayout 
+        ref={printComponentRef} 
+        data={{
+          overallMetrics,
+          studentComparison,
             ratingDistribution,
             incidentStats,
             timeSlotAnalysis,
@@ -1051,11 +1054,11 @@ const exportAllCSVs = async () => {
             studentImprovementStatus,
             stepsSummary,
             gradesSummary,
-            gpaSummary
-          }}
-          schoolName={settings?.school_name || 'B.E.S.T. Education'}
-          dateRange={dateRange === 'all' ? 'All Time' : `Date Range: ${dateRange.split(' to ').join(' - ')}`}
-        />
+          gpaSummary
+        }}
+        schoolName={settings?.school_name || 'B.E.S.T. Education'}
+        dateRange={dateRange === 'all' ? 'All Time' : `Last ${dateRange} days`}
+      />
       </div>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
