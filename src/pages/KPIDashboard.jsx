@@ -1009,6 +1009,33 @@ const exportAllCSVs = async () => {
   const gpaSummary = getGPASummary();
   const studentImprovementStatus = getStudentImprovementStatus();
 
+  const exportEnhancedCSVHandler = async () => {
+    try {
+      const data = {
+        overallMetrics,
+        behaviorTrendData,
+        incidentStats,
+        ratingDistribution,
+        studentComparison,
+        timeSlotAnalysis,
+        weeklyTrends,
+        stepsSummary,
+        gradesSummary,
+        gpaSummary,
+        studentImprovementStatus,
+        dateRange: dateRange === 'all' ? 'All Time' : `Last ${dateRange} days`,
+        selectedStudent: selectedStudent === 'all' ? 'All Students' : students.find(s => s.id === Number(selectedStudent))?.student_name || 'Unknown'
+      };
+
+      const { exportEnhancedCSV } = await import('@/lib/pdfExport');
+      const filename = exportEnhancedCSV(data);
+      toast.success(`Enhanced CSV exported: ${filename}`);
+    } catch (error) {
+      console.error('Enhanced CSV export failed:', error);
+      toast.error('Failed to export enhanced CSV. Please try again.');
+    }
+  };
+
   // Export only the Student Performance Overview section as CSV
   const exportStudentPerformanceCSV = () => {
     const headers = ['Name','Combined Avg Rating','Behavioral Avg','Academic Avg','4\'s Rate %','Incidents','Evaluations','Academic Metrics'];
