@@ -141,10 +141,17 @@ export default function BehaviorSummaryReports() {
     }
   };
 
-  if (isLoading) return <div className="flex h-screen items-center justify-center">Loading Behavior Summary Reports...</div>;
+  if (isLoading) return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-slate-600">Loading behavior summaries...</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50">
       <Toaster richColors />
       {isStudentListOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsStudentListOpen(false)}></div>}
       
@@ -152,7 +159,7 @@ export default function BehaviorSummaryReports() {
         <StudentList students={students} summaries={summaries} currentIndex={currentStudentIndex} onSelectStudent={handleSelectStudent} />
       </div>
 
-      <main className="flex-1 flex flex-col overflow-y-auto">
+      <main className="flex-1 flex flex-col overflow-y-auto max-w-full">
         {!currentStudent ? (
           <div className="flex-1 flex items-center justify-center text-center p-4">
             <div>
@@ -205,7 +212,8 @@ export default function BehaviorSummaryReports() {
                 </div>
               </div>
             </header>
-            <div className="p-4 md:p-8 flex-1">
+            <div className="p-4 md:p-8 flex-1" style={{ minWidth: 0 }}>
+              <div className="mx-auto w-full max-w-5xl">
               <SummaryForm 
                 key={`${currentStudent.id}-${currentSummary?.id || 'new'}`} 
                 summary={currentSummary} 
@@ -217,6 +225,7 @@ export default function BehaviorSummaryReports() {
                 onFormDataChange={setCurrentFormData}
                 onUnsavedChanges={setHasUnsavedChanges}
               />
+              </div>
             </div>
           </>
         )}

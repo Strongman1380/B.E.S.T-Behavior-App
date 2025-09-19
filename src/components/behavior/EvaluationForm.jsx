@@ -135,7 +135,7 @@ IMPORTANT: Only enhance and rephrase what is already in the notes. Do not introd
 
   return (
     <div className="bg-white p-3 sm:p-4 md:p-6 lg:p-8 rounded-xl shadow-lg border border-slate-200">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
         {TIME_SLOTS.map(({ key, label }) => (
           <TimeSlotRating
             key={key}
@@ -171,14 +171,14 @@ IMPORTANT: Only enhance and rephrase what is already in the notes. Do not introd
           className="min-h-[100px] sm:min-h-[120px] bg-slate-50 text-sm sm:text-base"
         />
       </div>
-      <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row sm:justify-end sm:items-center gap-3 sm:gap-4">
+      <div className="mt-6 sm:mt-8 flex flex-col-reverse sm:flex-row sm:justify-end sm:items-center gap-3 sm:gap-4">
         {hasUnsavedChanges && (
           <span className="text-xs sm:text-sm text-slate-500 text-center sm:text-left">Auto-saving...</span>
         )}
         <Button 
           onClick={() => handleSave(formData, true)} 
           disabled={isSaving} 
-          className="min-w-[120px] h-10 sm:h-11 w-full sm:w-auto"
+          className="min-w-[140px] h-10 sm:h-11 w-full sm:w-auto"
         >
           <Save className="w-4 h-4 mr-2" />
           {isSaving ? 'Saving...' : 'Save Now'}

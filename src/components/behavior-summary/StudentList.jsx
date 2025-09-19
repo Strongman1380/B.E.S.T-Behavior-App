@@ -3,7 +3,7 @@ import { CheckCircle, Circle } from "lucide-react";
 
 export default function StudentList({ students, summaries, currentIndex, onSelectStudent }) {
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
+    <aside className="w-64 sm:w-72 lg:w-80 bg-white border-r border-slate-200 flex flex-col max-w-full">
       <div className="p-4 border-b border-slate-200">
         <h2 className="text-lg font-bold text-slate-900">Behavior Summaries</h2>
         <p className="text-sm text-slate-500">{students.length} students</p>
