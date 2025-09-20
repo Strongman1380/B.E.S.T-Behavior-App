@@ -106,13 +106,13 @@ IMPORTANT: Only enhance and rephrase what is already in the notes. Do not introd
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {SECTION_DEFINITIONS.map(({ key, label: sectionLabel, short }) => (
-            <div key={key} className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-slate-600 tracking-wider uppercase">{short} • {sectionLabel}</span>
+            <div key={key} className="flex flex-col">
+              <span className="text-xs font-semibold text-slate-600 tracking-wider uppercase block leading-tight mb-1 h-8 flex items-end">{short} • {sectionLabel}</span>
               <Select
                 value={getInitialValue(safeData, key)}
                 onValueChange={(value) => handleSectionChange(key, value)}
               >
-                <SelectTrigger className="h-10 text-sm">
+                <SelectTrigger className="h-10 text-sm text-center">
                   <SelectValue placeholder="Select score" />
                 </SelectTrigger>
                 <SelectContent>

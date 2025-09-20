@@ -325,7 +325,11 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
               <p className="text-slate-500">Create behavior summaries from the Behavior Summary Reports page to print them here.</p>
             </div>
           ) : (
-            filteredSummaries.map((summary) => (
+            [...filteredSummaries].sort((a, b) => {
+              const nameA = getStudentName(a.student_id);
+              const nameB = getStudentName(b.student_id);
+              return nameA.localeCompare(nameB);
+            }).map((summary) => (
               <div key={summary.id} className="behavior-form">
                 
                 <div className="form-title">Student Behavior Summary Report</div>

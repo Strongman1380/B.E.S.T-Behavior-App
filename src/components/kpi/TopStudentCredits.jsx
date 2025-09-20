@@ -1,5 +1,6 @@
 import { Trophy, Award, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { formatTruncated } from '@/utils';
 
 export default function TopStudentCredits({ data }) {
   if (!data || data.length === 0) {
@@ -34,7 +35,7 @@ export default function TopStudentCredits({ data }) {
             <p className="text-sm text-slate-600">Grade {topStudent.grade}</p>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-yellow-600">{topStudent.credits}</div>
+            <div className="text-2xl font-bold text-yellow-600">{formatTruncated(topStudent.credits ?? 0, 2)}</div>
             <p className="text-xs text-slate-600">Credits</p>
           </div>
         </div>
@@ -80,7 +81,7 @@ export default function TopStudentCredits({ data }) {
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-xs">
-                  {student.credits} credits
+                  {formatTruncated(student.credits ?? 0, 2)} credits
                 </Badge>
                 {index === 0 && <Trophy className="h-4 w-4 text-yellow-500" />}
               </div>

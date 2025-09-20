@@ -10,7 +10,14 @@ export default function StudentComparisonList({ data }) {
             <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-slate-600">
               <span>Avg: {student.avgRating}/4</span>
               {student.behavioralAvg !== undefined && (
-                <span>Behavioral: {student.behavioralAvg}/4</span>
+                <span className={
+                  student.behavioralAvg >= 3.5 ? 'text-green-600' :
+                  student.behavioralAvg >= 2.5 ? 'text-yellow-600' :
+                  student.behavioralAvg >= 2.0 ? 'text-orange-600' :
+                  'text-red-600'
+                }>
+                  Behavioral: {student.behavioralAvg}/4
+                </span>
               )}
               {student.academicAvg > 0 && (
                 <span>Academic: {student.academicAvg}/4</span>
@@ -20,14 +27,17 @@ export default function StudentComparisonList({ data }) {
             </div>
           </div>
           <div className="flex gap-1 sm:gap-2 self-start sm:self-center">
-            {student.avgRating >= 4 && (
+            {student.behavioralAvg >= 3.5 && (
               <Badge className="bg-green-100 text-green-800 text-xs">Excellent</Badge>
             )}
-            {student.avgRating >= 3 && student.avgRating < 4 && (
-              <Badge className="bg-yellow-100 text-yellow-800 text-xs">Good</Badge>
+            {student.behavioralAvg >= 2.5 && student.behavioralAvg < 3.5 && (
+              <Badge className="bg-yellow-100 text-yellow-800 text-xs">Meets Expectations</Badge>
             )}
-            {student.avgRating < 3 && (
-              <Badge className="bg-red-100 text-red-800 text-xs">Needs Improvement</Badge>
+            {student.behavioralAvg >= 2.0 && student.behavioralAvg < 2.5 && (
+              <Badge className="bg-orange-100 text-orange-800 text-xs">Needs Improvement</Badge>
+            )}
+            {student.behavioralAvg < 2.0 && (
+              <Badge className="bg-red-100 text-red-800 text-xs">Significant Concerns</Badge>
             )}
           </div>
         </div>

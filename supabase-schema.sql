@@ -105,6 +105,18 @@ CREATE TABLE IF NOT EXISTS classes_needed (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Grades table
+CREATE TABLE IF NOT EXISTS grades (
+  id BIGSERIAL PRIMARY KEY,
+  student_id BIGINT REFERENCES students(id) ON DELETE CASCADE,
+  course_name TEXT NOT NULL,
+  grade_value NUMERIC(5, 2) NOT NULL,
+  letter_grade TEXT,
+  date_entered DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Users table (for future authentication)
 CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL PRIMARY KEY,
@@ -125,6 +137,7 @@ ALTER TABLE behavior_summaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credits_earned ENABLE ROW LEVEL SECURITY;
 ALTER TABLE classes_needed ENABLE ROW LEVEL SECURITY;
+ALTER TABLE grades ENABLE ROW LEVEL SECURITY;
 
 
 -- Ensure anon/authenticated roles can access objects (required in addition to RLS)
@@ -192,6 +205,13 @@ CREATE POLICY IF NOT EXISTS "Allow anon to update classes_needed" ON classes_nee
 CREATE POLICY IF NOT EXISTS "Allow anon to delete classes_needed" ON classes_needed FOR DELETE TO anon USING (true);
 
 
+-- Grades policies
+CREATE POLICY IF NOT EXISTS "Allow anon to read grades" ON grades FOR SELECT TO anon USING (true);
+CREATE POLICY IF NOT EXISTS "Allow anon to insert grades" ON grades FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS "Allow anon to update grades" ON grades FOR UPDATE TO anon USING (true);
+CREATE POLICY IF NOT EXISTS "Allow anon to delete grades" ON grades FOR DELETE TO anon USING (true);
+
+
 
 -- Add updated_at triggers
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -212,6 +232,7 @@ CREATE TRIGGER update_behavior_summaries_updated_at BEFORE UPDATE ON behavior_su
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_credits_earned_updated_at BEFORE UPDATE ON credits_earned FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_classes_needed_updated_at BEFORE UPDATE ON classes_needed FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_grades_updated_at BEFORE UPDATE ON grades FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 
 -- Insert sample data (optional - remove if you don't want sample data)

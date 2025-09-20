@@ -14,16 +14,79 @@ export default defineConfig({
   // Accept VITE_ (Vite default), NEXT_PUBLIC_ (Next-style), and SUPABASE_* for convenience
   envPrefix: ['VITE_', 'NEXT_PUBLIC_', 'SUPABASE_'],
   build: {
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 500,
     minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
     rollupOptions: {
       output: {
-        manualChunks: {
-          recharts: ['recharts'],
-          lucide: ['lucide-react'],
-          router: ['react-router-dom'],
-          datefns: ['date-fns'],
-        }
+        manualChunks: (id) => {
+          // Vendor chunks
+          if (id.includes('node_modules')) {
+            // Large chart library
+            if (id.includes('recharts')) {
+              return 'recharts';
+            }
+            // PDF generation
+            if (id.includes('jspdf') || id.includes('html2canvas')) {
+              return 'pdf-libs';
+            }
+            // UI libraries
+            if (id.includes('@radix-ui')) {
+              return 'radix-ui';
+            }
+            // Icons
+            if (id.includes('lucide-react')) {
+              return 'lucide';
+            }
+            // Router
+            if (id.includes('react-router')) {
+              return 'router';
+            }
+            // Date utilities
+            if (id.includes('date-fns')) {
+              return 'date-fns';
+            }
+            // Supabase
+            if (id.includes('@supabase')) {
+              return 'supabase';
+            }
+            // OpenAI
+            if (id.includes('openai')) {
+              return 'openai';
+            }
+            // Other vendor libraries
+            return 'vendor';
+          }
+          
+          // App chunks
+          if (id.includes('/src/pages/')) {
+            const pageName = id.split('/pages/')[1].split('.')[0];
+            return `page-${pageName}`;
+          }
+          
+          if (id.includes('/src/components/')) {
+            // Group heavy components
+            if (id.includes('dashboard') || id.includes('kpi')) {
+              return 'dashboard-components';
+            }
+            if (id.includes('behavior') || id.includes('evaluation')) {
+              return 'behavior-components';
+            }
+            if (id.includes('print')) {
+              return 'print-components';
+            }
+            return 'ui-components';
+          }
+        },
+        chunkFileNames: (chunkInfo) => {
+          const facadeModuleId = chunkInfo.facadeModuleId ? chunkInfo.facadeModuleId.split('/').pop().replace('.jsx', '').replace('.js', '') : 'chunk';
+          return `assets/[name]-[hash].js`;
+        },
       }
     }
   },
@@ -45,6 +108,17 @@ export default defineConfig({
     extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json']
   },
   optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-select',
+      'lucide-react',
+      'date-fns',
+      'clsx',
+      'tailwind-merge'
+    ],
     esbuildOptions: {
       loader: {
         '.js': 'jsx',

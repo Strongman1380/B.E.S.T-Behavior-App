@@ -133,6 +133,7 @@ export const Settings = new SupabaseEntity('settings')
 export const ContactLog = new SupabaseEntity('contact_logs')
 export const CreditsEarned = new SupabaseEntity('credits_earned')
 export const ClassesNeeded = new SupabaseEntity('classes_needed')
+export const Grade = new SupabaseEntity('grades')
 // BehaviorSummary entity with schema mapping
 class SupabaseBehaviorSummaryEntity extends SupabaseEntity {
   constructor() {

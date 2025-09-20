@@ -7,7 +7,7 @@ import { formatDate } from "@/utils";
 
 export default function PrintAllDialog({ open, onOpenChange, students, evaluations, settings, date }) {
   const generatePrintContent = () => {
-    return students.map(student => {
+    return [...students].sort((a, b) => a.student_name.localeCompare(b.student_name)).map(student => {
       const studentEval = evaluations.find(evalItem => evalItem.student_id === student.id);
       if (!studentEval) return null;
 
@@ -15,7 +15,7 @@ export default function PrintAllDialog({ open, onOpenChange, students, evaluatio
         <div style="page-break-after: always; padding: 20px; font-family: Arial, sans-serif;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
             <div>
-              <strong>Student's Name:</strong> ${student.name}
+              <strong>Student's Name:</strong> ${student.student_name}
             </div>
             <div>
               <strong>Date:</strong> ${formatDate(date, 'M/d/yy')}

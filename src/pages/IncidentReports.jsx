@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, Search, Calendar, User, Plus, Eye, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { formatDate } from "@/utils";
+import { formatDate, parseYmd } from "@/utils";
 import { toast } from 'sonner';
 import IncidentReportDialog from "../components/behavior/IncidentReportDialog";
 
@@ -40,6 +40,8 @@ export default function IncidentReports() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterStudent, setFilterStudent] = useState("all");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -94,11 +96,33 @@ export default function IncidentReports() {
 
     // Student filter
     if (filterStudent !== "all") {
-      filtered = filtered.filter(report => report.student_id === filterStudent);
+      const selectedId = Number(filterStudent);
+      filtered = filtered.filter(report => report.student_id === selectedId);
+    }
+
+    if (filterStartDate) {
+      const start = parseYmd(filterStartDate);
+      filtered = filtered.filter(report => {
+        const incidentDate = report?.incident_date ? parseYmd(report.incident_date) : null;
+        return incidentDate ? incidentDate >= start : false;
+      });
+    }
+
+    if (filterEndDate) {
+      const end = parseYmd(filterEndDate);
+      filtered = filtered.filter(report => {
+        const incidentDate = report?.incident_date ? parseYmd(report.incident_date) : null;
+        return incidentDate ? incidentDate <= end : false;
+      });
     }
 
     setFilteredReports(filtered);
-  }, [reports, searchTerm, filterType, filterStudent]);
+  }, [reports, searchTerm, filterType, filterStudent, filterStartDate, filterEndDate]);
+
+  const clearDateFilters = () => {
+    setFilterStartDate("");
+    setFilterEndDate("");
+  };
 
   useEffect(() => {
     filterReports();
@@ -112,14 +136,18 @@ export default function IncidentReports() {
       toast.success("Incident report created successfully!");
       await loadData();
     } catch (error) {
-      console.error("Error saving incident report:", error);
+      console.error("Error saving incident report:", error?.message || error, error);
       const msg = typeof error?.message === 'string' ? error.message : ''
+      const detail = typeof error?.details === 'string' ? error.details : ''
+      const hint = typeof error?.hint === 'string' ? error.hint : ''
       if (msg.includes('Supabase not configured')) {
         toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
       } else if (msg.toLowerCase().includes('row-level security')) {
         toast.error('Insert blocked by RLS. Apply supabase-schema.sql policies/grants in Supabase.')
       } else if (msg.toLowerCase().includes('permission') || error?.code === '42501') {
         toast.error('Permission denied. Check RLS policies for anon role in Supabase.')
+      } else if (msg || detail || hint) {
+        toast.error(`Failed to save incident report: ${msg || detail || hint}`)
       } else {
         toast.error('Failed to save incident report.')
       }
@@ -157,9 +185,9 @@ export default function IncidentReports() {
     setViewingReport(report);
   };
 
-  const getStudentName = (studentId) => {
+  const getStudentName = (studentId, fallbackName = '') => {
     const student = students.find(s => s.id === studentId);
-    return student?.student_name || 'Unknown Student';
+    return student?.student_name || fallbackName || 'Unknown Student';
   };
 
   if (isLoading) {
@@ -237,10 +265,31 @@ export default function IncidentReports() {
                   <SelectContent>
                     <SelectItem value="all">All Students</SelectItem>
                     {students.map(student => (
-                      <SelectItem key={student.id} value={student.id}>{student.student_name}</SelectItem>
+                      <SelectItem key={student.id} value={student.id.toString()}>{student.student_name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                <Input
+                  type="date"
+                  value={filterStartDate}
+                  onChange={(e) => setFilterStartDate(e.target.value)}
+                  className="h-10 sm:h-11"
+                  aria-label="Start date"
+                />
+                <Input
+                  type="date"
+                  value={filterEndDate}
+                  onChange={(e) => setFilterEndDate(e.target.value)}
+                  className="h-10 sm:h-11"
+                  aria-label="End date"
+                />
+                {(filterStartDate || filterEndDate) && (
+                  <Button variant="outline" onClick={clearDateFilters} className="h-10 sm:h-11">
+                    Clear Dates
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
@@ -274,12 +323,6 @@ export default function IncidentReports() {
                     : "Try adjusting your search or filter criteria."
                   }
                 </p>
-                {reports.length === 0 && (
-                  <Button onClick={() => handleCreateReport()} className="bg-red-600 hover:bg-red-700 h-10 sm:h-11">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create First Report
-                  </Button>
-                )}
               </div>
             ) : (
               <>
@@ -304,7 +347,7 @@ export default function IncidentReports() {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <User className="w-4 h-4 text-slate-400" />
-                              {getStudentName(report.student_id)}
+                              {getStudentName(report.student_id, report.student_name)}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -347,7 +390,7 @@ export default function IncidentReports() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <User className="w-4 h-4 text-slate-400" />
-                            <p className="font-semibold text-slate-900 text-sm">{getStudentName(report.student_id)}</p>
+                            <p className="font-semibold text-slate-900 text-sm">{getStudentName(report.student_id, report.student_name)}</p>
                           </div>
                           <p className="text-xs text-slate-500">
                             {formatDate(report.incident_date, 'MMM d, yyyy')} • {report.staff_name}
@@ -390,6 +433,7 @@ export default function IncidentReports() {
         onOpenChange={setShowCreateDialog}
         student={selectedStudent}
         settings={settings}
+        students={students}
         onSave={handleSaveReport}
       />
 
@@ -403,6 +447,7 @@ export default function IncidentReports() {
           onSave={() => {}} // Read-only mode
           initialData={viewingReport}
           readOnly={true}
+          students={students}
         />
       )}
     </div>

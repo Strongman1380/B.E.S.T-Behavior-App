@@ -23,6 +23,22 @@ export const AuthProvider = ({ children }) => {
                                 import.meta.env.VITE_SUPABASE_URL && 
                                 import.meta.env.VITE_SUPABASE_ANON_KEY;
     
+    // Force demo mode for testing - bypass authentication
+    console.log('Using demo mode - bypassing Supabase authentication for testing');
+    const mockUser = {
+      id: 'demo-user-123',
+      email: 'demo@brighttrack.local',
+      user_metadata: { 
+        full_name: 'Demo User',
+        avatar_url: null 
+      },
+      email_confirmed_at: new Date().toISOString(),
+      app_metadata: { provider: 'demo' }
+    };
+    setUser(mockUser);
+    setLoading(false);
+    return;
+    
     if (!isSupabaseConfigured) {
       if (import.meta.env.DEV) {
         // Development/demo mode only

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Student, DailyEvaluation, Settings, IncidentReport } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Plus, FileText, Trash2, X, CheckSquare, Calendar, RotateCcw, Edit, Eye, User, AlertTriangle, BarChart3 } from "lucide-react";
@@ -12,16 +12,14 @@ import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
 import { createPageUrl, todayYmd } from "@/utils";
 import { BEHAVIOR_SECTION_KEYS, calculateAverageFromSlots, calculateSectionAverages, countCompletedSlots, deriveTotalSlotCount } from "@/utils/behaviorMetrics";
+import { useOptimizedData } from "@/hooks/useOptimizedData";
 
 import AddStudentDialog from "../components/behavior/AddStudentDialog";
 import EditStudentDialog from "../components/behavior/EditStudentDialog";
 import DeleteConfirmationDialog from "../components/behavior/DeleteConfirmationDialog";
-import PrintAllDialog from "../components/behavior/PrintAllDialog";
 import ResetDialog from "../components/behavior/ResetDialog";
 import PrintDialog from "../components/behavior/PrintDialog";
-import PrintBehaviorSummariesDialog from "../components/behavior/PrintBehaviorSummariesDialog";
 import CombinedPrintDialog from "../components/behavior/CombinedPrintDialog";
-import EndOfDayReportDialog from "../components/behavior/EndOfDayReportDialog";
 import IncidentReportDialog from "../components/behavior/IncidentReportDialog";
 import RealTimeSync from "../components/sync/RealTimeSync";
 
@@ -51,50 +49,51 @@ export default function BehaviorDashboard() {
     setCombinedPrintData(combinedData);
     setShowCombinedPrintDialog(true);
   };
-  const [students, setStudents] = useState([]);
-  const [evaluations, setEvaluations] = useState([]);
-  const [settings, setSettings] = useState(null);
+  // UI state
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [studentToPrint, setStudentToPrint] = useState(null);
-  const [showPrintDialog, setShowPrintDialog] = useState(false);
-  const [showPrintSummariesDialog, setShowPrintSummariesDialog] = useState(false);
+
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showIncidentReportDialog, setShowIncidentReportDialog] = useState(false);
   const [incidentStudent, setIncidentStudent] = useState(null);
-  const [showEndOfDayReport, setShowEndOfDayReport] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selection, setSelection] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const today = todayYmd();
 
-  const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      
-      const [studentsData, evaluationsData, settingsData] = await Promise.all([
-        Student.filter({ active: true }, 'student_name').catch(() => []),
-        DailyEvaluation.filter({ date: today }).catch(() => []),
-        Settings.list().catch(() => [])
-      ]);
-      
-      setStudents(studentsData || []);
-      setEvaluations(evaluationsData || []);
-      setSettings(settingsData?.[0] || null);
-      
-    } catch (error) { 
-      console.error("Error loading data:", error);
-      toast.error("Failed to load data. Please try refreshing the page.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [today]);
+  // Optimized data loading with caching
+  const dataFetchers = useMemo(() => ({
+    students: () => Student.filter({ active: true }, 'student_name'),
+    evaluations: () => DailyEvaluation.filter({ date: today }),
+    settings: () => Settings.list()
+  }), [today]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const { 
+    data, 
+    loading: isLoading, 
+    error, 
+    refetch: loadData 
+  } = useOptimizedData(
+    dataFetchers,
+    [today],
+    {
+      cacheKey: `dashboard-${today}`,
+      cacheTTL: 60000, // 1 minute cache
+      debounceMs: 100, // Reduce debounce time to fix loading issues
+      onError: (error) => {
+        console.error("Error loading data:", error);
+        toast.error("Failed to load data. Please try refreshing the page.");
+      }
+    }
+  );
+
+  // Extract data with fallbacks
+  const students = data.students || [];
+  const evaluations = data.evaluations || [];
+  const settings = data.settings?.[0] || null;
 
   const addStudent = async (studentData) => { 
     try {
@@ -183,8 +182,21 @@ export default function BehaviorDashboard() {
       await IncidentReport.create(reportData);
       toast.success("Incident report saved successfully!");
     } catch (error) {
-      console.error("Error saving incident report:", error);
-      throw error;
+      console.error("Error saving incident report:", error?.message || error, error);
+      const msg = typeof error?.message === 'string' ? error.message : ''
+      const detail = typeof error?.details === 'string' ? error.details : ''
+      const hint = typeof error?.hint === 'string' ? error.hint : ''
+      if (msg.includes('Supabase not configured')) {
+        toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+      } else if (msg.toLowerCase().includes('row-level security')) {
+        toast.error('Insert blocked by RLS. Apply supabase-schema.sql policies/grants in Supabase.')
+      } else if (msg.toLowerCase().includes('permission') || error?.code === '42501') {
+        toast.error('Permission denied. Check RLS policies for anon role in Supabase.')
+      } else if (msg || detail || hint) {
+        toast.error(`Failed to save incident report: ${msg || detail || hint}`)
+      } else {
+        toast.error('Failed to save incident report.');
+      }
     }
   };
 
@@ -229,7 +241,7 @@ export default function BehaviorDashboard() {
     const overall = calculateAverageFromSlots(evaluation.time_slots);
     const sectionAverages = calculateSectionAverages(evaluation.time_slots);
 
-    const roundValue = (avg, count) => (count > 0 ? Math.round(avg) : null);
+    const roundValue = (avg, count) => (count > 0 ? parseFloat(avg.toFixed(2)) : null);
 
     const roundedSections = computeRoundedSections(sectionAverages);
 
@@ -272,7 +284,7 @@ export default function BehaviorDashboard() {
   const computeRoundedSections = (sectionAverages) => (
     BEHAVIOR_SECTION_KEYS.reduce((acc, key) => {
       const entry = sectionAverages?.[key];
-      const rounded = entry && entry.count > 0 ? Math.round(entry.average) : null;
+      const rounded = entry && entry.count > 0 ? parseFloat(entry.average.toFixed(2)) : null;
       acc[key] = rounded;
       return acc;
     }, {})
@@ -336,40 +348,13 @@ export default function BehaviorDashboard() {
                     <span className="sm:hidden">Reset</span>
                   </Button>
                 )}
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowPrintSummariesDialog(true)} 
-                  className="justify-center border-[#bcdfff] text-[#0f6db4] hover:bg-[#e9f4ff] h-10 sm:h-11 text-sm sm:text-base"
-                >
-                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
-                  <span className="hidden sm:inline">Print Beh. Summaries</span>
-                  <span className="sm:hidden">Beh. Summaries</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowPrintDialog(true)} 
-                  disabled={todayEvaluations.length === 0} 
-                  className="justify-center border-[#cbe8ff] hover:bg-[#edf8ff] text-[#0f5d92] h-10 sm:h-11 text-sm sm:text-base"
-                >
-                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
-                  <span className="hidden sm:inline">All Behavior Sheets ({todayEvaluations.length})</span>
-                  <span className="sm:hidden">All Sheets ({todayEvaluations.length})</span>
-                </Button>
+
                 <Button 
                   onClick={() => setIsSelectMode(true)} 
                   className="justify-center bg-accent text-accent-foreground hover:bg-accent/90 h-10 sm:h-11 text-sm sm:text-base shadow-sm shadow-accent/40"
                 >
                   <CheckSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
                   Select
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => setShowEndOfDayReport(true)}
-                  className="justify-center border-[#9fe2c7] text-[#1f7a53] hover:bg-[#e7f9f1] h-10 sm:h-11 text-sm sm:text-base"
-                  disabled={students.length === 0}
-                >
-                  <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                  Daily Averages
                 </Button>
                 <Button 
                   onClick={() => setShowAddDialog(true)} 
@@ -382,12 +367,21 @@ export default function BehaviorDashboard() {
               </>
             ) : (
               <>
-                <Button 
-                  variant="destructive" 
-                  onClick={() => setShowDeleteConfirm(true)} 
-                  disabled={selection.length === 0} 
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={selection.length === 0}
                   className="justify-center h-10 sm:h-11 text-sm sm:text-base"
                 >
+                  <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  Delete Selected ({selection.length})
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {setIsSelectMode(false); setSelection([]);}}
+                  className="justify-center h-10 sm:h-11 text-sm sm:text-base"
+                >
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                   Cancel
                 </Button>
               </>
@@ -659,7 +653,7 @@ export default function BehaviorDashboard() {
         actionText="inactivate"
         description={`This will mark ${selection.length} student(s) as inactive. They will be hidden from the dashboard but their data will be retained.`}
       />
-      <PrintAllDialog open={showPrintDialog} onOpenChange={setShowPrintDialog} students={todayEvaluations} evaluations={evaluations} settings={settings} date={today} />
+
       {studentToPrint && (
         <PrintDialog 
           open={!!studentToPrint} 
@@ -671,7 +665,7 @@ export default function BehaviorDashboard() {
         />
       )}
       <ResetDialog open={showResetDialog} onOpenChange={setShowResetDialog} onConfirm={async () => { await Promise.all(todayEvaluations.map(s => DailyEvaluation.delete(getStudentEvaluation(s.id).id))); await loadData(); }} count={todayEvaluations.length} />
-      <PrintBehaviorSummariesDialog open={showPrintSummariesDialog} onOpenChange={setShowPrintSummariesDialog} students={students} settings={settings} />
+
       <IncidentReportDialog 
         open={showIncidentReportDialog} 
         onOpenChange={setShowIncidentReportDialog} 
@@ -679,13 +673,7 @@ export default function BehaviorDashboard() {
         settings={settings} 
         onSave={handleSaveIncidentReport} 
       />
-      <EndOfDayReportDialog 
-        open={showEndOfDayReport} 
-        onOpenChange={setShowEndOfDayReport} 
-        students={students} 
-        evaluations={evaluations} 
-        date={today} 
-      />
+
     </div>
   );
 }

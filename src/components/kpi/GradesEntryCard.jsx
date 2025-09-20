@@ -3,18 +3,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Student } from "@/api/entities";
+import { Grade } from "@/api/entities";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
-export default function GradesEntryCard({ students }) {
+const toLetterGrade = (value) => {
+  const score = Number(value);
+  if (Number.isNaN(score)) return '';
+  if (score >= 90) return 'A';
+  if (score >= 80) return 'B';
+  if (score >= 70) return 'C';
+  if (score >= 60) return 'D';
+  return 'F';
+};
+
+export default function GradesEntryCard({ students = [] }) {
   const [selectedStudent, setSelectedStudent] = useState("");
   const [courseName, setCourseName] = useState("");
   const [grade, setGrade] = useState("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
   const handleAddGrade = async () => {
-    if (!selectedStudent || !courseName || !grade) {
+    const trimmedCourse = courseName.trim();
+
+    if (!selectedStudent || !trimmedCourse || !grade) {
       toast.error("Please fill in all fields");
       return;
     }
@@ -26,13 +38,14 @@ export default function GradesEntryCard({ students }) {
     }
 
     try {
-      // TODO: Implement Grades entity
-      // await Grades.create({
-      //   student_id: parseInt(selectedStudent),
-      //   course_name: courseName,
-      //   grade_value: gradeValue,
-      //   date_entered: date
-      // });
+      const letterGrade = toLetterGrade(gradeValue);
+      await Grade.create({
+        student_id: Number(selectedStudent),
+        course_name: trimmedCourse,
+        grade_value: gradeValue,
+        letter_grade: letterGrade,
+        date_entered: date
+      });
 
       toast.success("Grade recorded successfully!");
       setSelectedStudent("");

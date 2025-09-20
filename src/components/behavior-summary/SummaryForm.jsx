@@ -500,7 +500,14 @@ Format your response as a JSON object with these exact keys:
   "recommendations": "content here"
 }
 
-Use professional behavioral documentation language. Report only what is documented in the provided data without adding interpretations or subjective assessments. Always reference accurate dates from the data when discussing specific incidents or observations.`;
+Use professional behavioral documentation language. Report only what is documented in the provided data without adding interpretations or subjective assessments. 
+
+CRITICAL DATE REQUIREMENTS:
+- ONLY reference dates that appear in the provided behavioral data above
+- DO NOT reference dates outside the specified period of ${dateRangeText}
+- DO NOT use relative date references like "yesterday," "last week," or "recently"
+- When mentioning specific incidents or observations, ONLY use the exact dates from the data provided
+- If no specific date is needed, refer to "during the reporting period" instead of specific dates`;
 
     try {
       const completion = await openai.chat.completions.create({
@@ -508,7 +515,7 @@ Use professional behavioral documentation language. Report only what is document
         messages: [
           {
             role: "system",
-            content: "You are a behavioral analyst who creates objective, factual behavior summaries using professional behavioral documentation standards. Focus on observable behaviors and documented data without subjective interpretations or elaborative language."
+            content: "You are a behavioral analyst who creates objective, factual behavior summaries using professional behavioral documentation standards. Focus on observable behaviors and documented data without subjective interpretations or elaborative language. CRITICAL: Only reference dates that are explicitly provided in the data - never use relative dates like 'yesterday' or dates outside the specified reporting period."
           },
           {
             role: "user",

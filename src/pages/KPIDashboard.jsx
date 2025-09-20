@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog, CreditsEarned, Settings as SettingsEntity } from "@/api/entities";
+import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog, CreditsEarned, Grade, Settings as SettingsEntity } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import {
   Calendar, Target, BarChart3, RefreshCw, Download, Trash2, FileText, ChevronDown
 } from "lucide-react";
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks } from "date-fns";
-import { parseYmd } from "@/utils";
+import { parseYmd, truncateDecimal, formatTruncated } from "@/utils";
 import { getNumericSectionValues } from "@/utils/behaviorMetrics";
 import { toast } from 'sonner';
 import ClearDataDialog from "@/components/kpi/ClearDataDialog";
@@ -50,7 +50,7 @@ export default function KPIDashboard() {
   const [creditsAvailable, setCreditsAvailable] = useState(true);
   const [settings, setSettings] = useState(null);
 
-  // New academic data states (placeholders)
+  // Academic/placeholder states
   const [stepsCompleted, setStepsCompleted] = useState([]);
   const [grades, setGrades] = useState([]);
   const [gpas, setGpas] = useState([]);
@@ -63,29 +63,34 @@ export default function KPIDashboard() {
 
   // Helper: current date in local time
   const getCurrentDate = () => new Date();
-
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    
-    // Load data individually to handle failures gracefully
-    const loadDataSafely = async (loadFn, name) => {
+
+    const loadSafely = async (fn, label) => {
       try {
-        const data = await loadFn();
-        return data || [];
+        const rows = await fn();
+        return Array.isArray(rows) ? rows : [];
       } catch (error) {
-        console.warn(`Failed to load ${name}:`, error?.message);
+        console.warn(`Failed to load ${label}:`, error?.message || error);
         return [];
       }
     };
 
     try {
-      const [studentsData, evaluationsData, incidentsData, summariesData, contactsData, settingsData] = await Promise.all([
-        loadDataSafely(() => Student.filter({ active: true }), 'Students'),
-        loadDataSafely(() => DailyEvaluation.list('date'), 'Evaluations'),
-        loadDataSafely(() => IncidentReport.list('incident_date'), 'Incidents'),
-        loadDataSafely(() => BehaviorSummary.list('date_from'), 'Summaries'),
-        loadDataSafely(() => ContactLog.list('contact_date'), 'Contacts'),
-        loadDataSafely(() => SettingsEntity.list(), 'Settings'),
+      const [
+        studentsData,
+        evaluationsData,
+        incidentsData,
+        summariesData,
+        contactsData,
+        settingsData
+      ] = await Promise.all([
+        loadSafely(() => Student.filter({ active: true }), 'students'),
+        loadSafely(() => DailyEvaluation.list('date'), 'daily evaluations'),
+        loadSafely(() => IncidentReport.list('incident_date'), 'incident reports'),
+        loadSafely(() => BehaviorSummary.list('date_from'), 'behavior summaries'),
+        loadSafely(() => ContactLog.list('contact_date'), 'contact logs'),
+        loadSafely(() => SettingsEntity.list(), 'settings'),
       ]);
 
       let creditsData = [];
@@ -94,7 +99,7 @@ export default function KPIDashboard() {
         setCreditsAvailable(true);
       } catch (creditError) {
         const msg = creditError?.message || '';
-        if (msg.includes("Could not find the table")) {
+        if (msg.includes('Could not find the table')) {
           console.warn('Credits table not found in Supabase; hiding academic credits widgets.');
         } else {
           console.warn('Failed to load Credits:', msg);
@@ -102,28 +107,19 @@ export default function KPIDashboard() {
         setCreditsAvailable(false);
         creditsData = [];
       }
-      
-      // Load new academic data (when entities are available)
-      let stepsData = [], gradesData = [], gpasData = [];
+
+      let gradesData = [];
       try {
-        // Placeholder for when StepsCompleted entity is added
-        // stepsData = await loadDataSafely(() => StepsCompleted.list('date_completed'), 'Steps');
-      } catch (e) {
-        console.log('StepsCompleted entity not yet available');
+        gradesData = await Grade.list('-date_entered');
+      } catch (gradeError) {
+        console.warn('Failed to load Grades:', gradeError?.message || gradeError);
+        gradesData = [];
       }
-      try {
-        // Placeholder for when Grades entity is added
-        // gradesData = await loadDataSafely(() => Grades.list('date_entered'), 'Grades');
-      } catch (e) {
-        console.log('Grades entity not yet available');
-      }
-      try {
-        // Placeholder for when GPA entity is added
-        // gpasData = await loadDataSafely(() => GPA.list('calculated_date'), 'GPAs');
-      } catch (e) {
-        console.log('GPA entity not yet available');
-      }
-      
+
+      // Placeholder future data
+      const stepsData = [];
+      const gpasData = [];
+
       setStudents(studentsData);
       setEvaluations(evaluationsData);
       setIncidents(incidentsData);
@@ -132,29 +128,32 @@ export default function KPIDashboard() {
       setSettings(settingsData?.[0] || null);
       setCreditsEarned(Array.isArray(creditsData) ? creditsData : []);
       setStepsCompleted(stepsData);
-      setGrades(gradesData);
+      setGrades(Array.isArray(gradesData) ? gradesData : []);
       setGpas(gpasData);
-      
-      
     } catch (error) {
-      console.error("Error loading KPI data:", error);
-      console.error("Error message:", error?.message);
-      console.error("Error stack:", error?.stack);
-      const msg = typeof error?.message === 'string' ? error.message : ''
+      console.error('Error loading KPI data:', error);
+      const msg = typeof error?.message === 'string' ? error.message : '';
       if (msg.includes('Supabase not configured')) {
-        toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
+        toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.');
       } else if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('row-level security')) {
-        toast.error('RLS/permissions preventing reads. Apply supabase-schema.sql policies/grants in Supabase.')
+        toast.error('RLS/permissions preventing reads. Apply supabase-schema.sql policies/grants in Supabase.');
       } else {
-        toast.error("Failed to load KPI data: " + msg);
+        toast.error(`Failed to load KPI data: ${msg}`);
       }
     }
+
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleRefresh = useCallback(async () => {
+    await loadData();
+  }, [loadData]);
+
+
 
   
 
@@ -241,8 +240,8 @@ export default function KPIDashboard() {
       return {
         date: format(date, 'MMM dd'),
         fullDate: dateStr,
-        avgRating: Math.round(avgRating * 100) / 100,
-        smileyPercentage: Math.round(foursPercentage * 100) / 100,
+        avgRating: truncateDecimal(avgRating, 2),
+        smileyPercentage: truncateDecimal(foursPercentage, 2),
         evaluationCount: dayEvaluations.length
       };
     });
@@ -263,7 +262,7 @@ export default function KPIDashboard() {
     return Object.entries(incidentsByType).map(([type, count]) => ({
       type,
       count,
-      percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+      percentage: total > 0 ? truncateDecimal((count / total) * 100, 2) : 0,
       color: INCIDENT_TYPE_COLORS[type] || '#6B7280'
     }));
   };
@@ -291,7 +290,7 @@ export default function KPIDashboard() {
     return Object.entries(distribution).map(([rating, count]) => ({
       rating: `${rating}'s`,
       count,
-      percentage: totalRatings > 0 ? Math.round((count / totalRatings) * 100) : 0
+      percentage: totalRatings > 0 ? truncateDecimal((count / totalRatings) * 100, 2) : 0
     }));
   };
 
@@ -327,10 +326,10 @@ export default function KPIDashboard() {
     const incidentRate = studentsWithEvaluations.size > 0 ? (filteredIncidents.length / studentsWithEvaluations.size) : 0;
 
     return {
-      avgRating: Math.round(avgRating * 100) / 100,
-      smileyRate: Math.round(foursRate * 100) / 100,
+      avgRating: truncateDecimal(avgRating, 2),
+      smileyRate: truncateDecimal(foursRate, 2),
       totalIncidents: filteredIncidents.length,
-      incidentRate: Math.round(incidentRate * 100) / 100,
+      incidentRate: truncateDecimal(incidentRate, 2),
       studentsEvaluated: studentsWithEvaluations.size,
       totalEvaluations: filteredEvaluations.length
     };
@@ -381,14 +380,16 @@ export default function KPIDashboard() {
       //   academicCount++;
       // }
 
-      // TODO: Include grades data when Grades entity is implemented
-      // const studentGrades = await Grades.filter({ student_id: student.id });
-      // if (studentGrades.length > 0) {
-      //   const avgGrade = studentGrades.reduce((sum, grade) => sum + (grade.grade_value / 100) * 4, 0) / studentGrades.length;
-      //   academicMetrics.push(avgGrade);
-      //   academicSum += avgGrade;
-      //   academicCount++;
-      // }
+      const studentGrades = grades.filter(g => g.student_id === student.id);
+      if (studentGrades.length > 0) {
+        const avgGrade = studentGrades.reduce((sum, gradeRow) => {
+          const numericGrade = Number(gradeRow.grade_value) || 0;
+          return sum + (numericGrade / 100) * 4;
+        }, 0) / studentGrades.length;
+        academicMetrics.push(avgGrade);
+        academicSum += avgGrade;
+        academicCount++;
+      }
 
       // TODO: Include steps data when StepsCompleted entity is implemented
       // const studentSteps = await StepsCompleted.filter({ student_id: student.id });
@@ -411,10 +412,10 @@ export default function KPIDashboard() {
 
       return {
         name: student.student_name,
-        avgRating: Math.round(combinedAvg * 100) / 100,
-        behavioralAvg: Math.round(behavioralAvg * 100) / 100,
-        academicAvg: Math.round(academicAvg * 100) / 100,
-        smileyRate: Math.round(foursRate * 100) / 100,
+        avgRating: truncateDecimal(combinedAvg, 2),
+        behavioralAvg: truncateDecimal(behavioralAvg, 2),
+        academicAvg: truncateDecimal(academicAvg, 2),
+        smileyRate: truncateDecimal(foursRate, 2),
         incidents: studentIncidents.length,
         evaluations: studentEvals.length,
         academicMetrics: academicCount
@@ -453,8 +454,8 @@ export default function KPIDashboard() {
 
       return {
         timeSlot: slot,
-        avgRating: Math.round(avgRating * 100) / 100,
-        smileyRate: Math.round(foursRate * 100) / 100,
+        avgRating: truncateDecimal(avgRating, 2),
+        smileyRate: truncateDecimal(foursRate, 2),
         evaluationCount: entryCount
       };
     });
@@ -517,8 +518,8 @@ export default function KPIDashboard() {
 
       weeks.push({
         week: `Week of ${format(weekStart, 'MMM dd')}`,
-        avgRating: Math.round(avgRating * 100) / 100,
-        smileyRate: Math.round(foursRate * 100) / 100,
+        avgRating: truncateDecimal(avgRating, 2),
+        smileyRate: truncateDecimal(foursRate, 2),
         evaluations: weekEvals.length
       });
     }
@@ -528,53 +529,39 @@ export default function KPIDashboard() {
 
   // Export KPI data as CSV
   const exportKPIData = () => {
-    const data = {
-      overallMetrics,
-      behaviorTrendData: getBehaviorTrendData(),
-      incidentStats: getIncidentStats(),
-      ratingDistribution: getRatingDistribution(),
-      studentComparison: getStudentComparison(),
-      timeSlotAnalysis: getTimeSlotAnalysis(),
-      weeklyTrends: getWeeklyTrends(),
-      // New academic KPIs
-      stepsSummary,
-      gradesSummary,
-      gpaSummary,
-      studentImprovementStatus,
-      exportDate: getCurrentDate().toISOString(),
-      dateRange,
-      selectedStudent: selectedStudent === 'all' ? 'All Students' : students.find(s => s.id === selectedStudent)?.student_name
-    };
+    const selectedStudentLabel = selectedStudent === 'all'
+      ? 'All Students'
+      : (students.find(s => s.id === Number(selectedStudent))?.student_name || 'Unknown Student');
 
     const csvContent = [
       'KPI Dashboard Export',
       `Export Date: ${format(getCurrentDate(), 'yyyy-MM-dd HH:mm:ss')}`,
-      `Date Range: Last ${dateRange} days`,
-      `Student Filter: ${data.selectedStudent}`,
+      `Date Range: ${dateRange === 'all' ? 'All Time' : `Last ${dateRange} days`}`,
+      `Student Filter: ${selectedStudentLabel}`,
       '',
       'Overall Metrics:',
-      `Average Rating: ${overallMetrics.avgRating}/4`,
-      `4's Rate: ${overallMetrics.smileyRate}%`,
+      `Average Rating: ${formatTruncated(overallMetrics.avgRating, 2)}/4`,
+      `4's Rate: ${formatTruncated(overallMetrics.smileyRate, 2)}%`,
       `Total Incidents: ${overallMetrics.totalIncidents}`,
       `Students Tracked: ${overallMetrics.studentsEvaluated}`,
       `Total Evaluations: ${overallMetrics.totalEvaluations}`,
       '',
       'Academic KPIs:',
-      `Total Steps: ${stepsSummary.totalSteps}`,
-      `Average Steps per Student: ${stepsSummary.avgStepsPerStudent}`,
-      `Average GPA: ${gpaSummary.avgGPA}`,
+      `Total Steps: ${stepsSummary.hasData ? formatTruncated(stepsSummary.totalSteps, 2) : 'N/A'}`,
+      `Average Steps per Student: ${stepsSummary.hasData ? formatTruncated(stepsSummary.avgStepsPerStudent, 2) : 'N/A'}`,
+      `Average GPA: ${gpaSummary.totalGPAs ? formatTruncated(gpaSummary.avgGPA, 2) : 'N/A'}`,
       `Total Grades: ${gradesSummary.totalGrades}`,
-      `Average Grade: ${gradesSummary.avgGrade}`,
+      `Average Grade: ${gradesSummary.totalGrades ? `${formatTruncated(gradesSummary.avgGrade, 2)}%` : 'N/A'}`,
       '',
       'Student Improvement Status:',
-      `Needs Improvement: ${studentImprovementStatus.improvementCategories.needsImprovement}`,
-      `Average: ${studentImprovementStatus.improvementCategories.average}`,
-      `Excellent: ${studentImprovementStatus.improvementCategories.excellent}`,
-      `Outstanding: ${studentImprovementStatus.improvementCategories.outstanding}`,
-      `Steps Exceeds: ${studentImprovementStatus.stepsCategories.exceeds}`,
-      `Steps Meets: ${studentImprovementStatus.stepsCategories.meets}`,
-      `Steps Needs Work: ${studentImprovementStatus.stepsCategories.needsWork}`,
-      `Fast Credit Earners: ${studentImprovementStatus.creditsPerformance.fastEarners}`,
+      `Needs Improvement: ${studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.needsImprovement : 'N/A'}`,
+      `Average: ${studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.average : 'N/A'}`,
+      `Excellent: ${studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.excellent : 'N/A'}`,
+      `Outstanding: ${studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.outstanding : 'N/A'}`,
+      `Steps Exceeds: ${studentImprovementStatus.hasStepsData ? studentImprovementStatus.stepsCategories.exceeds : 'N/A'}`,
+      `Steps Meets: ${studentImprovementStatus.hasStepsData ? studentImprovementStatus.stepsCategories.meets : 'N/A'}`,
+      `Steps Needs Work: ${studentImprovementStatus.hasStepsData ? studentImprovementStatus.stepsCategories.needsWork : 'N/A'}`,
+      `Fast Credit Earners: ${studentImprovementStatus.hasCreditsData ? studentImprovementStatus.creditsPerformance.fastEarners : 'N/A'}`,
       '',
       'Student Performance:',
       'Name,Avg Rating,4\'s Rate %,Incidents,Evaluations',
@@ -664,6 +651,33 @@ const exportAllCSVs = async () => {
           console.warn('Skipping credits export:', creditExportError?.message || creditExportError);
         }
       }
+      // Grades (if table present)
+      try {
+        const rows = await Grade.list('-date_entered');
+        const startDate = parseYmd(start);
+        const endDate = parseYmd(end);
+        const filteredRows = Array.isArray(rows)
+          ? rows.filter(r => {
+              const enteredDate = parseYmd(r.date_entered);
+              return enteredDate >= startDate && enteredDate <= endDate;
+            })
+          : [];
+        if (filteredRows.length > 0) {
+          const headers = ['id','student_id','course_name','grade_value','letter_grade','date_entered'];
+          const csv = [headers.join(',')];
+          filteredRows.forEach(r => csv.push([
+            r.id,
+            r.student_id,
+            r.course_name ?? '',
+            r.grade_value ?? 0,
+            r.letter_grade ?? '',
+            r.date_entered ?? ''
+          ].map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(',')));
+          files.push({ name: `grades-${start}_to_${end}.csv`, data: csv.join('\n') });
+        }
+      } catch (gradeExportError) {
+        console.warn('Skipping grades export:', gradeExportError?.message || gradeExportError);
+      }
       // Active students
       {
         const rows = await Student.filter({ active: true })
@@ -700,14 +714,13 @@ const exportAllCSVs = async () => {
   // Clear all data
   const clearAllData = async () => {
     try {
-      setIsLoading(true);
-      
       // Clear all data entities
       await Promise.all([
         DailyEvaluation.clearAll(),
         IncidentReport.clearAll(),
         BehaviorSummary.clearAll(),
-        ContactLog.clearAll()
+        ContactLog.clearAll(),
+        Grade.clearAll()
       ]);
       
       // Reload data to refresh the UI
@@ -717,7 +730,6 @@ const exportAllCSVs = async () => {
     } catch (error) {
       console.error("Error clearing data:", error);
       toast.error("Failed to clear data. Please try again.");
-      setIsLoading(false);
     }
   };
 
@@ -766,10 +778,10 @@ const exportAllCSVs = async () => {
     const filteredCredits = getCreditsData();
     const totalCredits = filteredCredits.reduce((sum, credit) => sum + (credit.credit_value || 0), 0);
     const studentsWithCredits = new Set(filteredCredits.map(credit => credit.student_id)).size;
-    const avgCreditsPerStudent = studentsWithCredits > 0 ? Math.round((totalCredits / studentsWithCredits) * 100) / 100 : 0;
+    const avgCreditsPerStudent = studentsWithCredits > 0 ? truncateDecimal(totalCredits / studentsWithCredits, 2) : 0;
 
     return {
-      totalCredits: Math.round(totalCredits * 100) / 100,
+      totalCredits: truncateDecimal(totalCredits, 2),
       totalStudents: studentsWithCredits,
       avgCreditsPerStudent
     };
@@ -801,7 +813,7 @@ const exportAllCSVs = async () => {
 
     return Object.values(studentCreditsMap).map(student => ({
       ...student,
-      credits: Math.round(student.credits * 100) / 100
+      credits: truncateDecimal(student.credits, 2)
     }));
   };
 
@@ -841,7 +853,7 @@ const exportAllCSVs = async () => {
           };
         }
         
-        monthlyCredits[monthKey].creditsEarned += credit.credit_value || 0;
+          monthlyCredits[monthKey].creditsEarned += credit.credit_value || 0;
       });
 
     // Calculate cumulative totals
@@ -851,8 +863,8 @@ const exportAllCSVs = async () => {
         cumulativeTotal += monthlyCredits[monthKey].creditsEarned;
         return {
           ...monthlyCredits[monthKey],
-          creditsEarned: Math.round(monthlyCredits[monthKey].creditsEarned * 100) / 100,
-          cumulative: Math.round(cumulativeTotal * 100) / 100
+          creditsEarned: truncateDecimal(monthlyCredits[monthKey].creditsEarned, 2),
+          cumulative: truncateDecimal(cumulativeTotal, 2)
         };
       });
   };
@@ -889,14 +901,40 @@ const exportAllCSVs = async () => {
 
   const getStepsSummary = () => {
     const filteredSteps = getStepsData();
-    const totalSteps = filteredSteps.reduce((sum, step) => sum + (step.steps_count || 0), 0);
-    const studentsWithSteps = new Set(filteredSteps.map(step => step.student_id)).size;
-    const avgStepsPerStudent = studentsWithSteps > 0 ? Math.round((totalSteps / studentsWithSteps) * 100) / 100 : 0;
+    const totalsByStudent = new Map();
+
+    filteredSteps.forEach(step => {
+      const studentId = step.student_id;
+      if (!studentId) return;
+      const count = Number(step.steps_count ?? step.count ?? step.steps ?? 0);
+      if (!Number.isFinite(count)) return;
+      const current = totalsByStudent.get(studentId) || 0;
+      totalsByStudent.set(studentId, current + count);
+    });
+
+    const studentsWithSteps = totalsByStudent.size;
+    if (studentsWithSteps === 0) {
+      return {
+        totalSteps: null,
+        totalStudents: 0,
+        avgStepsPerStudent: null,
+        hasData: false,
+        studentTotals: []
+      };
+    }
+
+    const totalSteps = Array.from(totalsByStudent.values()).reduce((sum, value) => sum + value, 0);
+    const avgStepsPerStudent = truncateDecimal(totalSteps / studentsWithSteps, 2);
 
     return {
-      totalSteps: Math.round(totalSteps * 100) / 100,
+      totalSteps: truncateDecimal(totalSteps, 2),
       totalStudents: studentsWithSteps,
-      avgStepsPerStudent
+      avgStepsPerStudent,
+      hasData: true,
+      studentTotals: Array.from(totalsByStudent.entries()).map(([studentId, steps]) => ({
+        studentId,
+        steps: truncateDecimal(steps, 2)
+      }))
     };
   };
 
@@ -910,9 +948,10 @@ const exportAllCSVs = async () => {
       const daysBack = parseInt(dateRange);
       const cutoffDate = subDays(getCurrentDate(), daysBack);
       
-      filteredGrades = grades.filter(grade => 
-        parseYmd(grade.date_entered) >= cutoffDate
-      );
+      filteredGrades = grades.filter(grade => {
+        if (!grade?.date_entered) return false;
+        return parseYmd(grade.date_entered) >= cutoffDate;
+      });
     }
     
     // Apply student filtering
@@ -926,80 +965,119 @@ const exportAllCSVs = async () => {
   const getGradesSummary = () => {
     const filteredGrades = getGradesData();
     const totalGrades = filteredGrades.length;
-    const avgGrade = totalGrades > 0 ? 
-      filteredGrades.reduce((sum, grade) => sum + (grade.grade_value || 0), 0) / totalGrades : 0;
-    const studentsWithGrades = new Set(filteredGrades.map(grade => grade.student_id)).size;
+    const avgGradeRaw = totalGrades > 0 ?
+      filteredGrades.reduce((sum, grade) => sum + (Number(grade.grade_value) || 0), 0) / totalGrades : 0;
+    const avgGrade = truncateDecimal(avgGradeRaw, 2);
+
+    const studentGradeMap = new Map();
+    filteredGrades.forEach(grade => {
+      const studentId = grade.student_id;
+      if (!studentId) return;
+      const value = Number(grade.grade_value);
+      if (!Number.isFinite(value)) return;
+      const current = studentGradeMap.get(studentId) || { sum: 0, count: 0 };
+      current.sum += value;
+      current.count += 1;
+      studentGradeMap.set(studentId, current);
+    });
+
+    const studentAverages = [];
+    studentGradeMap.forEach((entry, studentId) => {
+      if (entry.count === 0) return;
+      const avgPercent = entry.sum / entry.count;
+      const gpaScore = truncateDecimal((avgPercent / 100) * 4, 2);
+      studentAverages.push({
+        studentId,
+        averagePercent: truncateDecimal(avgPercent, 2),
+        gpa: gpaScore
+      });
+    });
 
     return {
       totalGrades,
-      avgGrade: Math.round(avgGrade * 100) / 100,
-      totalStudents: studentsWithGrades
+      avgGrade,
+      totalStudents: studentAverages.length,
+      studentAverages
     };
   };
 
   const getGPASummary = () => {
     const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
-    
-    let filteredGPAs = gpas;
-    
-    // Apply student filtering
+
+    let filteredGPAs = Array.isArray(gpas) ? [...gpas] : [];
+
+    // Use derived GPA from grades when explicit GPA data is unavailable
+    if (filteredGPAs.length === 0 && gradesSummary.studentAverages?.length) {
+      filteredGPAs = gradesSummary.studentAverages.map(item => ({
+        student_id: item.studentId,
+        gpa_value: item.gpa
+      }));
+    }
+
     if (selectedId != null) {
-      filteredGPAs = gpas.filter(gpa => gpa.student_id === selectedId);
+      filteredGPAs = filteredGPAs.filter(gpa => gpa.student_id === selectedId);
     }
 
     const totalGPAs = filteredGPAs.length;
-    const avgGPA = totalGPAs > 0 ? 
-      filteredGPAs.reduce((sum, gpa) => sum + (gpa.gpa_value || 0), 0) / totalGPAs : 0;
+    const avgGPA = totalGPAs > 0 ?
+      filteredGPAs.reduce((sum, gpa) => sum + (Number(gpa.gpa_value) || 0), 0) / totalGPAs : 0;
 
     return {
       totalGPAs,
-      avgGPA: Math.round(avgGPA * 100) / 100
+      avgGPA: totalGPAs > 0 ? truncateDecimal(avgGPA, 2) : null
     };
   };
 
   const getStudentImprovementStatus = () => {
-    // This will combine GPA, steps, credits, and grades to determine improvement status
-    const studentComparison = getStudentComparison();
-    const creditsData = getCreditsPerStudentData();
-
-    // Use behavior ratings as proxy for GPA categories until GPA entity is available
+    const gradeAverages = gradesSummary.studentAverages || [];
     const improvementCategories = {
-      needsImprovement: 0, // GPA <= 2.4 (proxy: avg rating < 2.5)
-      average: 0, // GPA 2.5-3.0 (proxy: avg rating 2.5-3.0)
-      excellent: 0, // GPA 3.1-3.5 (proxy: avg rating 3.0-3.5)
-      outstanding: 0 // GPA 3.6-4.0 (proxy: avg rating > 3.5)
+      needsImprovement: 0,
+      average: 0,
+      excellent: 0,
+      outstanding: 0
     };
 
-    studentComparison.forEach(student => {
-      if (student.avgRating < 2.5) improvementCategories.needsImprovement++;
-      else if (student.avgRating <= 3.0) improvementCategories.average++;
-      else if (student.avgRating <= 3.5) improvementCategories.excellent++;
+    gradeAverages.forEach(item => {
+      const gpa = Number(item.gpa);
+      if (!Number.isFinite(gpa)) return;
+      if (gpa <= 2.4) improvementCategories.needsImprovement++;
+      else if (gpa <= 3.0) improvementCategories.average++;
+      else if (gpa <= 3.5) improvementCategories.excellent++;
       else improvementCategories.outstanding++;
     });
 
-    // Steps categories - placeholder until steps entity is available
+    const hasGpaData = gradeAverages.length > 0;
+
     const stepsCategories = {
-      exceeds: 0, // >=16 steps
-      meets: 0, // 15 steps
-      needsWork: 0 // <10 steps
+      exceeds: 0,
+      meets: 0,
+      needsWork: 0
     };
 
-    // For now, use 4's rate as proxy for steps performance
-    studentComparison.forEach(student => {
-      if (student.smileyRate >= 30) stepsCategories.exceeds++; // High 4's rate = exceeds
-      else if (student.smileyRate >= 20) stepsCategories.meets++; // Medium 4's rate = meets
-      else stepsCategories.needsWork++; // Low 4's rate = needs work
+    const stepsStudentTotals = stepsSummary.studentTotals || [];
+    stepsStudentTotals.forEach(item => {
+      const value = Number(item.steps);
+      if (!Number.isFinite(value)) return;
+      if (value >= 16) stepsCategories.exceeds++;
+      else if (value >= 10) stepsCategories.meets++;
+      else stepsCategories.needsWork++;
     });
 
-    // Credits performance - students earning credits quickly
+    const hasStepsData = stepsSummary.hasData;
+
+    const creditsPerStudent = getCreditsPerStudentData();
     const creditsPerformance = {
-      fastEarners: creditsData.filter(student => student.credits > 5).length // More than 5 credits = fast earner
+      fastEarners: creditsPerStudent.filter(student => student.credits >= 5).length
     };
+    const hasCreditsData = creditsPerStudent.length > 0;
 
     return {
       improvementCategories,
+      hasGpaData,
       stepsCategories,
-      creditsPerformance
+      hasStepsData,
+      creditsPerformance,
+      hasCreditsData
     };
   };
 
@@ -1152,7 +1230,7 @@ const exportAllCSVs = async () => {
                 <span className="hidden sm:inline">Clear Data</span>
                 <span className="sm:hidden">Clear</span>
               </Button>
-              <Button onClick={loadData} variant="outline" disabled={isLoading} className="h-10 sm:h-auto">
+              <Button onClick={handleRefresh} variant="outline" disabled={isLoading} className="h-10 sm:h-auto">
                 <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
@@ -1421,9 +1499,11 @@ const exportAllCSVs = async () => {
                 <CardTitle className="text-base sm:text-lg">Steps Completed</CardTitle>
               </CardHeader>
               <CardContent className="p-3 sm:p-6">
-                <div className="text-2xl font-bold text-blue-600">{stepsSummary.totalSteps || 0}</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {stepsSummary.hasData ? formatTruncated(stepsSummary.totalSteps, 2) : 'N/A'}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Avg {stepsSummary.avgStepsPerStudent || 0} per student
+                  {stepsSummary.hasData ? `Avg ${formatTruncated(stepsSummary.avgStepsPerStudent, 2)} per student` : 'No step data available'}
                 </p>
               </CardContent>
             </Card>
@@ -1434,7 +1514,7 @@ const exportAllCSVs = async () => {
                 <CardTitle className="text-base sm:text-lg">Average GPA</CardTitle>
               </CardHeader>
               <CardContent className="p-3 sm:p-6">
-                <div className="text-2xl font-bold text-green-600">{gpaSummary.avgGPA || 'N/A'}</div>
+                <div className="text-2xl font-bold text-green-600">{gpaSummary.avgGPA != null ? formatTruncated(gpaSummary.avgGPA, 2) : 'N/A'}</div>
                 <p className="text-xs text-muted-foreground">
                   From {gpaSummary.totalGPAs || 0} GPA records
                 </p>
@@ -1447,7 +1527,7 @@ const exportAllCSVs = async () => {
                 <CardTitle className="text-base sm:text-lg">Grades Overview</CardTitle>
               </CardHeader>
               <CardContent className="p-3 sm:p-6">
-                <div className="text-2xl font-bold text-purple-600">{gradesSummary.avgGrade || 'N/A'}</div>
+                <div className="text-2xl font-bold text-purple-600">{gradesSummary.totalGrades > 0 ? `${formatTruncated(gradesSummary.avgGrade, 2)}%` : 'N/A'}</div>
                 <p className="text-xs text-muted-foreground">
                   From {gradesSummary.totalGrades || 0} grade entries
                 </p>
@@ -1463,31 +1543,41 @@ const exportAllCSVs = async () => {
             <CardContent className="p-3 sm:p-6">
               <div className="space-y-4">
                 <div className="text-sm text-slate-600 mb-4">
-                  Based on GPA, steps completed, credits earned, and grades:
+                  {studentImprovementStatus.hasGpaData || studentImprovementStatus.hasStepsData || studentImprovementStatus.hasCreditsData
+                    ? 'Based on available GPA, steps, and credit data.'
+                    : 'Student improvement metrics will appear once academic data is recorded.'}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                     <h4 className="font-semibold text-red-900 text-sm">Needs Improvement</h4>
                     <p className="text-xs text-red-700 mt-1">GPA ≤ 2.4</p>
-                    <div className="text-lg font-bold text-red-600 mt-2">{studentImprovementStatus.improvementCategories.needsImprovement}</div>
+                    <div className="text-lg font-bold text-red-600 mt-2">
+                      {studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.needsImprovement : 'N/A'}
+                    </div>
                     <p className="text-xs text-red-600">Students</p>
                   </div>
                   <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <h4 className="font-semibold text-yellow-900 text-sm">Average</h4>
                     <p className="text-xs text-yellow-700 mt-1">GPA 2.5 - 3.0</p>
-                    <div className="text-lg font-bold text-yellow-600 mt-2">{studentImprovementStatus.improvementCategories.average}</div>
+                    <div className="text-lg font-bold text-yellow-600 mt-2">
+                      {studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.average : 'N/A'}
+                    </div>
                     <p className="text-xs text-yellow-600">Students</p>
                   </div>
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <h4 className="font-semibold text-blue-900 text-sm">Excellent</h4>
                     <p className="text-xs text-blue-700 mt-1">GPA 3.1 - 3.5</p>
-                    <div className="text-lg font-bold text-blue-600 mt-2">{studentImprovementStatus.improvementCategories.excellent}</div>
+                    <div className="text-lg font-bold text-blue-600 mt-2">
+                      {studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.excellent : 'N/A'}
+                    </div>
                     <p className="text-xs text-blue-600">Students</p>
                   </div>
                   <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                     <h4 className="font-semibold text-green-900 text-sm">Outstanding</h4>
                     <p className="text-xs text-green-700 mt-1">GPA 3.6 - 4.0</p>
-                    <div className="text-lg font-bold text-green-600 mt-2">{studentImprovementStatus.improvementCategories.outstanding}</div>
+                    <div className="text-lg font-bold text-green-600 mt-2">
+                      {studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.outstanding : 'N/A'}
+                    </div>
                     <p className="text-xs text-green-600">Students</p>
                   </div>
                 </div>
@@ -1496,15 +1586,21 @@ const exportAllCSVs = async () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                     <div className="text-center">
                       <div className="font-medium text-green-700">Exceeds (≥16)</div>
-                      <div className="text-lg font-bold text-green-600">{studentImprovementStatus.stepsCategories.exceeds}</div>
+                      <div className="text-lg font-bold text-green-600">
+                        {studentImprovementStatus.hasStepsData ? studentImprovementStatus.stepsCategories.exceeds : 'N/A'}
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="font-medium text-blue-700">Meets (15)</div>
-                      <div className="text-lg font-bold text-blue-600">{studentImprovementStatus.stepsCategories.meets}</div>
+                      <div className="text-lg font-bold text-blue-600">
+                        {studentImprovementStatus.hasStepsData ? studentImprovementStatus.stepsCategories.meets : 'N/A'}
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="font-medium text-red-700">Needs Work (&lt;10)</div>
-                      <div className="text-lg font-bold text-red-600">{studentImprovementStatus.stepsCategories.needsWork}</div>
+                      <div className="text-lg font-bold text-red-600">
+                        {studentImprovementStatus.hasStepsData ? studentImprovementStatus.stepsCategories.needsWork : 'N/A'}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1512,7 +1608,7 @@ const exportAllCSVs = async () => {
                   <h4 className="font-semibold text-slate-900 text-sm mb-2">Credits Performance</h4>
                   <p className="text-xs text-slate-600">Credits earned quickly highlight excellent progress</p>
                   <div className="mt-2 text-sm">
-                    <span className="font-medium">Fast Earners:</span> {studentImprovementStatus.creditsPerformance.fastEarners} students
+                    <span className="font-medium">Fast Earners:</span> {studentImprovementStatus.hasCreditsData ? studentImprovementStatus.creditsPerformance.fastEarners : 'N/A'} students
                   </div>
                 </div>
               </div>

@@ -49,7 +49,7 @@ export default function PrintGradesDialog({ open, onOpenChange, students, curren
 
   const withinRange = (g) => {
     if (!start && !end) return true;
-    const day = (g.created_at || '').slice(0,10);
+    const day = (g.date_entered || g.created_at || '').slice(0,10);
     if (start && day < start) return false;
     if (end && day > end) return false;
     return true;
@@ -86,7 +86,11 @@ export default function PrintGradesDialog({ open, onOpenChange, students, curren
   const getName = (id) => students.find(s => s.id === id)?.student_name || 'Unknown';
 
   const renderTable = (sid) => {
-    const rows = (byStudent.get(sid) || []).filter(withinRange);
+    const rows = (byStudent.get(sid) || []).filter(withinRange).sort((a, b) => {
+      const left = new Date(a.date_entered || a.created_at || 0).getTime() || 0;
+      const right = new Date(b.date_entered || b.created_at || 0).getTime() || 0;
+      return left - right;
+    });
     if (rows.length === 0) return null;
     return (
       <div key={sid} className="student-block">
@@ -110,10 +114,10 @@ export default function PrintGradesDialog({ open, onOpenChange, students, curren
           <tbody>
             {rows.map(r => (
               <tr key={r.id}>
-                <td>{r.class_name}</td>
-                <td>{Number(r.percentage).toFixed(1)}%</td>
+                <td>{r.course_name}</td>
+                <td>{Number(r.grade_value ?? r.percentage ?? 0).toFixed(1)}%</td>
                 <td>{r.letter_grade}</td>
-                <td>{r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}</td>
+                <td>{r.date_entered ? new Date(r.date_entered).toLocaleDateString() : (r.created_at ? new Date(r.created_at).toLocaleDateString() : '')}</td>
               </tr>
             ))}
           </tbody>
@@ -172,4 +176,3 @@ export default function PrintGradesDialog({ open, onOpenChange, students, curren
     </Dialog>
   );
 }
-

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { LayoutDashboard, MessageSquare, Zap, Settings, ShieldCheck, Menu, FileText, AlertTriangle, BarChart3, BookOpen } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Zap, Settings, Menu, FileText, AlertTriangle, BarChart3, BookOpen, Printer, Grid3X3 } from 'lucide-react';
 import RealTimeSync from '../components/sync/RealTimeSync';
 import SupabaseStatus from '../components/SupabaseStatus';
 import SupabaseHealth from '../components/SupabaseHealth';
@@ -14,8 +14,10 @@ const navItems = [
     { title: 'Contact Logs', icon: MessageSquare, url: createPageUrl('ContactLogs') },
     { title: 'Quick Score', icon: Zap, url: createPageUrl('QuickScore') },
     { title: 'KPI Dashboard', icon: BarChart3, url: createPageUrl('KPIDashboard') },
+    { title: 'B.E.S.T Grids', icon: Grid3X3, url: createPageUrl('BestGrids') },
     { title: 'Behavior Summaries', icon: FileText, url: createPageUrl('BehaviorSummaryReports') },
     { title: 'Summary Reports', icon: FileText, url: createPageUrl('SummaryReports') },
+    { title: 'Print Reports', icon: Printer, url: createPageUrl('PrintReports') },
     { title: 'Academic Progress Dashboard', icon: BookOpen, url: createPageUrl('CreditsEarned') },
     { title: 'Incident Reports', icon: AlertTriangle, url: createPageUrl('IncidentReports') },
     { title: 'Settings', icon: Settings, url: createPageUrl('Settings') },
@@ -54,8 +56,8 @@ export default function Layout({ children }) {
             <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-white/75 backdrop-blur-lg border-r border-[#cbe7ff] flex-col flex transform md:relative md:translate-x-0 transition-transform duration-300 ease-in-out shadow-lg shadow-sky-100/40 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="p-6 border-b border-[#d6ecff] bg-white/70">
                     <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 bg-gradient-to-br from-[#4dd0b5] via-[#1c9de0] to-[#0b6ea0] rounded-2xl flex items-center justify-center shadow-lg shadow-sky-200/60">
-                            <ShieldCheck className="w-6 h-6 text-white" />
+                        <div className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg shadow-sky-200/60">
+                            <img src="/icon.svg" alt="BEST Hub Logo" className="w-11 h-11 rounded-2xl" />
                         </div>
                         <div>
                             <h1 className="text-lg font-extrabold text-[#0e4e7c] tracking-tight">BEST Hub</h1>
@@ -84,8 +86,9 @@ export default function Layout({ children }) {
                     >
                         <Menu className="w-6 h-6" />
                     </button>
-                    <div className="flex-1 text-center font-semibold text-[#0e4e7c]">
-                        BEST Hub
+                    <div className="flex-1 flex items-center justify-center gap-2">
+                        <img src="/icon.svg" alt="BEST Hub Logo" className="w-8 h-8 rounded-lg" />
+                        <span className="font-semibold text-[#0e4e7c]">BEST Hub</span>
                     </div>
                     <div className="p-2">
                         {/* User profile menu when authenticated */}

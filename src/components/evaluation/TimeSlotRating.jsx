@@ -25,7 +25,7 @@ export default function TimeSlotRating({ timeSlot, data, onChange }) {
               value={data.status || ''}
               onValueChange={(value) => onChange('status', value)}
             >
-              <SelectTrigger className="w-40 h-12 text-base">
+              <SelectTrigger className="w-40 h-12 text-base text-center">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>

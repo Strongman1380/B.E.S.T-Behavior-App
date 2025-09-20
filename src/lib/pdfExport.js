@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
+import { formatTruncated } from '@/utils';
 
 
 
@@ -283,15 +284,15 @@ export class KPIPDFExporter {
       
       const academicMetrics = [];
       if (stepsSummary) {
-        academicMetrics.push(['Total Steps Completed', stepsSummary.totalSteps || 0]);
-        academicMetrics.push(['Average Steps per Student', stepsSummary.avgStepsPerStudent || 0]);
+        academicMetrics.push(['Total Steps Completed', stepsSummary.hasData ? formatTruncated(stepsSummary.totalSteps, 2) : 'N/A']);
+        academicMetrics.push(['Average Steps per Student', stepsSummary.hasData ? formatTruncated(stepsSummary.avgStepsPerStudent, 2) : 'N/A']);
       }
       if (gradesSummary) {
         academicMetrics.push(['Total Grades Recorded', gradesSummary.totalGrades || 0]);
-        academicMetrics.push(['Average Grade', gradesSummary.avgGrade || 'N/A']);
+        academicMetrics.push(['Average Grade', gradesSummary.totalGrades ? `${formatTruncated(gradesSummary.avgGrade, 2)}%` : 'N/A']);
       }
       if (gpaSummary) {
-        academicMetrics.push(['Average GPA', gpaSummary.avgGPA || 'N/A']);
+        academicMetrics.push(['Average GPA', gpaSummary.avgGPA != null ? formatTruncated(gpaSummary.avgGPA, 2) : 'N/A']);
       }
       
       if (academicMetrics.length > 0) {
@@ -304,10 +305,11 @@ export class KPIPDFExporter {
       const improvementData = [];
       if (studentImprovementStatus.improvementCategories) {
         const cats = studentImprovementStatus.improvementCategories;
-        improvementData.push(['Needs Improvement', cats.needsImprovement || 0]);
-        improvementData.push(['Average', cats.average || 0]);
-        improvementData.push(['Excellent', cats.excellent || 0]);
-        improvementData.push(['Outstanding', cats.outstanding || 0]);
+        const hasGpaData = Boolean(studentImprovementStatus.hasGpaData);
+        improvementData.push(['Needs Improvement', hasGpaData ? (cats.needsImprovement || 0) : 'N/A']);
+        improvementData.push(['Average', hasGpaData ? (cats.average || 0) : 'N/A']);
+        improvementData.push(['Excellent', hasGpaData ? (cats.excellent || 0) : 'N/A']);
+        improvementData.push(['Outstanding', hasGpaData ? (cats.outstanding || 0) : 'N/A']);
       }
       
       if (improvementData.length > 0) {
@@ -468,15 +470,15 @@ export const exportEnhancedCSV = (data) => {
   // Academic KPIs
   sections.push('=== ACADEMIC PERFORMANCE METRICS ===');
   if (stepsSummary) {
-    sections.push(`Total Steps Completed,${stepsSummary.totalSteps || 0}`);
-    sections.push(`Average Steps per Student,${stepsSummary.avgStepsPerStudent || 0}`);
+    sections.push(`Total Steps Completed,${stepsSummary.hasData ? formatTruncated(stepsSummary.totalSteps, 2) : 'N/A'}`);
+    sections.push(`Average Steps per Student,${stepsSummary.hasData ? formatTruncated(stepsSummary.avgStepsPerStudent, 2) : 'N/A'}`);
   }
   if (gradesSummary) {
     sections.push(`Total Grades Recorded,${gradesSummary.totalGrades || 0}`);
-    sections.push(`Average Grade,${gradesSummary.avgGrade || 'N/A'}`);
+    sections.push(`Average Grade,${gradesSummary.totalGrades ? `${formatTruncated(gradesSummary.avgGrade, 2)}%` : 'N/A'}`);
   }
   if (gpaSummary) {
-    sections.push(`Average GPA,${gpaSummary.avgGPA || 'N/A'}`);
+    sections.push(`Average GPA,${gpaSummary.avgGPA != null ? formatTruncated(gpaSummary.avgGPA, 2) : 'N/A'}`);
   }
   sections.push('');
 
@@ -485,26 +487,26 @@ export const exportEnhancedCSV = (data) => {
     sections.push('=== STUDENT IMPROVEMENT CATEGORIES ===');
     if (studentImprovementStatus.improvementCategories) {
       const cats = studentImprovementStatus.improvementCategories;
-      sections.push(`Needs Improvement,${cats.needsImprovement || 0}`);
-      sections.push(`Average,${cats.average || 0}`);
-      sections.push(`Excellent,${cats.excellent || 0}`);
-      sections.push(`Outstanding,${cats.outstanding || 0}`);
+      sections.push(`Needs Improvement,${studentImprovementStatus.hasGpaData ? cats.needsImprovement || 0 : 'N/A'}`);
+      sections.push(`Average,${studentImprovementStatus.hasGpaData ? cats.average || 0 : 'N/A'}`);
+      sections.push(`Excellent,${studentImprovementStatus.hasGpaData ? cats.excellent || 0 : 'N/A'}`);
+      sections.push(`Outstanding,${studentImprovementStatus.hasGpaData ? cats.outstanding || 0 : 'N/A'}`);
     }
     
     if (studentImprovementStatus.stepsCategories) {
       sections.push('');
       sections.push('=== STEPS PERFORMANCE CATEGORIES ===');
       const steps = studentImprovementStatus.stepsCategories;
-      sections.push(`Exceeds Expectations,${steps.exceeds || 0}`);
-      sections.push(`Meets Expectations,${steps.meets || 0}`);
-      sections.push(`Needs Work,${steps.needsWork || 0}`);
+      sections.push(`Exceeds Expectations,${studentImprovementStatus.hasStepsData ? steps.exceeds || 0 : 'N/A'}`);
+      sections.push(`Meets Expectations,${studentImprovementStatus.hasStepsData ? steps.meets || 0 : 'N/A'}`);
+      sections.push(`Needs Work,${studentImprovementStatus.hasStepsData ? steps.needsWork || 0 : 'N/A'}`);
     }
     
     if (studentImprovementStatus.creditsPerformance) {
       sections.push('');
       sections.push('=== CREDITS PERFORMANCE ===');
       const credits = studentImprovementStatus.creditsPerformance;
-      sections.push(`Fast Credit Earners,${credits.fastEarners || 0}`);
+      sections.push(`Fast Credit Earners,${studentImprovementStatus.hasCreditsData ? credits.fastEarners || 0 : 'N/A'}`);
     }
   }
 

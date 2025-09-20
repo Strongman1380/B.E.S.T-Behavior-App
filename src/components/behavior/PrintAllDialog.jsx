@@ -64,7 +64,7 @@ export default function PrintAllDialog({ open, onOpenChange, students, evaluatio
         </DialogHeader>
         <div id="print-all-area" className="flex-grow overflow-y-auto p-2 bg-slate-100">
           {students.length > 0 ? (
-            students.map((student, index) => {
+            [...students].sort((a, b) => a.student_name.localeCompare(b.student_name)).map((student, index) => {
               const evaluation = getEvaluationForStudent(student.id);
               if (!evaluation) return null;
               return (

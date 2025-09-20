@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:analyze": "vite build --mode analyze",
     "build:pages": "GITHUB_PAGES=1 vite build",
+    "build:perf": "vite build && npm run preview",
     "lint": "eslint .",
     "preview": "vite preview",
     "vercel-build": "vite build"

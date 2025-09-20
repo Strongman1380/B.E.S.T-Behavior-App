@@ -11,7 +11,7 @@ const SECTION_LABELS = {
 
 const roundDisplay = (average, count) => {
   if (!count || Number.isNaN(average)) return "--";
-  return Math.round(average).toString();
+  return average.toFixed(2);
 };
 
 export default function EndOfDayReportDialog({ open, onOpenChange, students, evaluations, date }) {
@@ -70,11 +70,11 @@ export default function EndOfDayReportDialog({ open, onOpenChange, students, eva
         acc[key] = "--";
       } else {
         const average = data.sum / data.count;
-        acc[key] = Math.round(average).toString();
+        acc[key] = average.toFixed(2);
       }
       return acc;
     }, {}),
-    overall: aggregates.overall.count ? Math.round(aggregates.overall.sum / aggregates.overall.count).toString() : "--"
+    overall: aggregates.overall.count ? (aggregates.overall.sum / aggregates.overall.count).toFixed(2) : "--"
   };
 
   const handlePrint = () => {

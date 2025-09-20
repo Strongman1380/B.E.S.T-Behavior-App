@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTruncated } from '@/utils';
 
 /**
  * Print-friendly layout rendered off-screen and consumed by react-to-print.
@@ -17,9 +18,9 @@ const KPIPrintLayout = React.forwardRef(({ data, schoolName, dateRange }, ref) =
     gpaSummary,
   } = data || {};
 
-  const fmt = (value, digits = 2) => {
-    if (value === null || value === undefined || Number.isNaN(Number(value))) return '0.00';
-    return Number(value).toFixed(digits);
+  const fmt = (value, digits = 2, fallback = '0.00') => {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return fallback;
+    return formatTruncated(value, digits);
   };
 
   const sectionHeading = {
@@ -89,9 +90,9 @@ const KPIPrintLayout = React.forwardRef(({ data, schoolName, dateRange }, ref) =
           </div>
           <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '12px' }}>
             <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>Academic Metrics</h3>
-            <p style={{ margin: '4px 0' }}>Average GPA: {gpaSummary?.avgGPA ?? 'N/A'}</p>
-            <p style={{ margin: '4px 0' }}>Average Grade: {gradesSummary?.avgGrade ?? 'N/A'}</p>
-            <p style={{ margin: '4px 0' }}>Total Steps Logged: {stepsSummary?.totalSteps ?? 'N/A'}</p>
+            <p style={{ margin: '4px 0' }}>Average GPA: {gpaSummary?.avgGPA != null ? formatTruncated(gpaSummary.avgGPA, 2) : 'N/A'}</p>
+            <p style={{ margin: '4px 0' }}>Average Grade: {gradesSummary?.totalGrades ? `${formatTruncated(gradesSummary.avgGrade, 2)}%` : 'N/A'}</p>
+            <p style={{ margin: '4px 0' }}>Total Steps Logged: {stepsSummary?.hasData ? formatTruncated(stepsSummary.totalSteps, 2) : 'N/A'}</p>
           </div>
         </div>
       </section>
@@ -239,7 +240,7 @@ const KPIPrintLayout = React.forwardRef(({ data, schoolName, dateRange }, ref) =
           <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '12px' }}>
             <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>Credits Progress</h3>
             <p style={{ margin: '4px 0' }}>Fast Earners: {studentImprovementStatus?.creditsPerformance?.fastEarners ?? 0}</p>
-            <p style={{ margin: '4px 0' }}>Average Steps / Student: {stepsSummary?.avgStepsPerStudent ?? 'N/A'}</p>
+            <p style={{ margin: '4px 0' }}>Average Steps / Student: {stepsSummary?.hasData ? formatTruncated(stepsSummary.avgStepsPerStudent, 2) : 'N/A'}</p>
             <p style={{ margin: '4px 0' }}>Total Grades Recorded: {gradesSummary?.totalGrades ?? 0}</p>
           </div>
         </div>
@@ -247,5 +248,7 @@ const KPIPrintLayout = React.forwardRef(({ data, schoolName, dateRange }, ref) =
     </div>
   );
 });
+
+KPIPrintLayout.displayName = 'KPIPrintLayout';
 
 export default KPIPrintLayout;
