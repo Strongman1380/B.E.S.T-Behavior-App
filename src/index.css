@@ -208,3 +208,87 @@ button:focus-visible {
     outline-offset: 2px;
   }
 }
+
+/* Print Styles for KPI Dashboard */
+@media print {
+  /* Hide interactive elements */
+  .kpi-dashboard button,
+  .kpi-dashboard [class*="DropdownMenu"],
+  .kpi-dashboard [class*="Select"],
+  .kpi-dashboard input,
+  .kpi-dashboard textarea,
+  .kpi-dashboard nav,
+  .kpi-dashboard [class*="sidebar"],
+  .kpi-dashboard [class*="menu"] {
+    display: none !important;
+  }
+
+  /* Ensure full width for printed content */
+  .kpi-dashboard {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Optimize cards for printing */
+  .kpi-dashboard [class*="Card"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 20px !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: none !important;
+  }
+
+  /* Ensure tables don't break awkwardly */
+  table {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Charts should fit properly */
+  .kpi-dashboard [class*="Suspense"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    max-height: none !important;
+  }
+
+  /* Page margins for better printing */
+  @page {
+    margin: 0.5in;
+    size: A4;
+  }
+
+  /* Ensure text is readable */
+  body {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    color: black !important;
+    background: white !important;
+  }
+
+  /* Hide any background gradients or images */
+  .bg-gradient-to-br,
+  .bg-gradient-to-r {
+    background: white !important;
+  }
+
+  /* Make sure headings are prominent */
+  h1, h2, h3, h4 {
+    color: black !important;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Ensure lists and content flow properly */
+  .space-y-3 > * + * {
+    margin-top: 0.5rem !important;
+  }
+
+  /* Badge styling for print */
+  .badge {
+    border: 1px solid #d1d5db !important;
+    background: #f9fafb !important;
+    color: #374151 !important;
+  }
+}

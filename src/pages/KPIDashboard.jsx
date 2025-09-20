@@ -15,8 +15,6 @@ import { getNumericSectionValues } from "@/utils/behaviorMetrics";
 import { toast } from 'sonner';
 import ClearDataDialog from "@/components/kpi/ClearDataDialog";
 import { createZip } from "@/lib/zip";
-import { useReactToPrint } from 'react-to-print';
-import KPIPrintLayout from '@/components/print/KPIPrintLayout';
 
 const BehaviorTrendChart = lazy(() => import('@/components/kpi/BehaviorTrendChart'));
 const IncidentTypesBar = lazy(() => import('@/components/kpi/IncidentTypesBar'));
@@ -58,8 +56,6 @@ export default function KPIDashboard() {
   const [dateRange, setDateRange] = useState('all'); // days
   const [selectedStudent, setSelectedStudent] = useState('all');
   const [showClearDataDialog, setShowClearDataDialog] = useState(false);
-
-  const printComponentRef = useRef();
 
   // Helper: current date in local time
   const getCurrentDate = () => new Date();
@@ -701,16 +697,6 @@ const exportAllCSVs = async () => {
     }
   };
 
-  const handlePrint = useReactToPrint({
-    content: () => printComponentRef.current,
-    documentTitle: `KPI-Dashboard-${format(new Date(), 'yyyy-MM-dd')}`,
-    onAfterPrint: () => toast.success('PDF export prepared successfully!'),
-  });
-
-  const exportKPIToPDF = async () => {
-    handlePrint();
-  };
-
   // Clear all data
   const clearAllData = async () => {
     try {
@@ -1146,26 +1132,7 @@ const exportAllCSVs = async () => {
 
   return (
     <div className="p-3 sm:p-6 bg-slate-50 min-h-screen">
-      <div style={{ display: 'none' }}>
-      <KPIPrintLayout 
-        ref={printComponentRef} 
-        data={{
-          overallMetrics,
-          studentComparison,
-            ratingDistribution,
-            incidentStats,
-            timeSlotAnalysis,
-            weeklyTrends,
-            studentImprovementStatus,
-            stepsSummary,
-            gradesSummary,
-          gpaSummary
-        }}
-        schoolName={settings?.school_name || 'B.E.S.T. Education'}
-        dateRange={dateRange === 'all' ? 'All Time' : `Last ${dateRange} days`}
-      />
-      </div>
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto kpi-dashboard">
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 md:mb-8">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
@@ -1181,19 +1148,6 @@ const exportAllCSVs = async () => {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
-              {/* Direct PDF Export Button */}
-              <Button 
-                onClick={exportKPIToPDF} 
-                variant="default" 
-                className="h-10 sm:h-auto bg-blue-600 hover:bg-blue-700 text-white"
-                disabled={isLoading}
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Export PDF Report</span>
-                <span className="sm:hidden">PDF</span>
-              </Button>
-              
-
               
               {/* Other Export Options Dropdown */}
               <DropdownMenu>
