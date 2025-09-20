@@ -438,24 +438,69 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       dangerouslyAllowBrowser: true
     });
 
-    // Prepare ALL behavioral information for AI analysis
-    const commentsText = comments.map(comment => {
+    // Pre-process comments for efficient AI analysis - create statistical summary
+    const commentStats = {
+      totalEvaluations: 0,
+      ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0 },
+      generalComments: [],
+      timeSlotComments: [],
+      incidents: [],
+      contacts: []
+    };
+
+    // Process and categorize all comments
+    comments.forEach(comment => {
       const dateStr = new Date(comment.date).toLocaleDateString();
       switch (comment.type) {
-        case 'general':
-          return `Date: ${dateStr} - GENERAL COMMENT: ${comment.content}`;
         case 'time_slot':
-          return `Date: ${dateStr} - ${comment.slotLabel} (Rating: ${comment.rating}/4): ${comment.content}`;
+          commentStats.totalEvaluations++;
+          commentStats.ratingDistribution[comment.rating] = (commentStats.ratingDistribution[comment.rating] || 0) + 1;
+          // Only keep key time slot comments (prioritize lower ratings and recent entries)
+          if (commentStats.timeSlotComments.length < 20 && (comment.rating <= 2 || commentStats.timeSlotComments.length < 10)) {
+            commentStats.timeSlotComments.push(`Date: ${dateStr} - ${comment.slotLabel} (Rating: ${comment.rating}/4): ${comment.content}`);
+          }
+          break;
+        case 'general':
+          // Keep up to 10 most recent general comments
+          if (commentStats.generalComments.length < 10) {
+            commentStats.generalComments.push(`Date: ${dateStr} - GENERAL COMMENT: ${comment.content}`);
+          }
+          break;
         case 'incident':
-          return `Date: ${dateStr} - INCIDENT REPORT: ${comment.content}`;
+          // Keep all incident descriptions (usually fewer and important)
+          commentStats.incidents.push(`Date: ${dateStr} - INCIDENT REPORT: ${comment.content}`);
+          break;
         case 'contact':
-          return `Date: ${dateStr} - CONTACT LOG: ${comment.content}`;
         case 'contact_purpose':
-          return `Date: ${dateStr} - CONTACT PURPOSE: ${comment.content}`;
-        default:
-          return `Date: ${dateStr} - ${comment.context}: ${comment.content}`;
+          // Keep up to 5 contact entries
+          if (commentStats.contacts.length < 5) {
+            commentStats.contacts.push(`Date: ${dateStr} - ${comment.type === 'contact' ? 'CONTACT LOG' : 'CONTACT PURPOSE'}: ${comment.content}`);
+          }
+          break;
       }
-    }).join('\n\n');
+    });
+
+    // Build efficient prompt with statistical overview + key details
+    const commentsText = `
+RATING DISTRIBUTION SUMMARY:
+- Total evaluations analyzed: ${commentStats.totalEvaluations}
+- Rating breakdown: ${Object.entries(commentStats.ratingDistribution)
+  .filter(([_, count]) => count > 0)
+  .map(([rating, count]) => `${count}x rating ${rating}`)
+  .join(', ')}
+
+GENERAL COMMENTS (${commentStats.generalComments.length}):
+${commentStats.generalComments.join('\n')}
+
+KEY TIME SLOT OBSERVATIONS (${commentStats.timeSlotComments.length}):
+${commentStats.timeSlotComments.join('\n')}
+
+INCIDENTS REPORTED (${commentStats.incidents.length}):
+${commentStats.incidents.join('\n')}
+
+CONTACT LOGS (${commentStats.contacts.length}):
+${commentStats.contacts.join('\n')}
+`;
 
     const dateRangeText = startDate === endDate ? `${startDate}` : `${startDate} to ${endDate}`;
     const prompt = `You are a behavioral analyst documenting student behavior data. Based on the behavioral information from daily evaluations, incident reports, and contact logs for the period ${dateRangeText}, create a factual behavior summary using objective, observable language.
@@ -511,7 +556,7 @@ CRITICAL DATE REQUIREMENTS:
 
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-4",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -522,8 +567,8 @@ CRITICAL DATE REQUIREMENTS:
             content: prompt
           }
         ],
-        temperature: 0.8,
-        max_tokens: 1500
+        temperature: 0.3,
+        max_tokens: 1200
       });
 
       const response = completion.choices[0].message.content;
