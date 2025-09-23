@@ -4,10 +4,13 @@ import { Student } from "@/api/entities";
 import { DailyEvaluation } from "@/api/entities";
 import { Settings } from "@/api/entities";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, UserCheck, Users } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowLeft, ArrowRight, UserCheck, Users, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { todayYmd } from "@/utils";
+import { todayYmd, parseYmd, formatDate } from "@/utils";
 import { Toaster, toast } from 'sonner';
+import { cn } from "@/lib/utils";
 
 import StudentList from "../components/quick-score/StudentList";
 import EvaluationForm from "../components/behavior/EvaluationForm";
@@ -20,20 +23,22 @@ export default function QuickScore() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isStudentListOpen, setIsStudentListOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   
   const today = todayYmd();
+  const selectedDateYmd = todayYmd(selectedDate);
 
   const loadData = useCallback(async (showLoading = true) => {
     try {
       if(showLoading) setIsLoading(true);
-      console.log("Loading Quick Score data...");
+      console.log("Loading Quick Score data for date:", selectedDateYmd);
       
       const [studentsData, evaluationsData, settingsData] = await Promise.all([
         Student.filter({ active: true }).catch(err => {
           console.error("Error loading students:", err);
           return [];
         }),
-        DailyEvaluation.filter({ date: today }).catch(err => {
+        DailyEvaluation.filter({ date: selectedDateYmd }).catch(err => {
           console.error("Error loading evaluations:", err);
           return [];
         }),
@@ -59,7 +64,7 @@ export default function QuickScore() {
     } finally {
       if(showLoading) setIsLoading(false);
     }
-  }, [today]);
+  }, [selectedDateYmd]);
 
   useEffect(() => { 
     loadData(); 
@@ -80,7 +85,7 @@ export default function QuickScore() {
           e.id === existingEvaluation.id ? { ...e, ...formData } : e
         ));
       } else {
-        const newEvaluation = await DailyEvaluation.create({ student_id: studentId, date: today, ...formData });
+        const newEvaluation = await DailyEvaluation.create({ student_id: studentId, date: selectedDateYmd, ...formData });
         // Add to local state instead of reloading
         setEvaluations(prev => [...prev, newEvaluation]);
       }
@@ -158,6 +163,37 @@ export default function QuickScore() {
               <div className="flex md:hidden items-center justify-between mt-4 gap-2">
                 <Button onClick={() => navigateStudent(-1)} disabled={currentStudentIndex === 0} variant="outline" className="flex-1"><ArrowLeft className="w-4 h-4 mr-2" /> Prev</Button>
                 <Button onClick={() => navigateStudent(1)} disabled={currentStudentIndex === students.length - 1} variant="outline" className="flex-1">Next <ArrowRight className="w-4 h-4 ml-2" /></Button>
+              </div>
+              
+              {/* Date Picker */}
+              <div className="flex justify-center mt-4">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[240px] justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="center">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          setSelectedDate(date);
+                          setCurrentStudentIndex(0); // Reset to first student when changing dates
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </header>
             <div className="p-4 md:p-8 flex-1">

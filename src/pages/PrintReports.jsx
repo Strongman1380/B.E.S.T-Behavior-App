@@ -28,7 +28,6 @@ const DATE_PRESETS = [
 const REPORT_TYPES = [
   { id: "behavior", label: "Behavior Sheets", icon: FileText },
   { id: "incidents", label: "Incident Reports", icon: AlertTriangle },
-  { id: "weeklyBehavior", label: "Weekly Behavior Tracking", icon: Calendar },
   { id: "weeklyAverages", label: "Weekly End of Day Averages", icon: BarChart3 },
   { id: "dailyAverages", label: "Daily Averages Combined", icon: BarChart3 }
 ];
@@ -216,16 +215,6 @@ export default function PrintReports() {
         console.log("Daily Averages - Filtered evaluations:", preview.data.dailyAveragesEvaluations.length);
       }
 
-      if (selectedReportTypes.includes("weeklyBehavior")) {
-        const evaluations = await DailyEvaluation.filter({
-          date_from: startDate,
-          date_to: endDate
-        });
-        preview.data.weeklyBehaviorEvaluations = evaluations.filter(e => 
-          selectedSet.has(Number(e.student_id))
-        );
-      }
-
       setPreviewData(preview);
       toast.success("Preview generated successfully!");
     } catch (error) {
@@ -235,38 +224,32 @@ export default function PrintReports() {
     setIsGenerating(false);
   };
 
-  // BEST Logo as base64 data URL for print reports
-  const BEST_LOGO_DATA_URL = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="bestIconTitle">
-  <title id="bestIconTitle">BEST Hub icon</title>
-  <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f3f8ff" />
-      <stop offset="100%" stop-color="#dff3ff" />
-    </linearGradient>
-    <linearGradient id="textStroke" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#0f6db4" />
-      <stop offset="100%" stop-color="#0a4f82" />
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="120" fill="url(#bgGrad)" />
-  <rect x="64" y="96" width="384" height="240" rx="48" fill="#cdecff" />
-  <ellipse cx="256" cy="332" rx="150" ry="52" fill="#1c9de0" opacity="0.85" />
-  <g fill="#ff9d2a">
-    <polygon points="148,84 164,62 184,92" />
-    <polygon points="208,60 224,30 248,76" />
-    <polygon points="308,60 332,30 348,76" />
-    <polygon points="368,84 352,58 328,98" />
-  </g>
-  <g>
-    <text x="256" y="274" text-anchor="middle" font-family="'Nunito', 'Nunito Sans', 'Helvetica', sans-serif" font-size="170" font-weight="800" fill="#c5ec3c" stroke="url(#textStroke)" stroke-width="14" paint-order="stroke fill">
-      BEST
-    </text>
-  </g>
-  <g fill="#18a164">
-    <circle cx="120" cy="366" r="32" />
-    <circle cx="392" cy="366" r="32" />
-  </g>
-</svg>`)}`;
+  // BEST Logo as base64 data URL for print reports (actual BEST logo)
+  const BEST_LOGO_DATA_URL = "data:image/svg+xml;base64," + btoa(`
+<svg width="160" height="80" viewBox="0 0 160 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Light blue background -->
+  <rect x="10" y="10" width="140" height="50" rx="8" fill="#ADD8E6" stroke="#4169E1" stroke-width="1"/>
+
+  <!-- Orange triangular rays around the top -->
+  <polygon points="30,5 35,15 25,15" fill="#FFA500"/>
+  <polygon points="50,2 55,12 45,12" fill="#FFA500"/>
+  <polygon points="70,2 75,12 65,12" fill="#FFA500"/>
+  <polygon points="90,2 95,12 85,12" fill="#FFA500"/>
+  <polygon points="110,2 115,12 105,12" fill="#FFA500"/>
+  <polygon points="130,5 135,15 125,15" fill="#FFA500"/>
+
+  <!-- Green triangles at bottom -->
+  <polygon points="25,60 35,70 15,70" fill="#228B22"/>
+  <polygon points="125,60 135,70 115,70" fill="#228B22"/>
+
+  <!-- BEST text in yellow/green with blue stroke -->
+  <text x="80" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="900" fill="#9ACD32" stroke="#4169E1" stroke-width="1" text-anchor="middle">BEST</text>
+
+  <!-- Subtitle text -->
+  <text x="80" y="75" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#228B22" text-anchor="middle">Berniklau Education</text>
+  <text x="80" y="85" font-family="Arial, sans-serif" font-size="8" fill="#228B22" text-anchor="middle">-Solutions Team-</text>
+</svg>
+`);
 
   const printReports = () => {
     if (!previewData) {
@@ -660,12 +643,6 @@ export default function PrintReports() {
         hasStudentContent = true;
       }
 
-      // Weekly Behavior Tracking - will be handled after the student loop 
-      if (reportTypes.includes("weeklyBehavior") && data.weeklyBehaviorEvaluations) {
-        // This will be handled after the student loop 
-        hasStudentContent = true;
-      }
-
       // If no content was generated for this student, add a "no data" page
       if (!hasStudentContent) {
         if (!isFirstPage) content += '<div class="page-break"></div>';
@@ -685,383 +662,6 @@ export default function PrintReports() {
           <div class="no-data">No data found for this student in the selected date range</div>`;
       }
     });
-
-    // Generate Weekly Behavior Tracking Reports (outside student loop)
-    if (reportTypes.includes("weeklyBehavior") && data.weeklyBehaviorEvaluations) {
-      console.log("Processing weekly behavior tracking with", data.weeklyBehaviorEvaluations.length, "evaluations");
-      
-      selectedStudentData.forEach(student => {
-        if (!isFirstPage) content += '<div class="page-break"></div>';
-        isFirstPage = false;
-
-        // Get evaluations for this student
-        const studentEvaluations = data.weeklyBehaviorEvaluations.filter(e => 
-          Number(e.student_id) === Number(student.id)
-        );
-        console.log("Weekly behavior evaluations for", student.student_name, ":", studentEvaluations.length);
-        console.log("Sample evaluation data structure:", studentEvaluations[0]);
-        if (studentEvaluations[0] && studentEvaluations[0].time_slots) {
-          console.log("Sample time_slots data:", JSON.stringify(studentEvaluations[0].time_slots, null, 2));
-        }
-
-        if (studentEvaluations.length > 0) {
-          // Group evaluations by date
-          const evaluationsByDate = {};
-          studentEvaluations.forEach(evaluation => {
-            console.log("Processing evaluation for date:", evaluation.date, "with time_slots:", evaluation.time_slots);
-            if (!evaluationsByDate[evaluation.date]) {
-              evaluationsByDate[evaluation.date] = evaluation;
-            } else {
-              // Merge time slots if multiple evaluations for the same date
-              if (evaluation.time_slots && evaluationsByDate[evaluation.date].time_slots) {
-                evaluationsByDate[evaluation.date].time_slots = {
-                  ...evaluationsByDate[evaluation.date].time_slots,
-                  ...evaluation.time_slots
-                };
-              }
-            }
-          });
-          
-          console.log("Evaluations grouped by date:", evaluationsByDate);
-
-          // Get weekdays in range (Monday-Friday)
-          const weekdays = [];
-          const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-          const start = new Date(dateRange.start + 'T00:00:00');
-          const end = new Date(dateRange.end + 'T00:00:00');
-
-          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-            const dayOfWeek = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-            if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Monday (1) through Friday (5)
-              weekdays.push({
-                date: format(d, 'yyyy-MM-dd'),
-                dayName: dayNames[dayOfWeek - 1],
-                dayOfWeek: dayOfWeek
-              });
-            }
-          }
-
-          content += `
-            <div class="report-header">
-              <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" class="report-logo" />
-              <div class="report-title">Weekly Behavior Tracking</div>
-              <div class="report-subtitle">
-                ${student.student_name} • ${formatDate(dateRange.start, 'MMMM d, yyyy')} - ${formatDate(dateRange.end, 'MMMM d, yyyy')}
-              </div>
-              <div class="report-subtitle">
-                ${settings?.school_name || 'School'} • Generated by ${settings?.teacher_name || 'Teacher'}
-              </div>
-            </div>
-
-            <div style="margin: 10px 0; font-family: Arial, sans-serif;">
-              <!-- Header Section with School Info and Categories -->
-              <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 9px;">
-                <tr>
-                  <!-- School Info -->
-                  <td style="width: 25%; vertical-align: top; padding: 5px;">
-                    <div style="font-weight: bold; font-size: 10px; margin-bottom: 2px;">B.E.S.T Education</div>
-                    <div style="font-size: 8px;">Kearney Public Schools</div>
-                    <div style="font-size: 8px;">11417 South 76th St.</div>
-                    <div style="font-size: 8px;">Lincoln, NE 68516</div>
-                  </td>
-                  
-                  <!-- Adult Interactions -->
-                  <td style="width: 25%; vertical-align: top; padding: 5px;">
-                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 3px;">ADULT INTERACTIONS</div>
-                    <div style="font-size: 8px; line-height: 1.2;">Being respectful to adults</div>
-                    <div style="font-size: 8px; line-height: 1.2;">Following directions</div>
-                    <div style="font-size: 8px; line-height: 1.2;">Accepts feedback/accountability</div>
-                  </td>
-                  
-                  <!-- Peer Interactions -->
-                  <td style="width: 25%; vertical-align: top; padding: 5px;">
-                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 3px;">PEER INTERACTIONS</div>
-                    <div style="font-size: 8px; line-height: 1.2;">Appropriate communication</div>
-                    <div style="font-size: 8px; line-height: 1.2;">Respects peers and their property</div>
-                    <div style="font-size: 8px; line-height: 1.2;">Resolves conflict appropriately</div>
-                  </td>
-                  
-                  <!-- Classroom Expectations & Scoring -->
-                  <td style="width: 25%; vertical-align: top; padding: 5px;">
-                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 3px;">CLASSROOM EXPECTATIONS</div>
-                    <div style="font-size: 8px; line-height: 1.2;">On task during instruction</div>
-                    <div style="font-size: 8px; line-height: 1.2;">Participating appropriately</div>
-                    <div style="font-size: 8px; line-height: 1.2;">Organized and prepared for class</div>
-                    <div style="font-weight: bold; font-size: 9px; margin-top: 8px; margin-bottom: 2px;">SCORING:</div>
-                    <div style="font-size: 8px; line-height: 1.1;">4 = Exceeds expectations</div>
-                    <div style="font-size: 8px; line-height: 1.1;">3 = Meets expectations</div>
-                    <div style="font-size: 8px; line-height: 1.1;">2 = Below expectations</div>
-                    <div style="font-size: 8px; line-height: 1.1;">1 = Unsatisfactory</div>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Daily Averages Summary Table -->
-              <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 15px;">
-                <thead>
-                  <tr style="background: #f4f4f4;">
-                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 15%;">Daily Averages</th>
-                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 14%;">Monday</th>
-                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 14%;">Tuesday</th>
-                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 14%;">Wednesday</th>
-                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 14%;">Thursday</th>
-                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 14%;">Friday</th>
-                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 15%;">Week Average</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold;">2.8</td>
-                    ${weekdays.map((day, index) => {
-                      const evaluation = evaluationsByDate[day.date];
-                      if (evaluation && evaluation.time_slots) {
-                        const { average, count } = calculateAverageFromSlots(evaluation.time_slots);
-                        const avgValue = count > 0 && typeof average === 'number' && !isNaN(average) ? average.toFixed(1) : 'N/A';
-                        return `<td style="border: 1px solid #000; padding: 4px; text-align: center;">${avgValue}</td>`;
-                      }
-                      return `<td style="border: 1px solid #000; padding: 4px; text-align: center;">N/A</td>`;
-                    }).join('')}
-                    <td style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold;">
-                      ${(() => {
-                        // Calculate week average
-                        const dailyAvgs = weekdays.map(day => {
-                          const evaluation = evaluationsByDate[day.date];
-                          if (evaluation && evaluation.time_slots) {
-                            const { average, count } = calculateAverageFromSlots(evaluation.time_slots);
-                            return count > 0 && typeof average === 'number' && !isNaN(average) ? average : null;
-                          }
-                          return null;
-                        }).filter(avg => avg !== null);
-                        
-                        if (dailyAvgs.length > 0) {
-                          const weekAvg = dailyAvgs.reduce((sum, avg) => sum + avg, 0) / dailyAvgs.length;
-                          return weekAvg.toFixed(1);
-                        }
-                        return '2.8';
-                      })()}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <!-- Individual Day Grids -->
-              ${weekdays.map((day, dayIndex) => {
-                const evaluation = evaluationsByDate[day.date];
-                console.log(`Processing day ${day.dayName} (${day.date}):`, evaluation);
-                const dayTimeSlots = evaluation && evaluation.time_slots ? evaluation.time_slots : {};
-                console.log(`Time slots for ${day.dayName}:`, dayTimeSlots);
-                
-                // Define the specific time slots as shown in screenshot
-                const timeSlots = [
-                  { key: 'slot1', label: '8:30-9:30' },
-                  { key: 'slot2', label: '9:30-10:30' },
-                  { key: 'slot3', label: '10:30-11:30' },
-                  { key: 'slot4', label: '11:30-12:30' },
-                  { key: 'slot5', label: '12:30-1:30' },
-                  { key: 'slot6', label: '1:30-2:30' },
-                  { key: 'slot7', label: '2:30-3:30' }
-                ];
-                
-                // Calculate end-of-day averages for each category
-                const endOfDayAverages = {};
-                ['ai', 'pi', 'ce'].forEach(sectionKey => {
-                  const sectionScores = [];
-                  Object.values(dayTimeSlots).forEach(slot => {
-                    console.log(`Checking slot for ${sectionKey}:`, slot);
-                    // Try to get the score for this section
-                    let scoreValue = slot[sectionKey];
-                    
-                    // If direct field doesn't exist, try alternative names
-                    if (scoreValue === undefined || scoreValue === null || scoreValue === '') {
-                      if (sectionKey === 'ai') {
-                        scoreValue = slot.AI || slot.adult_interaction || slot.adult_interactions;
-                      } else if (sectionKey === 'pi') {
-                        scoreValue = slot.PI || slot.peer_interaction || slot.peer_interactions;
-                      } else if (sectionKey === 'ce') {
-                        scoreValue = slot.CE || slot.classroom_expectations || slot.classroom_expectation;
-                      }
-                    }
-                    
-                    // Parse score and validate
-                    if (scoreValue !== undefined && scoreValue !== null && scoreValue !== '' && scoreValue !== 'AB' && scoreValue !== 'NS') {
-                      const score = Number(scoreValue);
-                      if (!isNaN(score) && score >= 1 && score <= 4) {
-                        sectionScores.push(score);
-                      }
-                    }
-                  });
-                  endOfDayAverages[sectionKey] = sectionScores.length > 0 
-                    ? (sectionScores.reduce((sum, score) => sum + score, 0) / sectionScores.length).toFixed(1)
-                    : '--';
-                });
-                
-                console.log(`End of day averages for ${day.dayName}:`, endOfDayAverages);
-
-                return `
-                  <div style="margin-bottom: 20px; page-break-inside: avoid;">
-                    <h3 style="background: #f4f4f4; padding: 6px; margin: 0 0 1px 0; border: 1px solid #000; text-align: center; font-size: 11px; font-weight: bold;">
-                      ${day.dayName.toUpperCase()}
-                    </h3>
-                    
-                    <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
-                      <thead>
-                        <tr style="background: #f4f4f4;">
-                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 18%; font-size: 8px;">Time</th>
-                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">8:30-9:30</th>
-                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">9:30-10:30</th>
-                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">10:30-11:30</th>
-                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">11:30-12:30</th>
-                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">12:30-1:30</th>
-                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">1:30-2:30</th>
-                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">2:30-3:30</th>
-                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">Daily Average</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <!-- Adult Interactions Row -->
-                        <tr>
-                          <td style="border: 1px solid #000; padding: 3px; text-align: left; font-weight: bold; font-size: 8px;">Adult Interactions</td>
-                          ${timeSlots.map(timeSlot => {
-                            const slotData = dayTimeSlots[timeSlot.key] || {};
-                            console.log(`AI slot ${timeSlot.key} data:`, slotData);
-                            // Get AI score with fallback options
-                            let aiScore = slotData.ai || slotData.AI || slotData.adult_interaction;
-                            // Display score if valid, otherwise show dash
-                            if (aiScore === undefined || aiScore === null || aiScore === '' || aiScore === 'AB' || aiScore === 'NS') {
-                              aiScore = '--';
-                            }
-                            return `<td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px;">${aiScore}</td>`;
-                          }).join('')}
-                          <td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px; font-weight: bold;">${endOfDayAverages.ai}</td>
-                        </tr>
-                        
-                        <!-- Peer Interactions Row -->
-                        <tr>
-                          <td style="border: 1px solid #000; padding: 3px; text-align: left; font-weight: bold; font-size: 8px;">Peer Interactions</td>
-                          ${timeSlots.map(timeSlot => {
-                            const slotData = dayTimeSlots[timeSlot.key] || {};
-                            // Get PI score with fallback options
-                            let piScore = slotData.pi || slotData.PI || slotData.peer_interaction;
-                            // Display score if valid, otherwise show dash
-                            if (piScore === undefined || piScore === null || piScore === '' || piScore === 'AB' || piScore === 'NS') {
-                              piScore = '--';
-                            }
-                            return `<td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px;">${piScore}</td>`;
-                          }).join('')}
-                          <td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px; font-weight: bold;">${endOfDayAverages.pi}</td>
-                        </tr>
-                        
-                        <!-- Classroom Expectations Row -->
-                        <tr>
-                          <td style="border: 1px solid #000; padding: 3px; text-align: left; font-weight: bold; font-size: 8px;">Classroom Expectations</td>
-                          ${timeSlots.map(timeSlot => {
-                            const slotData = dayTimeSlots[timeSlot.key] || {};
-                            // Get CE score with fallback options
-                            let ceScore = slotData.ce || slotData.CE || slotData.classroom_expectations;
-                            // Display score if valid, otherwise show dash
-                            if (ceScore === undefined || ceScore === null || ceScore === '' || ceScore === 'AB' || ceScore === 'NS') {
-                              ceScore = '--';
-                            }
-                            return `<td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px;">${ceScore}</td>`;
-                          }).join('')}
-                          <td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px; font-weight: bold;">${endOfDayAverages.ce}</td>
-                        </tr>
-                        
-                        <!-- Daily Averages Row -->
-                        <tr style="background: #f0f0f0; font-weight: bold;">
-                          <td style="border: 1px solid #000; padding: 3px; text-align: left; font-size: 8px;">Daily Averages</td>
-                          ${timeSlots.map(timeSlot => {
-                            const slotData = dayTimeSlots[timeSlot.key] || {};
-                            
-                            // Calculate average for this time slot across all categories
-                            const slotScores = [];
-                            ['ai', 'pi', 'ce'].forEach(sectionKey => {
-                              // Get score with direct field access and fallbacks
-                              let scoreValue = slotData[sectionKey];
-                              if (scoreValue === undefined || scoreValue === null || scoreValue === '') {
-                                if (sectionKey === 'ai') {
-                                  scoreValue = slotData.AI || slotData.adult_interaction;
-                                } else if (sectionKey === 'pi') {
-                                  scoreValue = slotData.PI || slotData.peer_interaction;
-                                } else if (sectionKey === 'ce') {
-                                  scoreValue = slotData.CE || slotData.classroom_expectations;
-                                }
-                              }
-                              
-                              // Only include valid numeric scores
-                              if (scoreValue !== undefined && scoreValue !== null && scoreValue !== '' && scoreValue !== 'AB' && scoreValue !== 'NS') {
-                                const score = Number(scoreValue);
-                                if (!isNaN(score) && score >= 1 && score <= 4) {
-                                  slotScores.push(score);
-                                }
-                              }
-                            });
-                            const slotAvg = slotScores.length > 0 
-                              ? (slotScores.reduce((sum, score) => sum + score, 0) / slotScores.length).toFixed(1)
-                              : '--';
-                              
-                            return `<td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px;">${slotAvg}</td>`;
-                          }).join('')}
-                          <td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px;">
-                            ${(() => {
-                              const avgValues = Object.values(endOfDayAverages).filter(val => val !== '--' && val !== 'N/A').map(val => parseFloat(val));
-                              return avgValues.length > 0 
-                                ? (avgValues.reduce((sum, val) => sum + val, 0) / avgValues.length).toFixed(1)
-                                : '--';
-                            })()}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    
-                    <!-- Comments Section -->
-                    <div style="margin-top: 3px;">
-                      <div style="font-weight: bold; font-size: 9px; margin-bottom: 2px;">Comments:</div>
-                      <div style="border: 1px solid #000; min-height: 30px; padding: 4px; font-size: 8px; background: white; line-height: 1.3;">
-                        ${(() => {
-                          // Collect all comments for this day
-                          const allComments = [];
-                          
-                          // Add general comments if any
-                          if (evaluation && evaluation.general_comments && evaluation.general_comments.trim()) {
-                            allComments.push(evaluation.general_comments.trim());
-                          }
-                          
-                          // Add time slot comments with time labels
-                          Object.entries(dayTimeSlots).forEach(([slotKey, slot]) => {
-                            if (slot.comment && slot.comment.trim()) {
-                              const timeSlot = timeSlots.find(ts => ts.key === slotKey);
-                              const timeLabel = timeSlot ? timeSlot.label : slotKey;
-                              allComments.push(`${timeLabel}: ${slot.comment.trim()}`);
-                            }
-                          });
-                          
-                          return allComments.length > 0 ? allComments.join(' • ') : '';
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          `;
-        } else {
-          content += `
-            <div class="report-header">
-              <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" class="report-logo" />
-              <div class="report-title">Weekly Behavior Tracking</div>
-              <div class="report-subtitle">
-                ${student.student_name} • ${formatDate(dateRange.start, 'MMMM d, yyyy')} - ${formatDate(dateRange.end, 'MMMM d, yyyy')}
-              </div>
-              <div class="report-subtitle">
-                ${settings?.school_name || 'School'} • Generated by ${settings?.teacher_name || 'Teacher'}
-              </div>
-            </div>
-            <div class="no-data">No behavior data found for this student in the selected date range</div>
-          `;
-        }
-      });
-    }
 
     // Generate Combined Daily Averages Report (all students in one table)
     if (reportTypes.includes("dailyAverages") && data.dailyAveragesEvaluations) {
@@ -1502,12 +1102,6 @@ export default function PrintReports() {
                       <div className="flex justify-between">
                         <span className="font-medium">Weekly Averages:</span>
                         <span>{previewData.data.weeklyEvaluations?.length || 0} evaluations</span>
-                      </div>
-                    )}
-                    {previewData.reportTypes.includes("weeklyBehavior") && (
-                      <div className="flex justify-between">
-                        <span className="font-medium">Weekly Behavior Tracking:</span>
-                        <span>{previewData.data.weeklyBehaviorEvaluations?.length || 0} evaluations</span>
                       </div>
                     )}
                     {previewData.reportTypes.includes("dailyAverages") && (
