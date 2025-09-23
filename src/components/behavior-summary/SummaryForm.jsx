@@ -10,7 +10,8 @@ import { format } from "date-fns";
 import { parseYmd, formatDateRange } from "@/utils";
 import { DailyEvaluation, IncidentReport, ContactLog } from "@/api/entities";
 import { toast } from 'sonner';
-import OpenAI from 'openai';
+import { aiService } from '@/services/aiService';
+import { TIME_SLOT_LABELS } from "@/config/timeSlots";
 
 export default function SummaryForm({ summary, settings, onSave, isSaving, studentId, student, onFormDataChange, onUnsavedChanges }) {
   const [formData, setFormData] = useState({
@@ -169,10 +170,19 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
   };
 
   const handlePrintCurrent = () => {
+    // Ensure all fields have content before printing
+    const ensureContent = (field, fallback) => field && field.trim() ? field : fallback;
+
     const data = {
       ...formData,
       date_range_start: format(formData.date_range_start, 'yyyy-MM-dd'),
-      date_range_end: format(formData.date_range_end, 'yyyy-MM-dd')
+      date_range_end: format(formData.date_range_end, 'yyyy-MM-dd'),
+      // Ensure no blank fields in print output
+      general_behavior_overview: ensureContent(formData.general_behavior_overview, 'Behavioral overview for the selected period.'),
+      strengths: ensureContent(formData.strengths, 'Student strengths to be documented.'),
+      improvements_needed: ensureContent(formData.improvements_needed, 'Areas for improvement to be assessed.'),
+      behavioral_incidents: ensureContent(formData.behavioral_incidents, 'No behavioral incidents reported for this period.'),
+      summary_recommendations: ensureContent(formData.summary_recommendations, 'Recommendations to be developed based on observations.')
     };
     const printWindow = window.open('', '', 'height=800,width=800');
     if (!printWindow) return;
@@ -220,12 +230,10 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
               </div>
             </div>
           </div>
-          ${data.behavioral_incidents && data.behavioral_incidents.trim() ? `
-            <div class="content-section">
-              <div class="section-label">Behavioral Incident Summary</div>
-              <div class="content-box">${data.behavioral_incidents.toString().replace(/</g,'&lt;')}</div>
-            </div>
-          ` : ''}
+          <div class="content-section">
+            <div class="section-label">Behavioral Incident Summary</div>
+            <div class="content-box">${data.behavioral_incidents.toString().replace(/</g,'<')}</div>
+          </div>
           <div class="content-section">
             <div class="section-label">Recommendations</div>
             <div class="content-box large-content-box">${(data.summary_recommendations || '').toString().replace(/</g,'&lt;')}</div>
@@ -297,6 +305,15 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       const startDate = format(formData.date_range_start, 'yyyy-MM-dd');
       const endDate = format(formData.date_range_end, 'yyyy-MM-dd');
 
+      // Validate date range
+      if (startDate > endDate) {
+        toast.error('Invalid date range: Start date must be before or equal to end date');
+        setIsGenerating(false);
+        return;
+      }
+
+      console.log(`Fetching data for student ${studentId} from ${startDate} to ${endDate}`);
+
       // Fetch ALL relevant data for comprehensive analysis
       const [evaluations, incidents, contacts] = await Promise.all([
         DailyEvaluation.filter({
@@ -316,8 +333,10 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
         })
       ]);
 
+      console.log(`Found ${evaluations.length} evaluations, ${incidents.length} incidents, ${contacts.length} contacts`);
+
       if (evaluations.length === 0 && incidents.length === 0 && contacts.length === 0) {
-        toast.error('No data found for the selected date range');
+        toast.error(`No behavioral data found for the selected date range (${startDate} to ${endDate}). Please verify that evaluations, incidents, or contact logs exist for this student within these dates.`);
         return;
       }
 
@@ -341,26 +360,16 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
         if (evaluation.time_slots) {
           Object.entries(evaluation.time_slots).forEach(([slot, data]) => {
             if (data && data.comment && data.comment.trim()) {
-              // Map time slot keys to readable labels
-              const timeSlotLabels = {
-                '8:30': '8:30 AM - 9:10 AM',
-                '9:10': '9:10 AM - 9:50 AM',
-                '9:50': '9:50 AM - 10:30 AM',
-                '10:30': '10:30 AM - 11:10 AM',
-                '11:10': '11:10 AM - Lunch',
-                '1:10': 'After Lunch - 1:10 PM',
-                '1:50': '1:10 PM - 1:50 PM',
-                '2:30': '1:50 PM - 2:30 PM'
-              };
+              // Use time slot labels from config
 
               allComments.push({
                 type: 'time_slot',
                 date: evaluation.date,
                 slot: slot,
-                slotLabel: timeSlotLabels[slot] || slot,
+                slotLabel: TIME_SLOT_LABELS[slot] || slot,
                 rating: data.rating,
                 content: data.comment.trim(),
-                context: `Time slot: ${timeSlotLabels[slot] || slot}`,
+                context: `Time slot: ${TIME_SLOT_LABELS[slot] || slot}`,
                 source: 'daily_evaluation'
               });
             }
@@ -408,18 +417,40 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
         return;
       }
 
-      // Use AI to analyze and generate comprehensive summaries from ALL data
-      const analysis = await analyzeCommentsWithAI(allComments, startDate, endDate);
+      // Use optimized AI service to analyze and generate comprehensive summaries
+      const analysis = await aiService.generateBehaviorSummary(allComments, { startDate, endDate });
+
+      // Ensure all fields have content with fallbacks
+      const updatedData = {
+        general_behavior_overview: analysis.general_overview || 'Based on available data, behavioral observations will be documented.',
+        strengths: analysis.strengths || 'Student strengths will be identified based on evaluation data.',
+        improvements_needed: analysis.improvements || 'Areas for improvement will be assessed based on behavioral observations.',
+        behavioral_incidents: analysis.incidents || (incidents.length > 0 ? `${incidents.length} incident(s) occurred during this period.` : ''),
+        summary_recommendations: analysis.recommendations || 'Recommendations will be developed based on behavioral patterns and observations.'
+      };
 
       // Update form data with AI-generated content
       setFormData(prev => ({
         ...prev,
-        general_behavior_overview: analysis.general_overview,
-        strengths: analysis.strengths,
-        improvements_needed: analysis.improvements,
-        behavioral_incidents: analysis.incidents,
-        summary_recommendations: analysis.recommendations
+        ...updatedData
       }));
+
+      // Also trigger form change to ensure parent knows about the update
+      if (onFormDataChange) {
+        const payload = {
+          ...formData,
+          ...updatedData,
+          date_range_start: startDate,
+          date_range_end: endDate
+        };
+        onFormDataChange(payload);
+      }
+
+      // Set unsaved changes to trigger auto-save
+      setHasUnsavedChanges(true);
+      if (onUnsavedChanges) {
+        onUnsavedChanges(true);
+      }
 
       const dateRangeText = startDate === endDate ? `${startDate}` : `${startDate} to ${endDate}`;
       toast.success(`AI summary generated from ${allComments.length} behavioral records for ${dateRangeText}!`);
@@ -432,163 +463,6 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
     }
   };
 
-  const analyzeCommentsWithAI = async (comments, startDate, endDate) => {
-    const openai = new OpenAI({
-      apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-      dangerouslyAllowBrowser: true
-    });
-
-    // Pre-process comments for efficient AI analysis - create statistical summary
-    const commentStats = {
-      totalEvaluations: 0,
-      ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0 },
-      generalComments: [],
-      timeSlotComments: [],
-      incidents: [],
-      contacts: []
-    };
-
-    // Process and categorize all comments
-    comments.forEach(comment => {
-      const dateStr = new Date(comment.date).toLocaleDateString();
-      switch (comment.type) {
-        case 'time_slot':
-          commentStats.totalEvaluations++;
-          commentStats.ratingDistribution[comment.rating] = (commentStats.ratingDistribution[comment.rating] || 0) + 1;
-          // Only keep key time slot comments (prioritize lower ratings and recent entries)
-          if (commentStats.timeSlotComments.length < 20 && (comment.rating <= 2 || commentStats.timeSlotComments.length < 10)) {
-            commentStats.timeSlotComments.push(`Date: ${dateStr} - ${comment.slotLabel} (Rating: ${comment.rating}/4): ${comment.content}`);
-          }
-          break;
-        case 'general':
-          // Keep up to 10 most recent general comments
-          if (commentStats.generalComments.length < 10) {
-            commentStats.generalComments.push(`Date: ${dateStr} - GENERAL COMMENT: ${comment.content}`);
-          }
-          break;
-        case 'incident':
-          // Keep all incident descriptions (usually fewer and important)
-          commentStats.incidents.push(`Date: ${dateStr} - INCIDENT REPORT: ${comment.content}`);
-          break;
-        case 'contact':
-        case 'contact_purpose':
-          // Keep up to 5 contact entries
-          if (commentStats.contacts.length < 5) {
-            commentStats.contacts.push(`Date: ${dateStr} - ${comment.type === 'contact' ? 'CONTACT LOG' : 'CONTACT PURPOSE'}: ${comment.content}`);
-          }
-          break;
-      }
-    });
-
-    // Build efficient prompt with statistical overview + key details
-    const commentsText = `
-RATING DISTRIBUTION SUMMARY:
-- Total evaluations analyzed: ${commentStats.totalEvaluations}
-- Rating breakdown: ${Object.entries(commentStats.ratingDistribution)
-  .filter(([_, count]) => count > 0)
-  .map(([rating, count]) => `${count}x rating ${rating}`)
-  .join(', ')}
-
-GENERAL COMMENTS (${commentStats.generalComments.length}):
-${commentStats.generalComments.join('\n')}
-
-KEY TIME SLOT OBSERVATIONS (${commentStats.timeSlotComments.length}):
-${commentStats.timeSlotComments.join('\n')}
-
-INCIDENTS REPORTED (${commentStats.incidents.length}):
-${commentStats.incidents.join('\n')}
-
-CONTACT LOGS (${commentStats.contacts.length}):
-${commentStats.contacts.join('\n')}
-`;
-
-    const dateRangeText = startDate === endDate ? `${startDate}` : `${startDate} to ${endDate}`;
-    const prompt = `You are a behavioral analyst documenting student behavior data. Based on the behavioral information from daily evaluations, incident reports, and contact logs for the period ${dateRangeText}, create a factual behavior summary using objective, observable language.
-
-BEHAVIORAL RATING SYSTEM:
-- 4 = Exceeds expectations (exceptional performance, goes above and beyond)
-- 3 = Meets expectations (appropriate behavior, follows guidelines)
-- 2 = Needs improvement (some issues, requires attention)
-- 1 = Does not meet expectations (significant concerns, needs intervention)
-
-BEHAVIORAL DATA TO ANALYZE (${dateRangeText}):
-${commentsText}
-
-Write in a professional, factual tone using behavioral terminology. Focus strictly on observable behaviors and documented facts from the data provided. Avoid subjective language, praise words, or elaborative descriptions.
-
-Guidelines:
-1. Use objective, measurable language
-2. Report only what is documented in the data
-3. Avoid words like "commendable," "excellent," "wonderful," "concerning," etc.
-4. State behaviors as they occurred without interpretation
-5. Use behavioral terminology when appropriate
-6. Reference the rating system definitions when analyzing behavioral patterns
-
-Create content for these sections:
-
-1. GENERAL BEHAVIOR OVERVIEW: Summarize the student's behavioral patterns based on documented observations. State frequency, duration, and context of behaviors as recorded. Include analysis of rating distributions (4's, 3's, 2's, 1's) and what they indicate about behavioral performance.
-
-2. STRENGTHS: List specific positive behaviors observed, with frequency and context. Use factual language (e.g., "completed tasks independently," "followed directions on first request," "remained in assigned area"). Reference ratings of 4 and 3 as indicators of meeting/exceeding expectations.
-
-3. IMPROVEMENTS NEEDED: Identify specific behaviors that require intervention based on data. State what was observed and how often, without subjective commentary. Focus on ratings of 2 and 1 as indicators of areas needing attention.
-
-4. BEHAVIORAL INCIDENTS: Document any incidents exactly as reported, including antecedents, behaviors, and consequences. Maintain factual, neutral language.
-
-5. SUMMARY & RECOMMENDATIONS: Provide data-based recommendations using behavioral intervention terminology. Focus on specific, measurable strategies. Consider the rating patterns to suggest targeted interventions.
-
-Format your response as a JSON object with these exact keys:
-{
-  "general_overview": "content here",
-  "strengths": "content here", 
-  "improvements": "content here",
-  "incidents": "content here",
-  "recommendations": "content here"
-}
-
-Use professional behavioral documentation language. Report only what is documented in the provided data without adding interpretations or subjective assessments. 
-
-CRITICAL DATE REQUIREMENTS:
-- ONLY reference dates that appear in the provided behavioral data above
-- DO NOT reference dates outside the specified period of ${dateRangeText}
-- DO NOT use relative date references like "yesterday," "last week," or "recently"
-- When mentioning specific incidents or observations, ONLY use the exact dates from the data provided
-- If no specific date is needed, refer to "during the reporting period" instead of specific dates`;
-
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a behavioral analyst who creates objective, factual behavior summaries using professional behavioral documentation standards. Focus on observable behaviors and documented data without subjective interpretations or elaborative language. CRITICAL: Only reference dates that are explicitly provided in the data - never use relative dates like 'yesterday' or dates outside the specified reporting period."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 1200
-      });
-
-      const response = completion.choices[0].message.content;
-      
-      // Parse the JSON response
-      const analysis = JSON.parse(response);
-      
-      return {
-        general_overview: analysis.general_overview || '',
-        strengths: analysis.strengths || '',
-        improvements: analysis.improvements || '',
-        incidents: analysis.incidents || '',
-        recommendations: analysis.recommendations || ''
-      };
-      
-    } catch (error) {
-      console.error('OpenAI API error:', error);
-      throw new Error('Failed to generate AI analysis');
-    }
-  };
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 max-w-4xl mx-auto">

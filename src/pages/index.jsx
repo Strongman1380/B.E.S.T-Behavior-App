@@ -31,7 +31,6 @@ const BehaviorSummaryReports = lazy(() => import('./BehaviorSummaryReports'));
 const SummaryReports = lazy(() => import('./SummaryReports'));
 const IncidentReports = lazy(() => import('./IncidentReports'));
 const PrintReports = lazy(() => import('./PrintReports'));
-const BestGrids = lazy(() => import('./BestGrids'));
 
 // Heavy pages with special loading messages
 const KPIDashboard = lazy(() => 
@@ -43,6 +42,7 @@ const KPIDashboard = lazy(() =>
 );
 
 const CreditsEarned = lazy(() => import('./CreditsEarned'));
+const BestInteractiveGrid = lazy(() => import('./BestInteractiveGrid'));
 
 // Preload routes based on current location
 function RoutePreloader() {
@@ -110,8 +110,8 @@ function PagesContent() {
                 <Route path="/SummaryReports" element={<SummaryReports />} />
                 <Route path="/IncidentReports" element={<IncidentReports />} />
                 <Route path="/PrintReports" element={<PrintReports />} />
-                <Route path="/BestGrids" element={<BestGrids />} />
                 <Route path="/CreditsEarned" element={<CreditsEarned />} />
+                <Route path="/BestInteractiveGrid" element={<BestInteractiveGrid />} />
             </Routes>
             </Suspense>
         </Layout>

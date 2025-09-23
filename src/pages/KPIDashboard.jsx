@@ -13,6 +13,7 @@ import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks } 
 import { parseYmd, truncateDecimal, formatTruncated } from "@/utils";
 import { getNumericSectionValues } from "@/utils/behaviorMetrics";
 import { toast } from 'sonner';
+import { TIME_SLOT_KEYS } from "@/config/timeSlots";
 import ClearDataDialog from "@/components/kpi/ClearDataDialog";
 import { createZip } from "@/lib/zip";
 
@@ -422,7 +423,7 @@ export default function KPIDashboard() {
   // Get time slot performance analysis
   const getTimeSlotAnalysis = () => {
     const { filteredEvaluations } = getFilteredData();
-    const timeSlots = ['8:30', '9:10', '9:50', '10:30', '11:10', '1:10', '1:50', '2:30'];
+    const timeSlots = TIME_SLOT_KEYS;
     
     return timeSlots.map(slot => {
       let totalRatings = 0;

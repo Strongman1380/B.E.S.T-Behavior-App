@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { LayoutDashboard, MessageSquare, Zap, Settings, Menu, FileText, AlertTriangle, BarChart3, BookOpen, Printer, Grid3X3 } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Zap, Settings, Menu, FileText, AlertTriangle, BarChart3, BookOpen, Printer, Grid } from 'lucide-react';
 import RealTimeSync from '../components/sync/RealTimeSync';
 import SupabaseStatus from '../components/SupabaseStatus';
 import SupabaseHealth from '../components/SupabaseHealth';
@@ -14,7 +14,7 @@ const navItems = [
     { title: 'Contact Logs', icon: MessageSquare, url: createPageUrl('ContactLogs') },
     { title: 'Quick Score', icon: Zap, url: createPageUrl('QuickScore') },
     { title: 'KPI Dashboard', icon: BarChart3, url: createPageUrl('KPIDashboard') },
-    { title: 'B.E.S.T Grids', icon: Grid3X3, url: createPageUrl('BestGrids') },
+    { title: 'B.E.S.T Interactive Grid', icon: Grid, url: createPageUrl('BestInteractiveGrid') },
     { title: 'Behavior Summaries', icon: FileText, url: createPageUrl('BehaviorSummaryReports') },
     { title: 'Summary Reports', icon: FileText, url: createPageUrl('SummaryReports') },
     { title: 'Print Reports', icon: Printer, url: createPageUrl('PrintReports') },

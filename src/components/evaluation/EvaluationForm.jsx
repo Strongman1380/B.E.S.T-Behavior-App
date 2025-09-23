@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Save, Clock } from "lucide-react";
 
 import TimeSlotRating from './TimeSlotRating';
+import { TIME_SLOT_KEYS } from "@/config/timeSlots";
 
-const TIME_SLOTS = ['8:30', '9:10', '9:50', '10:30', '11:10', '1:10', '1:50', '2:30'];
+const TIME_SLOTS = TIME_SLOT_KEYS;
 
 export default function EvaluationForm({ evaluation, settings, onSave, isSaving }) {
   const [formData, setFormData] = useState({

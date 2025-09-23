@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
 import { createPageUrl, todayYmd } from "@/utils";
-import { BEHAVIOR_SECTION_KEYS, calculateAverageFromSlots, calculateSectionAverages, countCompletedSlots, deriveTotalSlotCount } from "@/utils/behaviorMetrics";
+import { BEHAVIOR_SECTION_KEYS, calculateAverageFromSlots, calculateSectionAverages, countCompletedSlots, deriveTotalSlotCount, formatDisplayValue } from "@/utils/behaviorMetrics";
 import { useOptimizedData } from "@/hooks/useOptimizedData";
 
 import AddStudentDialog from "../components/behavior/AddStudentDialog";
@@ -245,7 +245,7 @@ export default function BehaviorDashboard() {
 
     const roundedSections = computeRoundedSections(sectionAverages);
 
-    const roundedAverage = roundValue(overall.average, overall.count);
+    const roundedAverage = overall.isNonNumeric ? overall.average : roundValue(overall.average, overall.count);
     const status = limitedCompleted >= totalSlots && totalSlots > 0 ? "Completed" : "In Progress";
     return {
       completedSlots: limitedCompleted,
@@ -253,6 +253,7 @@ export default function BehaviorDashboard() {
       averageScore: overall.average,
       averageCount: overall.count,
       roundedAverage,
+      isNonNumeric: overall.isNonNumeric,
       sectionAverages,
       roundedSections,
       status
@@ -265,14 +266,25 @@ export default function BehaviorDashboard() {
     "Completed": "bg-[#e0f8d2] text-[#2f7a33]",
   };
 
-  const formatRoundedDisplay = (value) => (typeof value === 'number' ? value.toString() : '--');
+  const formatRoundedDisplay = (value, isNonNumeric = false) => {
+    if (isNonNumeric) {
+      return formatDisplayValue(value, true);
+    }
+    return typeof value === 'number' ? value.toString() : '--';
+  };
 
   const buildSectionSummary = (roundedSections) => {
     const segments = BEHAVIOR_SECTION_KEYS
       .map(key => {
-        const value = roundedSections?.[key];
-        if (typeof value === 'number') {
-          return `${SECTION_SHORT_LABELS[key]} ${value}`;
+        const sectionData = roundedSections?.[key];
+        if (!sectionData) return null;
+
+        const { average, isNonNumeric } = sectionData;
+        if (isNonNumeric) {
+          return `${SECTION_SHORT_LABELS[key]} ${formatDisplayValue(average, true)}`;
+        }
+        if (typeof average === 'number') {
+          return `${SECTION_SHORT_LABELS[key]} ${average}`;
         }
         return null;
       })
@@ -284,8 +296,15 @@ export default function BehaviorDashboard() {
   const computeRoundedSections = (sectionAverages) => (
     BEHAVIOR_SECTION_KEYS.reduce((acc, key) => {
       const entry = sectionAverages?.[key];
-      const rounded = entry && entry.count > 0 ? parseFloat(entry.average.toFixed(2)) : null;
-      acc[key] = rounded;
+      if (entry && entry.count > 0) {
+        if (entry.isNonNumeric) {
+          acc[key] = { average: entry.average, isNonNumeric: true, count: entry.count };
+        } else {
+          acc[key] = { average: parseFloat(entry.average.toFixed(2)), count: entry.count };
+        }
+      } else {
+        acc[key] = null;
+      }
       return acc;
     }, {})
   );
@@ -434,7 +453,7 @@ export default function BehaviorDashboard() {
                                   </Badge>
                                   <div className="text-xs sm:text-sm text-slate-600">
                                     <div className="font-semibold text-slate-900 text-sm">
-                                      Overall {formatRoundedDisplay(metrics.roundedAverage)}
+                                      Overall {formatRoundedDisplay(metrics.roundedAverage, metrics.isNonNumeric)}
                                     </div>
                                     <div className="text-[11px] sm:text-xs text-slate-500">
                                       {buildSectionSummary(metrics.roundedSections)}
@@ -528,7 +547,7 @@ export default function BehaviorDashboard() {
                           <TableCell className="text-sm">
                             <div className="inline-flex flex-col gap-1 rounded-lg border border-[#d7ecff] bg-white/80 px-3 py-2 shadow-sm">
                               <div className="font-semibold text-[#0e4e7c] text-base">
-                                Overall {formatRoundedDisplay(metrics.roundedAverage)}
+                                Overall {formatRoundedDisplay(metrics.roundedAverage, metrics.isNonNumeric)}
                               </div>
                               <div className="text-xs text-[#1d7fb8] font-medium">
                                 {buildSectionSummary(metrics.roundedSections)}
@@ -624,7 +643,7 @@ export default function BehaviorDashboard() {
                                     </div>
                                     <div>
                                         <p className="text-sm text-slate-600">Avg. Scores</p>
-                                        <p className="font-bold text-slate-800 text-lg">Overall {formatRoundedDisplay(metrics.roundedAverage)}</p>
+                                        <p className="font-bold text-slate-800 text-lg">Overall {formatRoundedDisplay(metrics.roundedAverage, metrics.isNonNumeric)}</p>
                                         <p className="text-xs text-slate-500 mt-1">{buildSectionSummary(metrics.roundedSections)}</p>
                                     </div>
                                 </div>

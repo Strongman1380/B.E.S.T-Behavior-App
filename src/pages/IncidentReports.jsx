@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Search, Calendar, User, Plus, Eye, Trash2 } from "lucide-react";
+import { AlertTriangle, Search, Calendar, User, Plus, Eye, Trash2, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { formatDate, parseYmd } from "@/utils";
 import { toast } from 'sonner';
@@ -46,6 +46,7 @@ export default function IncidentReports() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [viewingReport, setViewingReport] = useState(null);
+  const [editingReport, setEditingReport] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -132,8 +133,8 @@ export default function IncidentReports() {
 
   const handleSaveReport = async (reportData) => {
     try {
-      await IncidentReport.create(reportData);
-      toast.success("Incident report created successfully!");
+      await IncidentReport.save(reportData);
+      toast.success("Incident report saved successfully!");
       await loadData();
     } catch (error) {
       console.error("Error saving incident report:", error?.message || error, error);
@@ -183,6 +184,10 @@ export default function IncidentReports() {
 
   const handleViewReport = (report) => {
     setViewingReport(report);
+  };
+
+  const handleEditReport = (report) => {
+    setEditingReport(report);
   };
 
   const getStudentName = (studentId, fallbackName = '') => {
@@ -369,6 +374,14 @@ export default function IncidentReports() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                onClick={() => handleEditReport(report)}
+                                className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => handleDeleteReport(report.id)}
                                 className="text-red-500 hover:text-red-700 hover:bg-red-50"
                               >
@@ -404,6 +417,14 @@ export default function IncidentReports() {
                             className="w-8 h-8 text-slate-500"
                           >
                             <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditReport(report)}
+                            className="w-8 h-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            <Edit className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -447,6 +468,20 @@ export default function IncidentReports() {
           onSave={() => {}} // Read-only mode
           initialData={viewingReport}
           readOnly={true}
+          students={students}
+        />
+      )}
+
+      {/* Edit Report Dialog */}
+      {editingReport && (
+        <IncidentReportDialog
+          open={!!editingReport}
+          onOpenChange={() => setEditingReport(null)}
+          student={students.find(s => s.id === editingReport.student_id)}
+          settings={settings}
+          onSave={handleSaveReport}
+          initialData={editingReport}
+          readOnly={false}
           students={students}
         />
       )}

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Printer } from "lucide-react";
 import useBehaviorSummaries from "@/hooks/useBehaviorSummaries";
+import { TIME_SLOTS } from "@/config/timeSlots";
 
 export default function CombinedPrintDialog({ open, onOpenChange, combinedData, date }) {
   const studentIds = combinedData.map(d => d.student.id);
@@ -44,16 +45,7 @@ export default function CombinedPrintDialog({ open, onOpenChange, combinedData, 
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
   };
 
-  const rows = [
-    { key: "8:30", label: "8:30 a.m. to 9:10 a.m." },
-    { key: "9:10", label: "9:10 AM to 9:50 AM" },
-    { key: "9:50", label: "9:50 AM to 10:30 AM" },
-    { key: "10:30", label: "10:30 AM to 11:10 AM" },
-    { key: "11:10", label: "11:10 AM to lunch" },
-    { key: "1:10", label: "after lunch to 1:10 PM" },
-    { key: "1:50", label: "1:10 PM to 1:50 PM" },
-    { key: "2:30", label: "1:50 PM to 2:30 PM" },
-  ];
+  const rows = TIME_SLOTS;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,7 +86,8 @@ export default function CombinedPrintDialog({ open, onOpenChange, combinedData, 
                         const getValue = (section) => {
                           const raw = data?.[section];
                           if (raw !== undefined && raw !== null && `${raw}`.trim().length > 0) {
-                            return `${raw}`;
+                            const value = `${raw}`;
+                            return value === 'A/B' ? 'AB' : value;
                           }
                           return fallback !== '' ? `${fallback}` : '';
                         };
@@ -116,7 +109,7 @@ export default function CombinedPrintDialog({ open, onOpenChange, combinedData, 
                     3 = Meets expectations<br/>
                     2 = Needs Improvement/Does not meet expectations<br/>
                     1 = Unsatisfactory Behavior<br/>
-                    A / B / NS = Program-specific codes
+                    AB / NS = Program-specific codes
                   </div>
                   <div className="comments">
                     <div className="label">COMMENTS:</div>

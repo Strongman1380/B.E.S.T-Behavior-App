@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from 'sonner';
-import OpenAI from 'openai';
+import { aiService } from '@/services/aiService';
 
 const SECTION_DEFINITIONS = [
   { key: 'ai', label: 'Adult Interaction', short: 'AI' },
@@ -12,7 +12,7 @@ const SECTION_DEFINITIONS = [
   { key: 'ce', label: 'Classroom Expectations', short: 'CE' }
 ];
 
-const SCORE_OPTIONS = ['4', '3', '2', '1', 'A/B', 'NS'];
+const SCORE_OPTIONS = ['4', '3', '2', '1', 'AB', 'NS'];
 
 const getInitialValue = (data, section) => {
   if (!data) return undefined;
@@ -52,42 +52,11 @@ export default function TimeSlotRating({ timeKey, label, data, onChange }) {
 
     setIsEnhancingComment(true);
     try {
-      const openai = new OpenAI({
-        apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-        dangerouslyAllowBrowser: true
+      const enhanced = await aiService.enhanceComment(currentComment, {
+        timeSlot: label,
+        behaviorType: 'time_slot'
       });
 
-      const prompt = `You are a professional educator enhancing teacher notes into simple, casually professional language. ONLY use the information provided in the raw teacher notes below. Do NOT add any external information, assumptions, or details that are not explicitly stated or clearly implied in the notes.
-
-BEHAVIORAL RATING SYSTEM:
-- 4 = Exceeds expectations (exceptional performance, goes above and beyond)
-- 3 = Meets expectations (appropriate behavior, follows guidelines)
-- 2 = Needs improvement (some behavioral issues requiring attention)
-- 1 = Does not meet expectations (significant concerns needing intervention)
-
-RAW TEACHER NOTES:
-"${currentComment}"
-
-Please enhance these notes using simple, casually professional language that is:
-- Easy to read and understand
-- Conversational but still appropriate for educational records
-- Clear and straightforward
-- Free of overly formal or academic jargon
-- Natural sounding, like a teacher writing to parents
-
-IMPORTANT: Only enhance and rephrase what is already in the notes. Do not introduce new information, examples, or observations that aren't mentioned in the original notes.`;
-
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are an expert educational assistant specializing in writing professional behavioral observations for student evaluations." },
-          { role: "user", content: prompt }
-        ],
-        max_tokens: 400,
-        temperature: 0.7
-      });
-
-      const enhanced = completion.choices[0].message.content.trim();
       const newData = { ...safeData, comment: enhanced };
       onChange(newData);
       toast.success('Comment enhanced successfully!');
@@ -107,7 +76,7 @@ IMPORTANT: Only enhance and rephrase what is already in the notes. Do not introd
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {SECTION_DEFINITIONS.map(({ key, label: sectionLabel, short }) => (
             <div key={key} className="flex flex-col">
-              <span className="text-xs font-semibold text-slate-600 tracking-wider uppercase block leading-tight mb-1 h-8 flex items-end">{short} • {sectionLabel}</span>
+              <span className="text-xs font-semibold text-slate-600 tracking-wider uppercase block leading-tight mb-1 h-8 flex items-end">{short}</span>
               <Select
                 value={getInitialValue(safeData, key)}
                 onValueChange={(value) => handleSectionChange(key, value)}

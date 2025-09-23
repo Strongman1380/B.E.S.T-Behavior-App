@@ -166,20 +166,254 @@ export default function SummaryReports() {
     const summary = `Summary for ${student.student_name} (${start} to ${end}):\n\nAverage Score: ${avgScore}\nNumber of 4's: ${count4} (4 = Exceeds expectations)\nNumber of 3's: ${count3} (3 = Meets expectations)\nNumber of 2's: ${count2} (2 = Needs Improvement)\nNumber of 1's: ${count1} (1 = Does not meet expectations)\n\nIncidents:\n${allIncidents.length ? allIncidents.join('\n') : 'None'}\n\nBehavioral Progress:\n${progressSummary}\n`;
     setReport(summary);
     // HTML for PDF/print
-    const html = `<div style='font-family:Arial;padding:24px;max-width:700px;'>
-      <h2>Summary Report</h2>
-      <h3>${student.student_name}</h3>
-      <p><b>Reporting Period:</b> ${start} to ${end}</p>
-      <p><b>Average Score:</b> ${avgScore}</p>
-      <p><b>Number of 4's:</b> ${count4} <span style='color:green;'>(4 = Exceeds expectations)</span></p>
-      <p><b>Number of 3's:</b> ${count3} <span style='color:blue;'>(3 = Meets expectations)</span></p>
-      <p><b>Number of 2's:</b> ${count2} <span style='color:orange;'>(2 = Needs Improvement)</span></p>
-      <p><b>Number of 1's:</b> ${count1} <span style='color:red;'>(1 = Does not meet expectations)</span></p>
-      <h4>Incidents</h4>
-      <ul>${allIncidents.length ? allIncidents.map(i => `<li>${i}</li>`).join('') : '<li>None</li>'}</ul>
-      <h4>Behavioral Progress</h4>
-      <p>${progressSummary}</p>
-    </div>`;
+    const html = `
+    <html>
+      <head>
+        <title>Student Behavioral Summary Report</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: #2c3e50;
+            background: #fff;
+            padding: 20px;
+          }
+          .report-container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+          }
+          .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            padding: 30px;
+            text-align: center;
+            position: relative;
+          }
+          .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+          }
+          .header h1 { 
+            font-size: 28px; 
+            font-weight: 300; 
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          }
+          .header h2 { 
+            font-size: 24px; 
+            font-weight: 600; 
+            margin-bottom: 4px;
+          }
+          .header .period { 
+            font-size: 16px; 
+            opacity: 0.9;
+            font-weight: 300;
+          }
+          .content { 
+            padding: 40px; 
+          }
+          .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
+            gap: 20px; 
+            margin-bottom: 40px;
+          }
+          .stat-card { 
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 24px 20px;
+            text-align: center;
+            border-left: 4px solid;
+            transition: transform 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+          }
+          .stat-card:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+          }
+          .stat-card.excellent { border-left-color: #27ae60; background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; }
+          .stat-card.good { border-left-color: #3498db; background: linear-gradient(135deg, #3498db, #2980b9); color: white; }
+          .stat-card.improvement { border-left-color: #f39c12; background: linear-gradient(135deg, #f39c12, #e67e22); color: white; }
+          .stat-card.concern { border-left-color: #e74c3c; background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; }
+          .stat-card.average { border-left-color: #9b59b6; background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; }
+          .stat-number { 
+            font-size: 36px; 
+            font-weight: 700; 
+            margin-bottom: 8px;
+            display: block;
+          }
+          .stat-label { 
+            font-size: 14px; 
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.9;
+          }
+          .stat-description { 
+            font-size: 12px; 
+            margin-top: 4px;
+            opacity: 0.8;
+          }
+          .section { 
+            margin-bottom: 35px;
+          }
+          .section-title { 
+            font-size: 20px; 
+            font-weight: 600; 
+            color: #2c3e50;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #ecf0f1;
+            display: flex;
+            align-items: center;
+          }
+          .section-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            margin-right: 12px;
+            border-radius: 2px;
+          }
+          .incidents-list { 
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border-left: 4px solid #e74c3c;
+          }
+          .incidents-list ul { 
+            list-style: none; 
+          }
+          .incidents-list li { 
+            padding: 8px 0;
+            border-bottom: 1px solid #ecf0f1;
+            position: relative;
+            padding-left: 20px;
+          }
+          .incidents-list li::before {
+            content: '⚠';
+            position: absolute;
+            left: 0;
+            color: #e74c3c;
+            font-weight: bold;
+          }
+          .incidents-list li:last-child { 
+            border-bottom: none; 
+          }
+          .no-incidents {
+            text-align: center;
+            color: #27ae60;
+            font-weight: 600;
+            padding: 20px;
+            background: linear-gradient(135deg, #d5f4e6, #fafbfc);
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+          }
+          .no-incidents::before {
+            content: '✓';
+            font-size: 24px;
+            display: block;
+            margin-bottom: 8px;
+          }
+          .progress-summary { 
+            background: linear-gradient(135deg, #f8f9fa, #ffffff);
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid #e9ecef;
+            line-height: 1.8;
+            font-size: 15px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+          }
+          @media print {
+            body { padding: 0; }
+            .report-container { 
+              box-shadow: none; 
+              border-radius: 0;
+              max-width: none;
+            }
+            .stat-card:hover { 
+              transform: none;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+            @page { 
+              margin: 0.5in;
+              size: A4;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="report-container">
+          <div class="header">
+            <h1>Behavioral Summary Report</h1>
+            <h2>${student.student_name}</h2>
+            <div class="period">${start} to ${end}</div>
+          </div>
+          
+          <div class="content">
+            <div class="stats-grid">
+              <div class="stat-card average">
+                <span class="stat-number">${avgScore}</span>
+                <div class="stat-label">Average Score</div>
+                <div class="stat-description">Overall Performance</div>
+              </div>
+              <div class="stat-card excellent">
+                <span class="stat-number">${count4}</span>
+                <div class="stat-label">Excellent (4)</div>
+                <div class="stat-description">Exceeds Expectations</div>
+              </div>
+              <div class="stat-card good">
+                <span class="stat-number">${count3}</span>
+                <div class="stat-label">Good (3)</div>
+                <div class="stat-description">Meets Expectations</div>
+              </div>
+              <div class="stat-card improvement">
+                <span class="stat-number">${count2}</span>
+                <div class="stat-label">Needs Work (2)</div>
+                <div class="stat-description">Needs Improvement</div>
+              </div>
+              <div class="stat-card concern">
+                <span class="stat-number">${count1}</span>
+                <div class="stat-label">Concern (1)</div>
+                <div class="stat-description">Does Not Meet Expectations</div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <h3 class="section-title">Behavioral Incidents</h3>
+              ${allIncidents.length ? `
+                <div class="incidents-list">
+                  <ul>
+                    ${allIncidents.map(incident => `<li>${incident}</li>`).join('')}
+                  </ul>
+                </div>
+              ` : `
+                <div class="no-incidents">
+                  No behavioral incidents reported during this period
+                </div>
+              `}
+            </div>
+            
+            <div class="section">
+              <h3 class="section-title">Behavioral Progress Analysis</h3>
+              <div class="progress-summary">
+                ${progressSummary}
+              </div>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>`;
     setReportHtml(html);
     setLoading(false);
   };

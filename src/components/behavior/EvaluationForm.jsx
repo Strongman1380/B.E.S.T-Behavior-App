@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Save, Sparkles, Loader2 } from "lucide-react";
 import TimeSlotRating from "./TimeSlotRating";
 import { toast } from 'sonner';
-import OpenAI from 'openai';
+import { aiService } from '@/services/aiService';
 
 import { TIME_SLOTS } from "@/config/timeSlots";
 
@@ -84,42 +84,10 @@ export default function EvaluationForm({ evaluation, settings, onSave, isSaving 
 
     setIsEnhancingComments(true);
     try {
-      const openai = new OpenAI({
-        apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-        dangerouslyAllowBrowser: true
+      const enhanced = await aiService.enhanceComment(formData.general_comments, {
+        behaviorType: 'general_comments'
       });
 
-      const prompt = `You are a professional educator enhancing teacher notes into simple, casually professional language. ONLY use the information provided in the raw teacher notes below. Do NOT add any external information, assumptions, or details that are not explicitly stated or clearly implied in the notes.
-
-BEHAVIORAL RATING SYSTEM:
-- 4 = Exceeds expectations (exceptional performance, goes above and beyond)
-- 3 = Meets expectations (appropriate behavior, follows guidelines)
-- 2 = Needs improvement (some behavioral issues requiring attention)
-- 1 = Does not meet expectations (significant concerns needing intervention)
-
-RAW TEACHER NOTES:
-"${formData.general_comments}"
-
-Please enhance these notes using simple, casually professional language that is:
-- Easy to read and understand
-- Conversational but still appropriate for educational records
-- Clear and straightforward
-- Free of overly formal or academic jargon
-- Natural sounding, like a teacher writing to parents
-
-IMPORTANT: Only enhance and rephrase what is already in the notes. Do not introduce new information, examples, or observations that aren't mentioned in the original notes.`;
-
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are an expert educational assistant specializing in writing professional behavioral observations for student evaluations." },
-          { role: "user", content: prompt }
-        ],
-        max_tokens: 400,
-        temperature: 0.7
-      });
-
-      const enhanced = completion.choices[0].message.content.trim();
       const newFormData = { ...formData, general_comments: enhanced };
       setFormData(newFormData);
       setHasUnsavedChanges(true);

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
 import { formatDate } from '@/utils';
 import { Printer, X } from 'lucide-react';
+import { TIME_SLOTS } from "@/config/timeSlots";
 
 export default function PrintDialog({ open, onOpenChange, student, evaluation, settings, date }) {
   
@@ -61,16 +62,7 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
     return parseTime(a[0]) - parseTime(b[0]);
   };
 
-  const rows = [
-    { key: '8:30', label: '8:30 a.m. to 9:10 a.m.' },
-    { key: '9:10', label: '9:10 AM to 9:50 AM' },
-    { key: '9:50', label: '9:50 AM to 10:30 AM' },
-    { key: '10:30', label: '10:30 AM to 11:10 AM' },
-    { key: '11:10', label: '11:10 AM to lunch' },
-    { key: '1:10', label: 'after lunch to 1:10 PM' },
-    { key: '1:50', label: '1:10 PM to 1:50 PM' },
-    { key: '2:30', label: '1:50 PM to 2:30 PM' },
-  ];
+  const rows = TIME_SLOTS;
 
   if (!evaluation || !evaluation.time_slots || Object.keys(evaluation.time_slots).length === 0) {
     return (
@@ -127,7 +119,8 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
                 const getValue = (section) => {
                   const raw = data?.[section];
                   if (raw !== undefined && raw !== null && `${raw}`.trim().length > 0) {
-                    return `${raw}`;
+                    const value = `${raw}`;
+                    return value === 'A/B' ? 'AB' : value;
                   }
                   return fallback !== '' ? `${fallback}` : '';
                 };
@@ -149,7 +142,7 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
             3 = Meets expectations<br/>
             2 = Needs Improvement / Work in progress<br/>
             1 = Unsatisfactory Behavior<br/>
-            A / B / NS = Program-specific codes
+            AB / NS = Program-specific codes
           </div>
           <div className="comments">
             <div className="label">COMMENTS:</div>

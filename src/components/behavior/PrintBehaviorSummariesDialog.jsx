@@ -361,34 +361,36 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
                 <div className="content-sections">
                   <div className="content-section">
                     <div className="section-label">General Behavior Overview</div>
-                    <div className="content-box large-content-box">{summary.general_behavior_overview || ''}</div>
+                    <div className="content-box large-content-box">{summary.general_behavior_overview || 'Behavioral overview for the selected period.'}</div>
                   </div>
 
                   <div className="two-column">
                     <div className="column">
                       <div className="content-section">
                         <div className="section-label">Strengths</div>
-                        <div className="content-box">{summary.strengths || ''}</div>
+                        <div className="content-box">{summary.strengths || 'Student strengths to be documented.'}</div>
                       </div>
                     </div>
                     <div className="column">
                       <div className="content-section">
                         <div className="section-label">Areas for Improvement</div>
-                        <div className="content-box">{summary.improvements_needed || ''}</div>
+                        <div className="content-box">{summary.improvements_needed || 'Areas for improvement to be assessed.'}</div>
                       </div>
                     </div>
                   </div>
 
-                  {(summary.behavioral_incidents && summary.behavioral_incidents.trim()) && (
-                    <div className="content-section">
-                      <div className="section-label">Behavioral Incident Summary</div>
-                      <div className="content-box">{summary.behavioral_incidents}</div>
+                  <div className="content-section">
+                    <div className="section-label">Behavioral Incident Summary</div>
+                    <div className="content-box">
+                      {summary.behavioral_incidents && summary.behavioral_incidents.trim()
+                        ? summary.behavioral_incidents
+                        : 'No behavioral incidents reported for this period.'}
                     </div>
-                  )}
+                  </div>
 
                   <div className="content-section">
                     <div className="section-label">Recommendations</div>
-                    <div className="content-box large-content-box">{summary.summary_recommendations || ''}</div>
+                    <div className="content-box large-content-box">{summary.summary_recommendations || 'Recommendations to be developed based on behavioral observations.'}</div>
                   </div>
                 </div>
 

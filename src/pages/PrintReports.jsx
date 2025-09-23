@@ -11,6 +11,7 @@ import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, sub
 import { formatDate } from "@/utils";
 import { toast } from 'sonner';
 import { BEHAVIOR_SECTION_KEYS, calculateAverageFromSlots, calculateSectionAverages } from "@/utils/behaviorMetrics";
+import { TIME_SLOTS } from "@/config/timeSlots";
 
 const DATE_PRESETS = [
   { label: "Today", value: "today" },
@@ -27,6 +28,7 @@ const DATE_PRESETS = [
 const REPORT_TYPES = [
   { id: "behavior", label: "Behavior Sheets", icon: FileText },
   { id: "incidents", label: "Incident Reports", icon: AlertTriangle },
+  { id: "weeklyBehavior", label: "Weekly Behavior Tracking", icon: Calendar },
   { id: "weeklyAverages", label: "Weekly End of Day Averages", icon: BarChart3 },
   { id: "dailyAverages", label: "Daily Averages Combined", icon: BarChart3 }
 ];
@@ -183,9 +185,12 @@ export default function PrintReports() {
           incident_date_from: startDate,
           incident_date_to: endDate
         });
+        console.log("Raw incidents fetched:", incidents.length);
+        console.log("Selected students:", selectedSet);
         preview.data.incidents = incidents.filter(i => 
           selectedSet.has(Number(i.student_id))
         );
+        console.log("Filtered incidents:", preview.data.incidents.length);
       }
 
       if (selectedReportTypes.includes("weeklyAverages")) {
@@ -203,7 +208,20 @@ export default function PrintReports() {
           date_from: startDate,
           date_to: endDate
         });
+        console.log("Daily Averages - Raw evaluations:", evaluations.length);
+        console.log("Daily Averages - Selected students:", selectedSet);
         preview.data.dailyAveragesEvaluations = evaluations.filter(e => 
+          selectedSet.has(Number(e.student_id))
+        );
+        console.log("Daily Averages - Filtered evaluations:", preview.data.dailyAveragesEvaluations.length);
+      }
+
+      if (selectedReportTypes.includes("weeklyBehavior")) {
+        const evaluations = await DailyEvaluation.filter({
+          date_from: startDate,
+          date_to: endDate
+        });
+        preview.data.weeklyBehaviorEvaluations = evaluations.filter(e => 
           selectedSet.has(Number(e.student_id))
         );
       }
@@ -373,16 +391,7 @@ export default function PrintReports() {
                   <tbody>`;
 
             // Time slots for the day
-            const timeSlots = [
-              { key: '8:30', label: '8:30 AM - 9:10 AM' },
-              { key: '9:10', label: '9:10 AM - 9:50 AM' },
-              { key: '9:50', label: '9:50 AM - 10:30 AM' },
-              { key: '10:30', label: '10:30 AM - 11:10 AM' },
-              { key: '11:10', label: '11:10 AM - Lunch' },
-              { key: '1:10', label: 'After Lunch - 1:10 PM' },
-              { key: '1:50', label: '1:10 PM - 1:50 PM' },
-              { key: '2:30', label: '1:50 PM - 2:30 PM' }
-            ];
+            const timeSlots = TIME_SLOTS;
 
             // Combine all evaluations for this date
             const combinedTimeSlots = {};
@@ -401,9 +410,10 @@ export default function PrintReports() {
               const getValue = (section) => {
                 const raw = slotData[section];
                 if (raw !== undefined && raw !== null && `${raw}`.trim().length > 0) {
-                  return `${raw}`;
+                  const value = `${raw}`;
+                  return value === 'A/B' ? 'AB' : value;
                 }
-                const fallback = typeof slotData.rating === 'number' ? slotData.rating : 
+                const fallback = typeof slotData.rating === 'number' ? slotData.rating :
                                (typeof slotData.score === 'number' ? slotData.score : '');
                 return fallback !== '' ? `${fallback}` : '';
               };
@@ -439,7 +449,7 @@ export default function PrintReports() {
                   3 = Meets expectations<br/>
                   2 = Needs Improvement / Work in progress<br/>
                   1 = Unsatisfactory Behavior<br/>
-                  A / B / NS = Program-specific codes
+                  AB / NS = Program-specific codes
                 </div>
               </div>`;
           });
@@ -448,7 +458,9 @@ export default function PrintReports() {
 
       // Incident Reports - Each incident gets its own page
       if (reportTypes.includes("incidents") && data.incidents) {
-        const studentIncidents = data.incidents.filter(i => i.student_id === student.id);
+        console.log("Processing incidents for student:", student.student_name);
+        const studentIncidents = data.incidents.filter(i => Number(i.student_id) === Number(student.id));
+        console.log("Student incidents found:", studentIncidents.length);
         
         if (studentIncidents.length > 0) {
           studentIncidents.forEach(incident => {
@@ -506,7 +518,9 @@ export default function PrintReports() {
 
       // Weekly End of Day Averages Report
       if (reportTypes.includes("weeklyAverages") && data.weeklyEvaluations) {
-        const studentEvaluations = data.weeklyEvaluations.filter(e => e.student_id === student.id);
+        console.log("Processing weekly averages for student:", student.student_name);
+        const studentEvaluations = data.weeklyEvaluations.filter(e => Number(e.student_id) === Number(student.id));
+        console.log("Weekly evaluations found:", studentEvaluations.length);
         
         if (studentEvaluations.length > 0) {
           if (!isFirstPage) content += '<div class="page-break"></div>';
@@ -580,8 +594,8 @@ export default function PrintReports() {
           };
 
           const roundDisplay = (average, count) => {
-            if (!count || Number.isNaN(average)) return "--";
-            return average.toFixed(2);
+            if (!count || Number.isNaN(average) || typeof average !== 'number') return "--";
+            return average.toFixed(1);
           };
 
           content += `
@@ -621,10 +635,10 @@ export default function PrintReports() {
                     <td style="text-align: left;">Weekly Average</td>
                     ${BEHAVIOR_SECTION_KEYS.map(key => {
                       const data = weeklyAggregates.sections[key];
-                      const average = data.count ? (data.sum / data.count).toFixed(2) : "--";
+                      const average = data.count ? (data.sum / data.count).toFixed(1) : "--";
                       return `<td style="text-align: center;">${average}</td>`;
                     }).join('')}
-                    <td style="text-align: center;">${weeklyAggregates.overall.count ? (weeklyAggregates.overall.sum / weeklyAggregates.overall.count).toFixed(2) : "--"}</td>
+                    <td style="text-align: center;">${weeklyAggregates.overall.count ? (weeklyAggregates.overall.sum / weeklyAggregates.overall.count).toFixed(1) : "--"}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -640,9 +654,15 @@ export default function PrintReports() {
         }
       }
 
-      // Daily Averages Combined Report - handled separately outside the student loop
+      // Daily Averages Combined Report - will be handled after the student loop
       if (reportTypes.includes("dailyAverages") && data.dailyAveragesEvaluations) {
         // This will be handled after the student loop to create a combined table
+        hasStudentContent = true;
+      }
+
+      // Weekly Behavior Tracking - will be handled after the student loop 
+      if (reportTypes.includes("weeklyBehavior") && data.weeklyBehaviorEvaluations) {
+        // This will be handled after the student loop 
         hasStudentContent = true;
       }
 
@@ -666,8 +686,386 @@ export default function PrintReports() {
       }
     });
 
+    // Generate Weekly Behavior Tracking Reports (outside student loop)
+    if (reportTypes.includes("weeklyBehavior") && data.weeklyBehaviorEvaluations) {
+      console.log("Processing weekly behavior tracking with", data.weeklyBehaviorEvaluations.length, "evaluations");
+      
+      selectedStudentData.forEach(student => {
+        if (!isFirstPage) content += '<div class="page-break"></div>';
+        isFirstPage = false;
+
+        // Get evaluations for this student
+        const studentEvaluations = data.weeklyBehaviorEvaluations.filter(e => 
+          Number(e.student_id) === Number(student.id)
+        );
+        console.log("Weekly behavior evaluations for", student.student_name, ":", studentEvaluations.length);
+        console.log("Sample evaluation data structure:", studentEvaluations[0]);
+        if (studentEvaluations[0] && studentEvaluations[0].time_slots) {
+          console.log("Sample time_slots data:", JSON.stringify(studentEvaluations[0].time_slots, null, 2));
+        }
+
+        if (studentEvaluations.length > 0) {
+          // Group evaluations by date
+          const evaluationsByDate = {};
+          studentEvaluations.forEach(evaluation => {
+            console.log("Processing evaluation for date:", evaluation.date, "with time_slots:", evaluation.time_slots);
+            if (!evaluationsByDate[evaluation.date]) {
+              evaluationsByDate[evaluation.date] = evaluation;
+            } else {
+              // Merge time slots if multiple evaluations for the same date
+              if (evaluation.time_slots && evaluationsByDate[evaluation.date].time_slots) {
+                evaluationsByDate[evaluation.date].time_slots = {
+                  ...evaluationsByDate[evaluation.date].time_slots,
+                  ...evaluation.time_slots
+                };
+              }
+            }
+          });
+          
+          console.log("Evaluations grouped by date:", evaluationsByDate);
+
+          // Get weekdays in range (Monday-Friday)
+          const weekdays = [];
+          const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+          const start = new Date(dateRange.start + 'T00:00:00');
+          const end = new Date(dateRange.end + 'T00:00:00');
+
+          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const dayOfWeek = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Monday (1) through Friday (5)
+              weekdays.push({
+                date: format(d, 'yyyy-MM-dd'),
+                dayName: dayNames[dayOfWeek - 1],
+                dayOfWeek: dayOfWeek
+              });
+            }
+          }
+
+          content += `
+            <div class="report-header">
+              <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" class="report-logo" />
+              <div class="report-title">Weekly Behavior Tracking</div>
+              <div class="report-subtitle">
+                ${student.student_name} • ${formatDate(dateRange.start, 'MMMM d, yyyy')} - ${formatDate(dateRange.end, 'MMMM d, yyyy')}
+              </div>
+              <div class="report-subtitle">
+                ${settings?.school_name || 'School'} • Generated by ${settings?.teacher_name || 'Teacher'}
+              </div>
+            </div>
+
+            <div style="margin: 10px 0; font-family: Arial, sans-serif;">
+              <!-- Header Section with School Info and Categories -->
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 9px;">
+                <tr>
+                  <!-- School Info -->
+                  <td style="width: 25%; vertical-align: top; padding: 5px;">
+                    <div style="font-weight: bold; font-size: 10px; margin-bottom: 2px;">B.E.S.T Education</div>
+                    <div style="font-size: 8px;">Kearney Public Schools</div>
+                    <div style="font-size: 8px;">11417 South 76th St.</div>
+                    <div style="font-size: 8px;">Lincoln, NE 68516</div>
+                  </td>
+                  
+                  <!-- Adult Interactions -->
+                  <td style="width: 25%; vertical-align: top; padding: 5px;">
+                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 3px;">ADULT INTERACTIONS</div>
+                    <div style="font-size: 8px; line-height: 1.2;">Being respectful to adults</div>
+                    <div style="font-size: 8px; line-height: 1.2;">Following directions</div>
+                    <div style="font-size: 8px; line-height: 1.2;">Accepts feedback/accountability</div>
+                  </td>
+                  
+                  <!-- Peer Interactions -->
+                  <td style="width: 25%; vertical-align: top; padding: 5px;">
+                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 3px;">PEER INTERACTIONS</div>
+                    <div style="font-size: 8px; line-height: 1.2;">Appropriate communication</div>
+                    <div style="font-size: 8px; line-height: 1.2;">Respects peers and their property</div>
+                    <div style="font-size: 8px; line-height: 1.2;">Resolves conflict appropriately</div>
+                  </td>
+                  
+                  <!-- Classroom Expectations & Scoring -->
+                  <td style="width: 25%; vertical-align: top; padding: 5px;">
+                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 3px;">CLASSROOM EXPECTATIONS</div>
+                    <div style="font-size: 8px; line-height: 1.2;">On task during instruction</div>
+                    <div style="font-size: 8px; line-height: 1.2;">Participating appropriately</div>
+                    <div style="font-size: 8px; line-height: 1.2;">Organized and prepared for class</div>
+                    <div style="font-weight: bold; font-size: 9px; margin-top: 8px; margin-bottom: 2px;">SCORING:</div>
+                    <div style="font-size: 8px; line-height: 1.1;">4 = Exceeds expectations</div>
+                    <div style="font-size: 8px; line-height: 1.1;">3 = Meets expectations</div>
+                    <div style="font-size: 8px; line-height: 1.1;">2 = Below expectations</div>
+                    <div style="font-size: 8px; line-height: 1.1;">1 = Unsatisfactory</div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Daily Averages Summary Table -->
+              <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 15px;">
+                <thead>
+                  <tr style="background: #f4f4f4;">
+                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 15%;">Daily Averages</th>
+                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 14%;">Monday</th>
+                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 14%;">Tuesday</th>
+                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 14%;">Wednesday</th>
+                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 14%;">Thursday</th>
+                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 14%;">Friday</th>
+                    <th style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold; width: 15%;">Week Average</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold;">2.8</td>
+                    ${weekdays.map((day, index) => {
+                      const evaluation = evaluationsByDate[day.date];
+                      if (evaluation && evaluation.time_slots) {
+                        const { average, count } = calculateAverageFromSlots(evaluation.time_slots);
+                        const avgValue = count > 0 && typeof average === 'number' && !isNaN(average) ? average.toFixed(1) : 'N/A';
+                        return `<td style="border: 1px solid #000; padding: 4px; text-align: center;">${avgValue}</td>`;
+                      }
+                      return `<td style="border: 1px solid #000; padding: 4px; text-align: center;">N/A</td>`;
+                    }).join('')}
+                    <td style="border: 1px solid #000; padding: 4px; text-align: center; font-weight: bold;">
+                      ${(() => {
+                        // Calculate week average
+                        const dailyAvgs = weekdays.map(day => {
+                          const evaluation = evaluationsByDate[day.date];
+                          if (evaluation && evaluation.time_slots) {
+                            const { average, count } = calculateAverageFromSlots(evaluation.time_slots);
+                            return count > 0 && typeof average === 'number' && !isNaN(average) ? average : null;
+                          }
+                          return null;
+                        }).filter(avg => avg !== null);
+                        
+                        if (dailyAvgs.length > 0) {
+                          const weekAvg = dailyAvgs.reduce((sum, avg) => sum + avg, 0) / dailyAvgs.length;
+                          return weekAvg.toFixed(1);
+                        }
+                        return '2.8';
+                      })()}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- Individual Day Grids -->
+              ${weekdays.map((day, dayIndex) => {
+                const evaluation = evaluationsByDate[day.date];
+                console.log(`Processing day ${day.dayName} (${day.date}):`, evaluation);
+                const dayTimeSlots = evaluation && evaluation.time_slots ? evaluation.time_slots : {};
+                console.log(`Time slots for ${day.dayName}:`, dayTimeSlots);
+                
+                // Define the specific time slots as shown in screenshot
+                const timeSlots = [
+                  { key: 'slot1', label: '8:30-9:30' },
+                  { key: 'slot2', label: '9:30-10:30' },
+                  { key: 'slot3', label: '10:30-11:30' },
+                  { key: 'slot4', label: '11:30-12:30' },
+                  { key: 'slot5', label: '12:30-1:30' },
+                  { key: 'slot6', label: '1:30-2:30' },
+                  { key: 'slot7', label: '2:30-3:30' }
+                ];
+                
+                // Calculate end-of-day averages for each category
+                const endOfDayAverages = {};
+                ['ai', 'pi', 'ce'].forEach(sectionKey => {
+                  const sectionScores = [];
+                  Object.values(dayTimeSlots).forEach(slot => {
+                    console.log(`Checking slot for ${sectionKey}:`, slot);
+                    // Try to get the score for this section
+                    let scoreValue = slot[sectionKey];
+                    
+                    // If direct field doesn't exist, try alternative names
+                    if (scoreValue === undefined || scoreValue === null || scoreValue === '') {
+                      if (sectionKey === 'ai') {
+                        scoreValue = slot.AI || slot.adult_interaction || slot.adult_interactions;
+                      } else if (sectionKey === 'pi') {
+                        scoreValue = slot.PI || slot.peer_interaction || slot.peer_interactions;
+                      } else if (sectionKey === 'ce') {
+                        scoreValue = slot.CE || slot.classroom_expectations || slot.classroom_expectation;
+                      }
+                    }
+                    
+                    // Parse score and validate
+                    if (scoreValue !== undefined && scoreValue !== null && scoreValue !== '' && scoreValue !== 'AB' && scoreValue !== 'NS') {
+                      const score = Number(scoreValue);
+                      if (!isNaN(score) && score >= 1 && score <= 4) {
+                        sectionScores.push(score);
+                      }
+                    }
+                  });
+                  endOfDayAverages[sectionKey] = sectionScores.length > 0 
+                    ? (sectionScores.reduce((sum, score) => sum + score, 0) / sectionScores.length).toFixed(1)
+                    : '--';
+                });
+                
+                console.log(`End of day averages for ${day.dayName}:`, endOfDayAverages);
+
+                return `
+                  <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h3 style="background: #f4f4f4; padding: 6px; margin: 0 0 1px 0; border: 1px solid #000; text-align: center; font-size: 11px; font-weight: bold;">
+                      ${day.dayName.toUpperCase()}
+                    </h3>
+                    
+                    <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+                      <thead>
+                        <tr style="background: #f4f4f4;">
+                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 18%; font-size: 8px;">Time</th>
+                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">8:30-9:30</th>
+                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">9:30-10:30</th>
+                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">10:30-11:30</th>
+                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">11:30-12:30</th>
+                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">12:30-1:30</th>
+                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">1:30-2:30</th>
+                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">2:30-3:30</th>
+                          <th style="border: 1px solid #000; padding: 3px; text-align: center; width: 11%; font-size: 7px;">Daily Average</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <!-- Adult Interactions Row -->
+                        <tr>
+                          <td style="border: 1px solid #000; padding: 3px; text-align: left; font-weight: bold; font-size: 8px;">Adult Interactions</td>
+                          ${timeSlots.map(timeSlot => {
+                            const slotData = dayTimeSlots[timeSlot.key] || {};
+                            console.log(`AI slot ${timeSlot.key} data:`, slotData);
+                            // Get AI score with fallback options
+                            let aiScore = slotData.ai || slotData.AI || slotData.adult_interaction;
+                            // Display score if valid, otherwise show dash
+                            if (aiScore === undefined || aiScore === null || aiScore === '' || aiScore === 'AB' || aiScore === 'NS') {
+                              aiScore = '--';
+                            }
+                            return `<td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px;">${aiScore}</td>`;
+                          }).join('')}
+                          <td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px; font-weight: bold;">${endOfDayAverages.ai}</td>
+                        </tr>
+                        
+                        <!-- Peer Interactions Row -->
+                        <tr>
+                          <td style="border: 1px solid #000; padding: 3px; text-align: left; font-weight: bold; font-size: 8px;">Peer Interactions</td>
+                          ${timeSlots.map(timeSlot => {
+                            const slotData = dayTimeSlots[timeSlot.key] || {};
+                            // Get PI score with fallback options
+                            let piScore = slotData.pi || slotData.PI || slotData.peer_interaction;
+                            // Display score if valid, otherwise show dash
+                            if (piScore === undefined || piScore === null || piScore === '' || piScore === 'AB' || piScore === 'NS') {
+                              piScore = '--';
+                            }
+                            return `<td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px;">${piScore}</td>`;
+                          }).join('')}
+                          <td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px; font-weight: bold;">${endOfDayAverages.pi}</td>
+                        </tr>
+                        
+                        <!-- Classroom Expectations Row -->
+                        <tr>
+                          <td style="border: 1px solid #000; padding: 3px; text-align: left; font-weight: bold; font-size: 8px;">Classroom Expectations</td>
+                          ${timeSlots.map(timeSlot => {
+                            const slotData = dayTimeSlots[timeSlot.key] || {};
+                            // Get CE score with fallback options
+                            let ceScore = slotData.ce || slotData.CE || slotData.classroom_expectations;
+                            // Display score if valid, otherwise show dash
+                            if (ceScore === undefined || ceScore === null || ceScore === '' || ceScore === 'AB' || ceScore === 'NS') {
+                              ceScore = '--';
+                            }
+                            return `<td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px;">${ceScore}</td>`;
+                          }).join('')}
+                          <td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px; font-weight: bold;">${endOfDayAverages.ce}</td>
+                        </tr>
+                        
+                        <!-- Daily Averages Row -->
+                        <tr style="background: #f0f0f0; font-weight: bold;">
+                          <td style="border: 1px solid #000; padding: 3px; text-align: left; font-size: 8px;">Daily Averages</td>
+                          ${timeSlots.map(timeSlot => {
+                            const slotData = dayTimeSlots[timeSlot.key] || {};
+                            
+                            // Calculate average for this time slot across all categories
+                            const slotScores = [];
+                            ['ai', 'pi', 'ce'].forEach(sectionKey => {
+                              // Get score with direct field access and fallbacks
+                              let scoreValue = slotData[sectionKey];
+                              if (scoreValue === undefined || scoreValue === null || scoreValue === '') {
+                                if (sectionKey === 'ai') {
+                                  scoreValue = slotData.AI || slotData.adult_interaction;
+                                } else if (sectionKey === 'pi') {
+                                  scoreValue = slotData.PI || slotData.peer_interaction;
+                                } else if (sectionKey === 'ce') {
+                                  scoreValue = slotData.CE || slotData.classroom_expectations;
+                                }
+                              }
+                              
+                              // Only include valid numeric scores
+                              if (scoreValue !== undefined && scoreValue !== null && scoreValue !== '' && scoreValue !== 'AB' && scoreValue !== 'NS') {
+                                const score = Number(scoreValue);
+                                if (!isNaN(score) && score >= 1 && score <= 4) {
+                                  slotScores.push(score);
+                                }
+                              }
+                            });
+                            const slotAvg = slotScores.length > 0 
+                              ? (slotScores.reduce((sum, score) => sum + score, 0) / slotScores.length).toFixed(1)
+                              : '--';
+                              
+                            return `<td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px;">${slotAvg}</td>`;
+                          }).join('')}
+                          <td style="border: 1px solid #000; padding: 3px; text-align: center; font-size: 9px;">
+                            ${(() => {
+                              const avgValues = Object.values(endOfDayAverages).filter(val => val !== '--' && val !== 'N/A').map(val => parseFloat(val));
+                              return avgValues.length > 0 
+                                ? (avgValues.reduce((sum, val) => sum + val, 0) / avgValues.length).toFixed(1)
+                                : '--';
+                            })()}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    
+                    <!-- Comments Section -->
+                    <div style="margin-top: 3px;">
+                      <div style="font-weight: bold; font-size: 9px; margin-bottom: 2px;">Comments:</div>
+                      <div style="border: 1px solid #000; min-height: 30px; padding: 4px; font-size: 8px; background: white; line-height: 1.3;">
+                        ${(() => {
+                          // Collect all comments for this day
+                          const allComments = [];
+                          
+                          // Add general comments if any
+                          if (evaluation && evaluation.general_comments && evaluation.general_comments.trim()) {
+                            allComments.push(evaluation.general_comments.trim());
+                          }
+                          
+                          // Add time slot comments with time labels
+                          Object.entries(dayTimeSlots).forEach(([slotKey, slot]) => {
+                            if (slot.comment && slot.comment.trim()) {
+                              const timeSlot = timeSlots.find(ts => ts.key === slotKey);
+                              const timeLabel = timeSlot ? timeSlot.label : slotKey;
+                              allComments.push(`${timeLabel}: ${slot.comment.trim()}`);
+                            }
+                          });
+                          
+                          return allComments.length > 0 ? allComments.join(' • ') : '';
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `;
+        } else {
+          content += `
+            <div class="report-header">
+              <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" class="report-logo" />
+              <div class="report-title">Weekly Behavior Tracking</div>
+              <div class="report-subtitle">
+                ${student.student_name} • ${formatDate(dateRange.start, 'MMMM d, yyyy')} - ${formatDate(dateRange.end, 'MMMM d, yyyy')}
+              </div>
+              <div class="report-subtitle">
+                ${settings?.school_name || 'School'} • Generated by ${settings?.teacher_name || 'Teacher'}
+              </div>
+            </div>
+            <div class="no-data">No behavior data found for this student in the selected date range</div>
+          `;
+        }
+      });
+    }
+
     // Generate Combined Daily Averages Report (all students in one table)
     if (reportTypes.includes("dailyAverages") && data.dailyAveragesEvaluations) {
+      console.log("Generating daily averages report with", data.dailyAveragesEvaluations.length, "evaluations");
       if (!isFirstPage) content += '<div class="page-break"></div>';
       
       // Group all evaluations by date and student
@@ -681,6 +1079,8 @@ export default function PrintReports() {
         }
         evaluationsByDateAndStudent[evaluation.date][evaluation.student_id].push(evaluation);
       });
+
+      console.log("Grouped evaluations by date:", Object.keys(evaluationsByDateAndStudent));
 
       // Get all unique dates and sort them
       const allDates = Object.keys(evaluationsByDateAndStudent).sort();
@@ -784,9 +1184,33 @@ export default function PrintReports() {
       };
 
       const roundDisplay = (value) => {
-        if (!value || Number.isNaN(value) || value === 0) return "--";
-        return value.toFixed(2);
+        if (value === null || value === undefined || Number.isNaN(value) || typeof value !== 'number') {
+          return "--";
+        }
+        return value.toFixed(1);
       };
+
+      // Get the weekdays (Monday-Friday) from the selected date range
+      const getWeekdaysFromRange = (startDate, endDate) => {
+        const days = [];
+        const dayLabels = [];
+        const start = new Date(startDate + 'T00:00:00');
+        const end = new Date(endDate + 'T00:00:00');
+
+        const current = new Date(start);
+        while (current <= end) {
+          const dayOfWeek = current.getDay();
+          // Only include Monday (1) through Friday (5)
+          if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+            days.push(format(current, 'yyyy-MM-dd'));
+            dayLabels.push(format(current, 'EEEE')); // Full day name
+          }
+          current.setDate(current.getDate() + 1);
+        }
+        return { days, dayLabels };
+      };
+
+      const { days: weekdays, dayLabels } = getWeekdaysFromRange(dateRange.start, dateRange.end);
 
       content += `
         <div class="report-header">
@@ -804,38 +1228,33 @@ export default function PrintReports() {
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 12px;">
             <thead>
               <tr>
-                <th style="border: 1px solid #000; padding: 8px; background: #f4f4f4; text-align: left; font-size: 11px;">Student Name</th>
-                ${BEHAVIOR_SECTION_KEYS.map(key => 
-                  `<th style="border: 1px solid #000; padding: 8px; background: #f4f4f4; text-align: center; font-size: 11px;">${SECTION_LABELS[key]}</th>`
-                ).join('')}
-                <th style="border: 1px solid #000; padding: 8px; background: #f4f4f4; text-align: center; font-size: 11px;">Overall Average</th>
+                <th style="border: 1px solid #000; padding: 8px; background: #f4f4f4; text-align: left; font-size: 11px; width: 150px;">Student Name</th>
+                ${dayLabels.map(day => `<th style="border: 1px solid #000; padding: 8px; background: #f4f4f4; text-align: center; font-size: 11px; width: 80px;">${day}</th>`).join('')}
+                <th style="border: 1px solid #000; padding: 8px; background: #f4f4f4; text-align: center; font-size: 11px; width: 80px;">Week</th>
               </tr>
             </thead>
             <tbody>
               ${selectedStudentData.map(student => {
                 const studentOverall = studentOverallAverages[student.id];
+
+                // Calculate daily averages for each weekday
+                const dailyValues = weekdays.map(date => {
+                  const dayData = studentDailyAverages[student.id][date];
+                  if (dayData && dayData.overall.count > 0) {
+                    return dayData.overall.average;
+                  }
+                  return null;
+                });
+
                 return `
                   <tr>
                     <td style="border: 1px solid #000; padding: 8px; text-align: left; font-weight: 600; font-size: 11px;">${student.student_name}</td>
-                    ${BEHAVIOR_SECTION_KEYS.map(key => 
-                      `<td style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 11px;">${roundDisplay(studentOverall.sections[key])}</td>`
-                    ).join('')}
+                    ${dailyValues.map(value => `<td style="border: 1px solid #000; padding: 8px; text-align: center; font-size: 11px;">${roundDisplay(value)}</td>`).join('')}
                     <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: 600; font-size: 11px;">${roundDisplay(studentOverall.overall)}</td>
                   </tr>
                 `;
               }).join('')}
             </tbody>
-            <tfoot>
-              <tr style="background: #f1f5f9;">
-                <td style="border: 1px solid #000; padding: 8px; text-align: left; font-weight: 700; font-size: 11px;">Column Average</td>
-                ${BEHAVIOR_SECTION_KEYS.map(key => {
-                  const data = columnAverages.sections[key];
-                  const average = data.count > 0 ? (data.sum / data.count).toFixed(2) : "--";
-                  return `<td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: 700; font-size: 11px;">${average}</td>`;
-                }).join('')}
-                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: 700; font-size: 11px;">${columnAverages.overall.count > 0 ? (columnAverages.overall.sum / columnAverages.overall.count).toFixed(2) : "--"}</td>
-              </tr>
-            </tfoot>
           </table>
           
           <div class="scale">
@@ -1083,6 +1502,12 @@ export default function PrintReports() {
                       <div className="flex justify-between">
                         <span className="font-medium">Weekly Averages:</span>
                         <span>{previewData.data.weeklyEvaluations?.length || 0} evaluations</span>
+                      </div>
+                    )}
+                    {previewData.reportTypes.includes("weeklyBehavior") && (
+                      <div className="flex justify-between">
+                        <span className="font-medium">Weekly Behavior Tracking:</span>
+                        <span>{previewData.data.weeklyBehaviorEvaluations?.length || 0} evaluations</span>
                       </div>
                     )}
                     {previewData.reportTypes.includes("dailyAverages") && (
