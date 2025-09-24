@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { formatDate } from '@/utils';
 import { Printer, X } from 'lucide-react';
 import { TIME_SLOTS } from "@/config/timeSlots";
+import { getEnhancedPrintStyles, getPrintHeader, getRatingScale, getPrintFooter } from '@/utils/printStyles';
 
 export default function PrintDialog({ open, onOpenChange, student, evaluation, settings, date }) {
   
@@ -23,29 +24,21 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
   const handlePrint = () => {
     const printContent = document.getElementById('single-print-area').innerHTML;
     const printWindow = window.open('', '', 'height=800,width=800');
+    const schoolName = settings?.school_name || "BEST Ed School";
+
     printWindow.document.write(`
       <html>
         <head>
-          <title>Print Report</title>
+          <title>Behavior Monitoring Schedule - ${student?.student_name}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 0; padding: 16px; color: #000; }
-            .title { text-align: center; font-size: 22px; font-weight: 800; letter-spacing: .5px; margin-bottom: 6px; text-transform: uppercase; }
-            .meta { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
-            .meta .label { font-weight: 600; }
-            table.schedule { width: 100%; border-collapse: collapse; margin-top: 8px; }
-            table.schedule th, table.schedule td { border: 1px solid #000; padding: 10px; vertical-align: top; }
-            table.schedule th { background: #f4f4f4; text-align: center; font-weight: 700; font-size: 12px; }
-            .time-cell { width: 22%; text-align: center; font-size: 12px; font-weight: 600; }
-            .score-cell { width: 10%; text-align: center; font-size: 14px; font-weight: 700; letter-spacing: 1px; }
-            .comment-cell { width: 48%; font-size: 12px; min-height: 48px; }
-            .scale { margin-top: 12px; font-size: 12px; }
-            .scale b { display: block; margin-bottom: 4px; }
-            .comments { margin-top: 12px; }
-            .comments .box { border: 2px solid #cfcfcf; background: #f3f3f3; padding: 10px; min-height: 90px; font-size: 12px; }
-            .comments .label { font-weight: 700; margin-bottom: 4px; }
+            ${getEnhancedPrintStyles()}
           </style>
         </head>
-        <body>${printContent}</body>
+        <body>
+          ${getPrintHeader(schoolName, "Behavior Monitoring Schedule", new Date())}
+          ${printContent}
+          ${getPrintFooter(`Student: ${student?.student_name} | Date: ${formatDate(date, 'MMM d, yyyy')}`)}
+        </body>
       </html>
     `);
     printWindow.document.close();
@@ -95,10 +88,20 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
           </div>
         </DialogHeader>
         <div id="single-print-area" className="p-4 max-h-[75vh] overflow-y-auto">
-          <div className="title">BEHAVIOR MONITORING SCHEDULE</div>
-          <div className="meta">
-            <div><span className="label">Student Name:</span> {student?.student_name}</div>
-            <div><span className="label">Date:</span> {formatDate(date, 'MMMM d, yyyy')}</div>
+          <div className="report-title">Behavior Monitoring Schedule</div>
+          <div className="meta-info">
+            <div className="meta-item">
+              <div className="meta-label">Student Name</div>
+              <div className="meta-value">{student?.student_name}</div>
+            </div>
+            <div className="meta-item">
+              <div className="meta-label">Date</div>
+              <div className="meta-value">{formatDate(date, 'MMMM d, yyyy')}</div>
+            </div>
+            <div className="meta-item">
+              <div className="meta-label">Teacher</div>
+              <div className="meta-value">{settings?.teacher_name || 'Not specified'}</div>
+            </div>
           </div>
           <table className="schedule">
             <thead>
@@ -124,29 +127,31 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
                   }
                   return fallback !== '' ? `${fallback}` : '';
                 };
+                const getScoreClass = (value) => {
+                  const num = parseInt(value);
+                  if (num === 4) return 'score-cell score-4';
+                  if (num === 3) return 'score-cell score-3';
+                  if (num === 2) return 'score-cell score-2';
+                  if (num === 1) return 'score-cell score-1';
+                  return 'score-cell';
+                };
+
                 return (
                   <tr key={r.key}>
                     <td className="time-cell">{r.label}</td>
-                    <td className="score-cell">{getValue('ai')}</td>
-                    <td className="score-cell">{getValue('pi')}</td>
-                    <td className="score-cell">{getValue('ce')}</td>
+                    <td className={getScoreClass(getValue('ai'))}>{getValue('ai')}</td>
+                    <td className={getScoreClass(getValue('pi'))}>{getValue('pi')}</td>
+                    <td className={getScoreClass(getValue('ce'))}>{getValue('ce')}</td>
                     <td className="comment-cell">{data?.comment || data?.notes || ''}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          <div className="scale">
-            <b>BEHAVIOR RATING SCALE</b>
-            4 = Exceeds expectations<br/>
-            3 = Meets expectations<br/>
-            2 = Needs Improvement / Work in progress<br/>
-            1 = Unsatisfactory Behavior<br/>
-            AB / NS = Program-specific codes
-          </div>
-          <div className="comments">
-            <div className="label">COMMENTS:</div>
-            <div className="box">{evaluation?.general_comments || ''}</div>
+          <div dangerouslySetInnerHTML={{ __html: getRatingScale() }}></div>
+          <div className="comments-section">
+            <div className="comments-label">Additional Comments</div>
+            <div className="comments-box">{evaluation?.general_comments || 'No additional comments provided.'}</div>
           </div>
         </div>
       </DialogContent>

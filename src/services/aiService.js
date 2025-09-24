@@ -43,8 +43,31 @@ class AIService {
    * Generate cache key for request deduplication
    */
   generateCacheKey(type, data) {
-    const sortedData = JSON.stringify(data, Object.keys(data).sort());
-    return `${type}_${btoa(sortedData).slice(0, 32)}`;
+    // Extract studentId first to ensure it's always part of the cache key
+    const studentId = data.studentId || 'unknown';
+
+    // Create a simpler data structure for hashing that focuses on content, not object references
+    const hashData = {
+      studentId,
+      type,
+      ...data
+    };
+
+    const sortedData = JSON.stringify(hashData, Object.keys(hashData).sort());
+    const hash = btoa(sortedData).slice(0, 32);
+    // Put studentId at the beginning of the cache key for clear separation
+    const cacheKey = `${type}_student${studentId}_${hash}`;
+
+    // Debug logging to see cache keys
+    console.log(`[AI Service] Generating cache key for ${type}:`, {
+      type,
+      studentId,
+      dataKeys: Object.keys(data),
+      hash,
+      cacheKey
+    });
+
+    return cacheKey;
   }
 
   /**
@@ -143,15 +166,15 @@ class AIService {
         messages: [
           {
             role: "system",
-            content: "You are a professional educational assistant that helps improve behavioral documentation. Enhance comments to be more specific, actionable, and professional while maintaining factual accuracy."
+            content: "You are a professional educational behavioral specialist who creates comprehensive narrative assessments. Transform brief behavioral observations into detailed, flowing narratives that capture the full context and implications of student behaviors. Use professional educational and behavioral terminology while maintaining engaging, readable content."
           },
           {
             role: "user",
             content: optimizedPrompt
           }
         ],
-        temperature: 0.4, // Lower temperature for more consistent results
-        max_tokens: 150,   // Reduced for faster responses
+        temperature: 0.5, // Slightly higher for more natural language
+        max_tokens: 400,   // Increased for 4-5 sentence responses
         top_p: 0.9        // Added for better quality control
       });
 
@@ -178,14 +201,27 @@ class AIService {
    * Optimized behavior summary generation with streaming
    */
   async generateBehaviorSummary(commentsData, dateRange, options = {}) {
-    const requestId = aiPerformanceMonitor.startRequest('behavior_summary', { dateRange, dataLength: commentsData.length });
+    const requestId = aiPerformanceMonitor.startRequest('behavior_summary', { dateRange, dataLength: commentsData.length, studentId: options.studentId });
 
     if (!this.client) {
       aiPerformanceMonitor.endRequest(requestId, false, false, 'AI service not initialized');
       throw new Error('AI service not initialized. Please check your OpenAI API key.');
     }
 
-    const cacheKey = this.generateCacheKey('behavior_summary', { commentsData, dateRange });
+    // Include studentId in cache key to ensure student-specific caching
+    // Create a simpler representation for caching that focuses on the content structure
+    const cacheKey = this.generateCacheKey('behavior_summary', {
+      studentId: options.studentId,
+      dateRange: dateRange,
+      commentCount: commentsData.length,
+      commentSummary: commentsData.map(c => ({
+        type: c.type,
+        date: c.date,
+        source: c.source,
+        contentHash: btoa(c.content || '').slice(0, 16), // Use content hash instead of full content
+        rating: c.rating
+      }))
+    });
 
     // Check cache first (shorter cache time for summaries)
     const cached = this.getCachedResponse(cacheKey, 180000); // 3 minutes
@@ -210,8 +246,8 @@ class AIService {
               content: optimizedPrompt
             }
           ],
-          temperature: 0.2,  // Very low for consistent, factual summaries
-          max_tokens: 1000,  // Reduced from 1200
+          temperature: 0.4,  // Increased for more natural, flowing narratives
+          max_tokens: 1800,  // Increased for comprehensive 4-5 sentence responses
           top_p: 0.85,
           frequency_penalty: 0.1,
           presence_penalty: 0.1
@@ -311,15 +347,15 @@ class AIService {
         messages: [
           {
             role: "system",
-            content: "You are a professional educational assistant. Enhance multiple behavioral comments to be more specific and professional. Return enhanced comments in the same order as provided."
+            content: "You are a professional educational behavioral specialist. Transform multiple brief behavioral observations into comprehensive, detailed narratives using professional terminology. Each narrative should be 4-5 flowing sentences that capture the full behavioral context and educational implications. Separate each enhanced narrative with '---' and maintain the original order."
           },
           {
             role: "user",
             content: batchPrompt
           }
         ],
-        temperature: 0.3,
-        max_tokens: 400,
+        temperature: 0.5,
+        max_tokens: 1200,
         top_p: 0.9
       });
 
@@ -340,20 +376,23 @@ class AIService {
     const contextInfo = context.timeSlot ? `Time: ${context.timeSlot}` : '';
     const behaviorContext = context.behaviorType ? `Behavior Type: ${context.behaviorType}` : '';
 
-    return `Enhance this behavioral observation to be more specific and actionable:
+    return `Transform this behavioral observation into a comprehensive, professional narrative using clear behavioral language:
 
 Original: "${comment}"
 ${contextInfo}
 ${behaviorContext}
 
 Requirements:
-- Keep it concise (under 100 characters if possible)
-- Use specific, observable behavioral language
-- Include measurable details when appropriate
-- Maintain professional, objective tone
-- Focus on what was observed, not interpretations
+- Expand into 4-5 complete, flowing sentences
+- Use professional behavioral and educational terminology
+- Include specific behavioral descriptions and context
+- Describe observable actions, patterns, and interactions
+- Reference environmental factors and triggers when applicable
+- Maintain objective, professional tone throughout
+- Focus on behavioral dynamics and their educational implications
+- Connect behaviors to learning and social development
 
-Enhanced version:`;
+Enhanced behavioral narrative:`;
   }
 
   /**
@@ -362,32 +401,43 @@ Enhanced version:`;
   buildBatchEnhancementPrompt(comments, context) {
     const contextInfo = context.timeSlot ? `Context: ${context.timeSlot}` : '';
 
-    return `Enhance these behavioral observations. Return each enhanced comment on a new line in the same order:
+    return `Transform these behavioral observations into comprehensive, professional narratives. Each response should be 4-5 flowing sentences using educational behavioral terminology. Return each enhanced comment separated by "---" in the same order:
 
 ${contextInfo}
 
 Original comments:
 ${comments.map((comment, index) => `${index + 1}. ${comment}`).join('\n')}
 
-Enhanced versions (one per line, same order):`;
+Enhanced behavioral narratives (separated by "---", same order):`;
   }
 
   /**
    * Parse batch enhancement response
    */
   parseBatchResponse(response, originalComments) {
-    const lines = response.split('\n').filter(line => line.trim());
+    // First try parsing with "---" separator
+    const segments = response.split('---').map(segment => segment.trim()).filter(segment => segment.length > 0);
 
-    // If parsing fails, return originals
-    if (lines.length !== originalComments.length) {
-      console.warn('Batch response parsing failed, using originals');
-      return originalComments;
+    if (segments.length === originalComments.length) {
+      return segments.map(segment => {
+        // Remove any numbering that might be present
+        return segment.replace(/^\d+\.\s*/, '').trim();
+      });
     }
 
-    return lines.map(line => {
-      // Remove numbering if present
-      return line.replace(/^\d+\.\s*/, '').trim();
-    });
+    // Fallback to line-based parsing
+    const lines = response.split('\n').filter(line => line.trim());
+
+    if (lines.length === originalComments.length) {
+      return lines.map(line => {
+        // Remove numbering if present
+        return line.replace(/^\d+\.\s*/, '').trim();
+      });
+    }
+
+    // If both parsing methods fail, return originals
+    console.warn('Batch response parsing failed, using originals. Expected', originalComments.length, 'comments, got', segments.length, 'segments and', lines.length, 'lines');
+    return originalComments;
   }
 
   /**
@@ -400,7 +450,7 @@ Enhanced versions (one per line, same order):`;
     // Pre-process and summarize data more efficiently
     const summary = this.preprocessCommentsData(commentsData);
 
-    return `Analyze behavioral data for ${dateRangeText} and create a comprehensive factual summary:
+    return `Analyze behavioral data for ${dateRangeText} and create comprehensive, detailed behavioral narratives:
 
 BEHAVIORAL DATA SUMMARY:
 - Total observations: ${summary.totalObservations}
@@ -416,14 +466,15 @@ CONTACTS: ${summary.contacts.join('\n')}
 Generate JSON response with ALL required keys: general_overview, strengths, improvements, incidents, recommendations
 
 CRITICAL REQUIREMENTS:
-- ALL fields must have meaningful content (minimum 1-2 sentences each)
-- Use ONLY observable behaviors from the data within ${dateRangeText}
-- Reference specific dates from provided data only
-- Include rating analysis where available (4=exceeds, 3=meets, 2=needs improvement, 1=does not meet)
-- Professional behavioral terminology
-- Specific, actionable recommendations
-- No subjective interpretations beyond documented observations
-- If limited data available, base analysis on what IS documented for this date range`;
+- Each field must contain 4-5 flowing, comprehensive sentences
+- Use professional educational and behavioral terminology throughout
+- Write detailed narratives that capture behavioral dynamics and educational implications
+- Include specific behavioral patterns, triggers, and environmental contexts
+- Reference observable behaviors with dates and rating analysis (4=exceeds, 3=meets, 2=needs improvement, 1=does not meet)
+- Connect behaviors to learning processes, social development, and educational outcomes
+- Provide detailed, actionable recommendations with specific implementation strategies
+- Maintain professional, objective tone while being comprehensive and descriptive
+- If limited data available, extrapolate professional insights based on documented observations within ${dateRangeText}`;
   }
 
   /**
@@ -475,19 +526,21 @@ CRITICAL REQUIREMENTS:
    * System prompt for behavior analyst
    */
   getBehaviorAnalystSystemPrompt() {
-    return `You are a professional behavioral analyst creating objective documentation.
+    return `You are a professional educational behavioral analyst creating comprehensive, detailed behavioral assessments. Your role is to transform observational data into rich, informative narratives that capture the full scope of student behavioral patterns and educational implications.
 
 CORE PRINCIPLES:
-- Use only observable, documented behaviors
-- Maintain factual, professional tone
-- Reference specific dates from provided data only
-- No subjective interpretations or elaborative language
-- Focus on measurable outcomes and patterns
+- Create detailed, flowing narratives (4-5 sentences per section) using professional educational terminology
+- Base all assessments on observable, documented behaviors while providing comprehensive context
+- Maintain professional, objective tone while being descriptive and thorough
+- Reference specific dates and patterns from provided data
+- Connect behaviors to educational outcomes, learning processes, and developmental considerations
+- Include environmental factors, triggers, and intervention effectiveness
+- Provide actionable, specific recommendations with implementation strategies
 
 RATING SYSTEM:
 4 = Exceeds expectations, 3 = Meets expectations, 2 = Needs improvement, 1 = Does not meet expectations
 
-Return valid JSON with specific, actionable content for each section.`;
+Return valid JSON with comprehensive, detailed narratives for each section that demonstrate professional behavioral analysis expertise.`;
   }
 
   /**
@@ -496,6 +549,21 @@ Return valid JSON with specific, actionable content for each section.`;
   clearCache() {
     this.cache.clear();
     this.pendingRequests.clear();
+  }
+
+  /**
+   * Clear cache for specific student (useful when switching students)
+   */
+  clearStudentCache(studentId) {
+    const keysToDelete = Array.from(this.cache.keys()).filter(key =>
+      key.includes(`studentId:${studentId}`)
+    );
+
+    keysToDelete.forEach(key => {
+      this.cache.delete(key);
+    });
+
+    console.log(`[AI Service] Cleared cache for student ${studentId}, removed ${keysToDelete.length} entries`);
   }
 
   /**

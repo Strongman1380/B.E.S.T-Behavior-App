@@ -12,6 +12,7 @@ import { CalendarIcon, Save, FileText, Printer } from "lucide-react";
 import { format } from "date-fns";
 import { parseYmd } from "@/utils";
 import { toast } from 'sonner';
+import { getEnhancedPrintStyles, getPrintHeader, getPrintFooter } from '@/utils/printStyles';
 
 const PROBLEM_BEHAVIORS = [
   "Physical aggression",
@@ -309,150 +310,106 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
   const handlePrint = () => {
     const printContent = document.getElementById('incident-print-area').innerHTML;
     const printWindow = window.open('', '', 'height=800,width=800');
+
     printWindow.document.write(`
       <html>
         <head>
-          <title>Incident Report</title>
+          <title>Incident Report - ${formData.student_name}</title>
           <style>
-            @page { 
-              size: letter; 
-              margin: 0.75in; 
-            }
-            body { 
-              font-family: Arial, sans-serif; 
-              margin: 0; 
-              padding: 0; 
-              font-size: 12px;
-              line-height: 1.4;
-              color: #000;
-            }
-            .incident-form { 
+            ${getEnhancedPrintStyles()}
+
+            /* Incident Report specific styles */
+            .incident-form {
               background: white;
               min-height: 9in;
               display: flex;
               flex-direction: column;
             }
-            .form-title {
-              font-size: 20px;
-              font-weight: bold;
-              text-align: center;
-              margin: 0 0 25px 0;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-            }
             .header-info {
               margin-bottom: 25px;
+              display: grid;
+              grid-template-columns: 1fr 1fr 1fr;
+              gap: 20px;
+              padding: 15px;
+              background: #f8fafc;
+              border-radius: 8px;
+              border: 1px solid #e5e7eb;
             }
-            .info-row {
+            .info-item {
               display: flex;
-              align-items: center;
-              margin-bottom: 15px;
-              gap: 10px;
+              flex-direction: column;
             }
             .info-label {
-              font-weight: bold;
-              min-width: 120px;
-              font-size: 12px;
+              font-weight: 700;
+              font-size: 11px;
+              color: #6b7280;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-bottom: 4px;
             }
             .info-box {
-              border: 1px solid #000;
-              padding: 6px 10px;
-              min-width: 200px;
-              background-color: #fff;
-              font-size: 12px;
+              font-size: 14px;
+              font-weight: 600;
+              color: #1f2937;
+              padding: 8px 12px;
+              background: white;
+              border-radius: 4px;
+              border: 1px solid #d1d5db;
             }
             .incident-types {
               margin-bottom: 25px;
+              padding: 20px;
+              background: #fff;
+              border-radius: 8px;
+              border: 1px solid #e5e7eb;
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
             }
             .types-label {
-              font-weight: bold;
-              font-size: 14px;
-              margin-bottom: 10px;
-              color: #000;
+              font-size: 16px;
+              font-weight: 700;
+              color: #1f2937;
+              margin-bottom: 12px;
+              padding-bottom: 8px;
+              border-bottom: 2px solid #e5e7eb;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
             }
             .types-grid {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 8px;
-              border: 2px solid #000;
-              padding: 15px;
-              background-color: #fff;
+              gap: 12px;
             }
             .type-option {
               display: flex;
               align-items: center;
-              gap: 8px;
-              font-size: 11px;
+              gap: 10px;
+              font-size: 12px;
+              padding: 4px;
             }
             .checkbox {
-              width: 16px;
-              height: 16px;
-              border: 2px solid #000;
-              display: inline-block;
+              width: 18px;
+              height: 18px;
+              border: 2px solid #374151;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
               text-align: center;
-              line-height: 12px;
+              line-height: 1;
               font-weight: bold;
+              border-radius: 3px;
             }
             .checkbox.selected {
-              background-color: #000;
+              background-color: #2563eb;
               color: white;
-            }
-            .content-section {
-              margin-bottom: 25px;
-              flex-grow: 1;
-            }
-            .section-label {
-              font-weight: bold;
-              font-size: 14px;
-              margin-bottom: 8px;
-              color: #000;
-            }
-            .content-box {
-              border: 2px solid #000;
-              padding: 12px;
-              min-height: 120px;
-              background-color: #fff;
-              font-size: 11px;
-              line-height: 1.5;
-            }
-            .signature-section {
-              margin-top: auto;
-              padding-top: 25px;
-              display: flex;
-              justify-content: space-between;
-              gap: 60px;
-            }
-            .signature-block {
-              flex: 1;
-            }
-            .signature-line {
-              border-bottom: 2px solid #000;
-              height: 25px;
-              margin-bottom: 6px;
-              padding: 0 5px;
-              display: flex;
-              align-items: center;
-              font-family: 'Brush Script MT', cursive;
-              font-size: 16px;
-              font-style: italic;
-            }
-            .signature-text {
-              font-size: 11px;
-              text-align: center;
-              font-weight: bold;
-            }
-            @media print {
-              body { 
-                font-size: 11px !important; 
-              }
-              .content-box {
-                min-height: 100px !important;
-                font-size: 10px !important;
-              }
+              border-color: #2563eb;
             }
           </style>
         </head>
-        <body>${printContent}</body>
+        <body>
+          ${getPrintHeader("BEST Ed School", "Student Incident Report", new Date())}
+          ${printContent}
+          ${getPrintFooter(`Student: ${formData.student_name} | Date: ${format(formData.date_of_incident, 'MMM d, yyyy')}`)}
+        </body>
       </html>
     `);
     printWindow.document.close();
@@ -504,84 +461,89 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
                   
                   <div className="info-row">
                     <span className="info-label">Date:</span>
-                    <div className="info-box">{format(formData.incident_date, 'MMMM d, yyyy')}</div>
+                    <div className="info-box">{format(formData.date_of_incident, 'MMMM d, yyyy')}</div>
                   </div>
 
                   <div className="info-row">
                     <span className="info-label">Time:</span>
-                    <div className="info-box">{formData.incident_time || '—'}</div>
+                    <div className="info-box">{formData.time_of_incident || '—'}</div>
                   </div>
 
                   <div className="info-row">
-                    <span className="info-label">Location:</span>
-                    <div className="info-box">{formData.location || 'Not specified'}</div>
+                    <span className="info-label">Staff Reporting:</span>
+                    <div className="info-box">{formData.staff_reporting || 'Not specified'}</div>
                   </div>
 
-                  <div className="info-row">
-                    <span className="info-label">Severity:</span>
-                    <div className="info-box">{formData.severity_level || 'Unspecified'}</div>
-                  </div>
                 </div>
 
                 <div className="incident-types">
-                  <div className="types-label">Incident Type</div>
+                  <div className="types-label">Problem Behavior</div>
                   <div className="types-grid">
-                    {INCIDENT_TYPES.map(type => (
-                      <div key={type} className="type-option">
-                        <span className={`checkbox ${formData.incident_type === type ? 'selected' : ''}`}>
-                          {formData.incident_type === type ? '✓' : ''}
+                    {PROBLEM_BEHAVIORS.map(behavior => (
+                      <div key={behavior} className="type-option">
+                        <span className={`checkbox ${formData.problem_behavior[behavior] ? 'selected' : ''}`}>
+                          {formData.problem_behavior[behavior] ? '✓' : ''}
                         </span>
-                        <span>{type}</span>
+                        <span>{behavior}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 <div className="content-section">
-                  <div className="section-label">Incident Summary</div>
-                  <div className="content-box">{formData.incident_summary}</div>
+                  <div className="section-label">Description of Problem Behavior</div>
+                  <div className="content-box">{formData.description_problem_behavior || 'No description provided.'}</div>
                 </div>
 
                 <div className="content-section">
-                  <div className="section-label">Description of Incident</div>
-                  <div className="content-box">{formData.description || 'No additional description provided.'}</div>
-                </div>
-
-                {formData.other_participants && (
-                  <div className="content-section">
-                    <div className="section-label">Other Youth Present</div>
-                    <div className="content-box">{formData.other_participants}</div>
-                  </div>
-                )}
-
-                <div className="content-section">
-                  <div className="section-label">Interventions Used</div>
-                  <div className="content-box">{formData.interventions || 'Not documented.'}</div>
-                </div>
-
-                <div className="content-section">
-                  <div className="section-label">Outcome</div>
-                  <div className="content-box">{formData.outcome || 'Not documented.'}</div>
-                </div>
-
-                <div className="content-section">
-                  <div className="section-label">Follow-Up / Recommendations</div>
+                  <div className="section-label">Activity Context</div>
                   <div className="content-box">
-                    {formData.follow_up_notes || 'Not documented.'}
-                    <br />
-                    <br />
-                    <strong>Follow-Up Required:</strong> {formData.follow_up_required ? 'Yes' : 'No'}
+                    <strong>Activities:</strong> {Object.keys(formData.activity).filter(key => formData.activity[key]).join(', ') || 'None specified'}
+                    <br/><br/>
+                    <strong>Description:</strong> {formData.description_activity || 'No description provided.'}
                   </div>
+                </div>
+
+                <div className="content-section">
+                  <div className="section-label">Others Involved</div>
+                  <div className="content-box">
+                    <strong>Persons:</strong> {Object.keys(formData.others_involved).filter(key => formData.others_involved[key]).join(', ') || 'None specified'}
+                    <br/><br/>
+                    <strong>Description:</strong> {formData.description_others_involved || 'No description provided.'}
+                  </div>
+                </div>
+
+                <div className="content-section">
+                  <div className="section-label">Strategy/Response Used</div>
+                  <div className="content-box">
+                    <strong>Strategies:</strong> {Object.keys(formData.strategy_response).filter(key => formData.strategy_response[key]).join(', ') || 'None specified'}
+                    <br/><br/>
+                    <strong>Description:</strong> {formData.description_strategy_response || 'No description provided.'}
+                  </div>
+                </div>
+
+                <div className="content-section">
+                  <div className="section-label">Follow-Up Actions</div>
+                  <div className="content-box">
+                    <strong>Follow-up:</strong> {Object.keys(formData.follow_up).filter(key => formData.follow_up[key]).join(', ') || 'None specified'}
+                    <br/><br/>
+                    <strong>Description:</strong> {formData.description_follow_up || 'No follow-up description provided.'}
+                  </div>
+                </div>
+
+                <div className="content-section">
+                  <div className="section-label">Additional Narrative</div>
+                  <div className="content-box">{formData.narrative || 'No additional narrative provided.'}</div>
                 </div>
 
                 <div className="signature-section">
                   <div className="signature-block">
-                    <div className="signature-line">{formData.staff_signature}</div>
-                    <div className="signature-text">Staff Signature</div>
+                    <div className="signature-line">{formData.staff_reporting}</div>
+                    <div className="signature-text">Staff Reporting</div>
                   </div>
                   <div className="signature-block">
-                    <div className="signature-line">{format(new Date(), 'MM/dd/yyyy')}</div>
-                    <div className="signature-text">Date</div>
+                    <div className="signature-line">{format(formData.date_of_incident, 'MM/dd/yyyy')}</div>
+                    <div className="signature-text">Date of Incident</div>
                   </div>
                 </div>
               </div>

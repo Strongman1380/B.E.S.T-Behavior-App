@@ -12,6 +12,7 @@ import { DailyEvaluation, IncidentReport, ContactLog } from "@/api/entities";
 import { toast } from 'sonner';
 import { aiService } from '@/services/aiService';
 import { TIME_SLOT_LABELS } from "@/config/timeSlots";
+import { getEnhancedPrintStyles, getPrintHeader, getPrintFooter } from '@/utils/printStyles';
 
 export default function SummaryForm({ summary, settings, onSave, isSaving, studentId, student, onFormDataChange, onUnsavedChanges }) {
   const [formData, setFormData] = useState({
@@ -160,6 +161,15 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
     };
   }, [hasUnsavedChanges, studentId]);
 
+  // Clear AI cache when student changes to prevent cross-contamination
+  useEffect(() => {
+    if (studentId) {
+      console.log(`[SummaryForm] Student changed to ${studentId}, clearing AI cache`);
+      // Clear the entire cache to ensure no cross-student contamination
+      aiService.clearCache();
+    }
+  }, [studentId]);
+
   const handleSave = () => {
     const dataToSave = {
       ...formData,
@@ -253,39 +263,86 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
     printWindow.document.write(`
       <html>
         <head>
-          <title>Print Behavior Summary</title>
+          <title>Behavior Summary Report - ${studentName}</title>
           <style>
-            @page { size: letter; margin: 0.6in; }
-            body { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 11px; line-height: 1.3; color: #000; }
-            .behavior-form { margin-bottom: 0; background: white; min-height: 9in; display: flex; flex-direction: column; }
-            .form-title { font-size: 18px; font-weight: bold; text-align: center; margin: 0 0 18px 0; text-transform: uppercase; letter-spacing: 1px; }
-            .header-info { margin-bottom: 20px; flex-shrink: 0; }
-            .info-row { display: flex; align-items: center; margin-bottom: 10px; gap: 8px; }
-            .info-label { font-weight: bold; min-width: 110px; font-size: 11px; }
-            .info-box { border: 1px solid #000; padding: 5px 8px; min-width: 180px; background-color: #fff; font-size: 11px; }
-            .content-sections { flex-grow: 1; display: flex; flex-direction: column; }
-            .content-section { margin-bottom: 15px; page-break-inside: avoid; }
-            .section-label { font-weight: bold; font-size: 12px; margin-bottom: 6px; text-align: left; color: #000; }
-            .content-box { border: 2px solid #000; padding: 10px; min-height: 60px; background-color: #fff; font-size: 10px; line-height: 1.4; }
-            .large-content-box { min-height: 80px; }
-            .two-column { display: flex; gap: 15px; margin-bottom: 15px; }
-            .column { flex: 1; }
-            .signature-section { margin-top: auto; padding-top: 20px; display: flex; justify-content: space-between; gap: 50px; flex-shrink: 0; }
-            .signature-block { flex: 1; }
-            .signature-line { border-bottom: 2px solid #000; height: 20px; margin-bottom: 5px; }
-            .signature-text { font-size: 10px; text-align: center; font-weight: bold; }
-            @media print {
-              body { font-size: 10px !important; }
-              .behavior-form { min-height: 9.5in !important; max-height: 9.5in !important; }
-              .form-title { font-size: 16px !important; margin-bottom: 15px !important; }
-              .content-box { min-height: 50px !important; font-size: 9px !important; padding: 8px !important; }
-              .large-content-box { min-height: 70px !important; }
-              .info-box { font-size: 10px !important; padding: 4px 6px !important; }
-              .signature-section { padding-top: 15px !important; }
+            ${getEnhancedPrintStyles()}
+
+            /* Behavior Summary specific styles */
+            .behavior-form {
+              margin-bottom: 0;
+              background: white;
+              min-height: 9in;
+              display: flex;
+              flex-direction: column;
+            }
+            .form-title {
+              font-size: 24px;
+              font-weight: 800;
+              text-align: center;
+              margin: 20px 0 30px 0;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              color: #1f2937;
+              background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+              padding: 15px;
+              border-radius: 8px;
+              border: 2px solid #e5e7eb;
+            }
+            .header-info {
+              margin-bottom: 25px;
+              display: grid;
+              grid-template-columns: 1fr 1fr 1fr;
+              gap: 20px;
+              padding: 15px;
+              background: #f8fafc;
+              border-radius: 8px;
+              border: 1px solid #e5e7eb;
+            }
+            .info-item {
+              display: flex;
+              flex-direction: column;
+            }
+            .info-label {
+              font-weight: 700;
+              font-size: 11px;
+              color: #6b7280;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-bottom: 4px;
+            }
+            .info-box {
+              font-size: 14px;
+              font-weight: 600;
+              color: #1f2937;
+              padding: 8px 12px;
+              background: white;
+              border-radius: 4px;
+              border: 1px solid #d1d5db;
+            }
+            .content-sections {
+              flex-grow: 1;
+              display: flex;
+              flex-direction: column;
+              gap: 20px;
+            }
+            .large-content-box {
+              min-height: 120px;
+            }
+            .two-column {
+              display: flex;
+              gap: 20px;
+              margin-bottom: 20px;
+            }
+            .column {
+              flex: 1;
             }
           </style>
         </head>
-        <body>${contentHtml}</body>
+        <body>
+          ${getPrintHeader(schoolName, "Student Behavior Summary Report", new Date())}
+          ${contentHtml}
+          ${getPrintFooter(`Student: ${studentName} | Period: ${dateRangeStr} | Prepared by: ${preparedBy}`)}
+        </body>
       </html>
     `);
     printWindow.document.close();
@@ -314,38 +371,75 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
 
       console.log(`Fetching data for student ${studentId} from ${startDate} to ${endDate}`);
 
-      // Fetch ALL relevant data for comprehensive analysis
-      const [evaluations, incidents, contacts] = await Promise.all([
-        DailyEvaluation.filter({
+      // If the user selected a single date (start === end) prefer to use
+      // only that QuickScore DailyEvaluation as the single source of truth
+      // for AI summary generation. This prevents mixing in other incident
+      // or contact records when the intent is to summarize the QuickScore.
+      let evaluations = [];
+      let incidents = [];
+      let contacts = [];
+
+      if (startDate === endDate) {
+        // Try to fetch a single DailyEvaluation for this student/date
+        const singleEval = await DailyEvaluation.filter({
           student_id: studentId,
           date_from: startDate,
           date_to: endDate
-        }),
-        IncidentReport.filter({
-          student_id: studentId,
-          incident_date_from: startDate,
-          incident_date_to: endDate
-        }),
-        ContactLog.filter({
-          student_id: studentId,
-          contact_date_from: startDate,
-          contact_date_to: endDate
-        })
-      ]);
+        });
+        evaluations = singleEval || [];
 
-      console.log(`Found ${evaluations.length} evaluations, ${incidents.length} incidents, ${contacts.length} contacts`);
+        // Still fetch incidents/contacts but we'll prefer the single evaluation
+        // for the AI input. Keep them available for fallbacks or incident summaries.
+        [incidents, contacts] = await Promise.all([
+          IncidentReport.filter({
+            student_id: studentId,
+            incident_date_from: startDate,
+            incident_date_to: endDate
+          }),
+          ContactLog.filter({
+            student_id: studentId,
+            contact_date_from: startDate,
+            contact_date_to: endDate
+          })
+        ]);
+      } else {
+        // Multi-day selection - preserve previous behavior and gather all sources
+        [evaluations, incidents, contacts] = await Promise.all([
+          DailyEvaluation.filter({
+            student_id: studentId,
+            date_from: startDate,
+            date_to: endDate
+          }),
+          IncidentReport.filter({
+            student_id: studentId,
+            incident_date_from: startDate,
+            incident_date_to: endDate
+          }),
+          ContactLog.filter({
+            student_id: studentId,
+            contact_date_from: startDate,
+            contact_date_to: endDate
+          })
+        ]);
+      }
+
+  console.log(`Found ${evaluations.length} evaluations, ${incidents.length} incidents, ${contacts.length} contacts`);
 
       if (evaluations.length === 0 && incidents.length === 0 && contacts.length === 0) {
         toast.error(`No behavioral data found for the selected date range (${startDate} to ${endDate}). Please verify that evaluations, incidents, or contact logs exist for this student within these dates.`);
         return;
       }
 
-      // Extract ALL comments and behavioral information
-      const allComments = [];
+      // Build AI input. If a single-day was selected and at least one evaluation
+      // exists, prefer that single evaluation as the primary source with incidents/contacts as secondary.
+      // For multi-day selections, aggregate all sources equally.
+      let allComments = [];
 
-      // Process daily evaluations - ALL comments from time slots and general comments
-      evaluations.forEach(evaluation => {
-        // Add general comments
+      if (startDate === endDate && evaluations.length > 0) {
+        // Single day with evaluation data - prioritize the evaluation
+        const evaluation = evaluations[0];
+
+        // Add general comments from evaluation
         if (evaluation.general_comments && evaluation.general_comments.trim()) {
           allComments.push({
             type: 'general',
@@ -356,61 +450,120 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
           });
         }
 
-        // Add ALL time slot comments - comprehensive extraction
+        // Add time slot comments from evaluation
         if (evaluation.time_slots) {
           Object.entries(evaluation.time_slots).forEach(([slot, data]) => {
-            if (data && data.comment && data.comment.trim()) {
-              // Use time slot labels from config
-
+            if (data && (data.comment || data.rating)) {
               allComments.push({
                 type: 'time_slot',
                 date: evaluation.date,
                 slot: slot,
                 slotLabel: TIME_SLOT_LABELS[slot] || slot,
                 rating: data.rating,
-                content: data.comment.trim(),
+                content: data.comment ? data.comment.trim() : '',
                 context: `Time slot: ${TIME_SLOT_LABELS[slot] || slot}`,
                 source: 'daily_evaluation'
               });
             }
           });
         }
-      });
 
-      // Process incident reports for additional behavioral context
-      incidents.forEach(incident => {
-        if (incident.incident_description) {
-          allComments.push({
-            type: 'incident',
-            date: incident.incident_date,
-            content: incident.incident_description,
-            context: `Incident Report - ${incident.incident_type || 'General Incident'}`,
-            source: 'incident_report'
-          });
-        }
-      });
+        // Add incidents and contacts as supplementary information for the same day
+        incidents.forEach(incident => {
+          if (incident.incident_description) {
+            allComments.push({
+              type: 'incident',
+              date: incident.incident_date,
+              content: incident.incident_description,
+              context: `Incident Report - ${incident.incident_type || 'General Incident'}`,
+              source: 'incident_report'
+            });
+          }
+        });
 
-      // Process contact logs for additional context
-      contacts.forEach(contact => {
-        if (contact.outcome_of_contact) {
-          allComments.push({
-            type: 'contact',
-            date: contact.contact_date,
-            content: contact.outcome_of_contact,
-            context: `Contact with ${contact.contact_person_name} - ${contact.contact_category}`,
-            source: 'contact_log'
-          });
-        }
-        if (contact.purpose_of_contact) {
-          allComments.push({
-            type: 'contact_purpose',
-            date: contact.contact_date,
-            content: contact.purpose_of_contact,
-            context: `Contact purpose with ${contact.contact_person_name}`,
-            source: 'contact_log'
-          });
-        }
-      });
+        contacts.forEach(contact => {
+          if (contact.outcome_of_contact) {
+            allComments.push({
+              type: 'contact',
+              date: contact.contact_date,
+              content: contact.outcome_of_contact,
+              context: `Contact with ${contact.contact_person_name} - ${contact.contact_category}`,
+              source: 'contact_log'
+            });
+          }
+          if (contact.purpose_of_contact) {
+            allComments.push({
+              type: 'contact_purpose',
+              date: contact.contact_date,
+              content: contact.purpose_of_contact,
+              context: `Contact purpose with ${contact.contact_person_name}`,
+              source: 'contact_log'
+            });
+          }
+        });
+      } else {
+        // Multi-day aggregation - include all sources equally
+        evaluations.forEach(evaluation => {
+          if (evaluation.general_comments && evaluation.general_comments.trim()) {
+            allComments.push({
+              type: 'general',
+              date: evaluation.date,
+              content: evaluation.general_comments.trim(),
+              context: 'Overall daily evaluation summary',
+              source: 'daily_evaluation'
+            });
+          }
+          if (evaluation.time_slots) {
+            Object.entries(evaluation.time_slots).forEach(([slot, data]) => {
+              if (data && data.comment && data.comment.trim()) {
+                allComments.push({
+                  type: 'time_slot',
+                  date: evaluation.date,
+                  slot: slot,
+                  slotLabel: TIME_SLOT_LABELS[slot] || slot,
+                  rating: data.rating,
+                  content: data.comment.trim(),
+                  context: `Time slot: ${TIME_SLOT_LABELS[slot] || slot}`,
+                  source: 'daily_evaluation'
+                });
+              }
+            });
+          }
+        });
+
+        incidents.forEach(incident => {
+          if (incident.incident_description) {
+            allComments.push({
+              type: 'incident',
+              date: incident.incident_date,
+              content: incident.incident_description,
+              context: `Incident Report - ${incident.incident_type || 'General Incident'}`,
+              source: 'incident_report'
+            });
+          }
+        });
+
+        contacts.forEach(contact => {
+          if (contact.outcome_of_contact) {
+            allComments.push({
+              type: 'contact',
+              date: contact.contact_date,
+              content: contact.outcome_of_contact,
+              context: `Contact with ${contact.contact_person_name} - ${contact.contact_category}`,
+              source: 'contact_log'
+            });
+          }
+          if (contact.purpose_of_contact) {
+            allComments.push({
+              type: 'contact_purpose',
+              date: contact.contact_date,
+              content: contact.purpose_of_contact,
+              context: `Contact purpose with ${contact.contact_person_name}`,
+              source: 'contact_log'
+            });
+          }
+        });
+      }
 
       if (allComments.length === 0) {
         toast.error('No behavioral information found in evaluations, incidents, or contacts for the selected date range');
@@ -418,7 +571,24 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       }
 
       // Use optimized AI service to analyze and generate comprehensive summaries
-      const analysis = await aiService.generateBehaviorSummary(allComments, { startDate, endDate });
+      console.log(`[SummaryForm] Generating behavior summary for student:`, {
+        studentId,
+        studentName: student?.student_name,
+        startDate,
+        endDate,
+        commentCount: allComments.length,
+        commentSources: allComments.reduce((acc, comment) => {
+          acc[comment.source] = (acc[comment.source] || 0) + 1;
+          return acc;
+        }, {}),
+        commentTypes: allComments.reduce((acc, comment) => {
+          acc[comment.type] = (acc[comment.type] || 0) + 1;
+          return acc;
+        }, {})
+      });
+
+      // Generate AI summary with student-specific data (force refresh to ensure latest data)
+      const analysis = await aiService.generateBehaviorSummary(allComments, { startDate, endDate }, { studentId, forceRefresh: true });
 
       // Ensure all fields have content with fallbacks
       const updatedData = {
