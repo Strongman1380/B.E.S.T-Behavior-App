@@ -6,7 +6,7 @@ import { Settings } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, ArrowRight, UserCheck, Users, CalendarIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, UserCheck, Users, CalendarIcon, ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
 import { format } from "date-fns";
 import { todayYmd, parseYmd, formatDate } from "@/utils";
 import { Toaster, toast } from 'sonner';
@@ -23,6 +23,7 @@ export default function QuickScore() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isStudentListOpen, setIsStudentListOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   
   const today = todayYmd();
@@ -126,11 +127,42 @@ export default function QuickScore() {
       <Toaster richColors />
       {isStudentListOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsStudentListOpen(false)}></div>}
       
-      <div className={`fixed inset-y-0 left-0 z-30 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isStudentListOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <StudentList students={students} evaluations={evaluations} currentIndex={currentStudentIndex} onSelectStudent={handleSelectStudent} />
+      {/* Student List Sidebar */}
+      <div className={`fixed inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${
+        isStudentListOpen ? 'translate-x-0' : '-translate-x-full'
+      } ${
+        isSidebarCollapsed ? 'md:w-16' : 'md:w-64'
+      }`}>
+        <StudentList
+          students={students}
+          evaluations={evaluations}
+          currentIndex={currentStudentIndex}
+          onSelectStudent={handleSelectStudent}
+          collapsed={isSidebarCollapsed}
+        />
+
+        {/* Toggle Button on Desktop */}
+        <Button
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          variant="outline"
+          size="icon"
+          className="hidden md:flex absolute -right-4 top-4 bg-white border-2 border-slate-200 hover:bg-slate-50 rounded-full shadow-md"
+        >
+          {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </Button>
       </div>
 
-      <main className="flex-1 flex flex-col overflow-y-auto">
+      {/* Hamburger Menu Button for Desktop */}
+      {isSidebarCollapsed && (
+        <Button
+          onClick={() => setIsSidebarCollapsed(false)}
+          className="hidden md:flex items-center justify-center w-12 h-12 bg-white border-2 border-slate-200 hover:bg-slate-50 fixed left-4 top-1/2 transform -translate-y-1/2 shadow-md z-25 rounded-lg"
+        >
+          <Menu className="w-5 h-5 text-slate-600" />
+        </Button>
+      )}
+
+      <main className={`flex-1 flex flex-col overflow-y-auto ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-0'}`}>
         {!currentStudent ? (
           <div className="flex-1 flex items-center justify-center text-center p-4">
             <div>
