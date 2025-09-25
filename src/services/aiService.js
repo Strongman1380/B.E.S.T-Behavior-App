@@ -166,7 +166,7 @@ class AIService {
         messages: [
           {
             role: "system",
-            content: "You are a professional educational behavioral specialist who creates comprehensive narrative assessments. Transform brief behavioral observations into detailed, flowing narratives that capture the full context and implications of student behaviors. Use professional educational and behavioral terminology while maintaining engaging, readable content."
+            content: "You are a professional educational behavioral specialist who creates concise, impactful narrative assessments. Transform brief behavioral observations into short but comprehensive narratives (exactly 4 sentences) that capture key behaviors and their implications. Use professional educational terminology while keeping the writing clear, direct, and engaging."
           },
           {
             role: "user",
@@ -347,7 +347,7 @@ class AIService {
         messages: [
           {
             role: "system",
-            content: "You are a professional educational behavioral specialist. Transform multiple brief behavioral observations into comprehensive, detailed narratives using professional terminology. Each narrative should be 4-5 flowing sentences that capture the full behavioral context and educational implications. Separate each enhanced narrative with '---' and maintain the original order."
+            content: "You are a professional educational behavioral specialist. Transform multiple brief behavioral observations into concise, impactful narratives using professional terminology. Each narrative should be exactly 4 sentences that capture key behavioral context and educational implications. Separate each enhanced narrative with '---' and maintain the original order."
           },
           {
             role: "user",
@@ -384,7 +384,7 @@ class AIService {
 
     const contextBlock = details.length ? `Context:\n- ${details.join('\n- ')}` : 'Context:\n- Observation recorded within daily evaluation data.';
 
-    return `Elevate the following behavioral observation into a professional narrative suitable for student documentation.
+    return `Transform this behavioral observation into a professional, concise narrative for student documentation.
 
 ${contextBlock}
 
@@ -392,11 +392,10 @@ Original Observation:
 """${comment}"""
 
 Requirements:
-- Expand into 4-5 cohesive sentences using professional educational terminology.
-- Describe observable actions, antecedents/triggers, replacement behaviors, and staff responses where applicable.
-- Maintain an objective tone while acknowledging both challenges and bright spots.
-- Reference the impact on learning, peer interactions, or classroom climate.
-- Close with a forward-looking sentence that connects to next steps, supports, or targeted goals.
+- Write exactly 4 sentences using professional educational language
+- Keep it short and sweet but comprehensive
+- Focus on key behaviors and their impact
+- End with a brief forward-looking statement
 
 Enhanced Narrative:`;
   }
@@ -414,7 +413,7 @@ Enhanced Narrative:`;
 
     const contextInfo = details.length ? `Context:\n- ${details.join('\n- ')}` : 'Context:\n- Daily evaluation excerpts.';
 
-    return `Transform these behavioral observations into comprehensive, professional narratives. Each narrative must contain 4-5 flowing sentences, use educational behavioral terminology, and be separated by "---" in the same order provided.
+    return `Transform these behavioral observations into professional, concise narratives. Each narrative must contain exactly 4 sentences, use educational behavioral terminology, and be separated by "---" in the same order provided.
 
 ${contextInfo}
 
