@@ -1,6 +1,7 @@
 // Supabase storage layer used by the browser build
 // Implements the same interface as the PostgreSQL storage
 import { supabase } from '@/config/supabase'
+import { format as formatDateFns, isValid as isValidDateFns } from 'date-fns'
 import {
   normalizeDailyEvaluation,
   prepareDailyEvaluationForSave,
@@ -73,7 +74,7 @@ class SupabaseEntity {
     const rangeMap = {
       daily_evaluations: { from: 'date_from', to: 'date', toKey: 'date_to' },
       contact_logs: { from: 'contact_date_from', to: 'contact_date', toKey: 'contact_date_to' },
-      incident_reports: { from: 'incident_date_from', to: 'incident_date', toKey: 'incident_date_to' },
+      incident_reports: { from: 'incident_date_from', to: 'date_of_incident', toKey: 'incident_date_to' },
     }
 
     const rm = rangeMap[this.table]
@@ -320,7 +321,156 @@ class SupabaseBehaviorSummaryEntity extends SupabaseEntity {
 }
 
 export const BehaviorSummary = new SupabaseBehaviorSummaryEntity()
-export const IncidentReport = new SupabaseEntity('incident_reports')
+function normalizeNumericId(value) {
+  if (value === null || value === undefined || value === '') return null
+  const num = Number(value)
+  return Number.isNaN(num) ? null : num
+}
+
+function toPlainStudentList(list) {
+  if (!Array.isArray(list)) return []
+  return list
+    .map((entry) => {
+      if (!entry) return null
+      const id = normalizeNumericId(entry.id ?? entry.student_id ?? null)
+      const name = entry.name ?? entry.student_name ?? ''
+      if (!name) return null
+      return { id, name }
+    })
+    .filter(Boolean)
+}
+
+function toArray(value) {
+  if (Array.isArray(value)) return value.filter((item) => item !== undefined && item !== null)
+  if (typeof value === 'string' && value.length > 0) {
+    return value.split(',').map((item) => item.trim()).filter(Boolean)
+  }
+  return []
+}
+
+function toDateString(value) {
+  if (!value) return null
+  if (typeof value === 'string') return value
+  const dateValue = value instanceof Date ? value : new Date(value)
+  if (!isValidDateFns(dateValue)) return null
+  return formatDateFns(dateValue, 'yyyy-MM-dd')
+}
+
+class SupabaseIncidentReportEntity extends SupabaseEntity {
+  constructor() {
+    super('incident_reports')
+  }
+
+  normalizeRow(row = {}) {
+    const involvedStudents = toPlainStudentList(row.involved_students)
+    const behaviors = toArray(row.problem_behavior)
+    const activity = toArray(row.activity)
+    const othersInvolved = toArray(row.others_involved)
+    const strategyResponse = toArray(row.strategy_response)
+    const followUp = toArray(row.follow_up)
+    const incidentDate = row.date_of_incident ?? row.incident_date ?? null
+    const incidentTime = row.time_of_incident ?? row.incident_time ?? null
+    const staffReporting = row.staff_reporting ?? row.staff_name ?? row.reported_by ?? ''
+    const narrative = row.narrative ?? ''
+    const description = row.description_problem_behavior ?? row.incident_description ?? narrative ?? ''
+    const primaryIncidentType = row.incident_type ?? behaviors[0] ?? 'Incident'
+
+    return {
+      ...row,
+      involved_students: involvedStudents,
+      problem_behavior: behaviors,
+      activity,
+      others_involved: othersInvolved,
+      strategy_response: strategyResponse,
+      follow_up: followUp,
+      date_of_incident: incidentDate,
+      time_of_incident: incidentTime,
+      staff_reporting: staffReporting,
+      incident_date: incidentDate,
+      incident_time: incidentTime,
+      staff_name: row.staff_name ?? staffReporting,
+      reported_by: row.reported_by ?? staffReporting,
+      incident_type: primaryIncidentType,
+      incident_summary: row.incident_summary ?? description ?? narrative ?? '',
+      incident_description: row.incident_description ?? description ?? narrative ?? ''
+    }
+  }
+
+  prepareForSave(data = {}) {
+    const incidentDate = toDateString(data.date_of_incident ?? data.incident_date ?? new Date())
+    const incidentTime = data.time_of_incident ?? data.incident_time ?? null
+    const staffReporting = data.staff_reporting ?? data.staff_name ?? data.reported_by ?? ''
+    const involvedStudents = toPlainStudentList(data.involved_students)
+    const behaviors = toArray(data.problem_behavior)
+    const fallbackBehavior = data.incident_type ? [data.incident_type] : []
+    const behaviorList = behaviors.length > 0 ? behaviors : fallbackBehavior
+    const description =
+      data.description_problem_behavior ??
+      data.incident_description ??
+      data.incident_summary ??
+      data.narrative ??
+      ''
+
+    const studentName = data.student_name ?? (involvedStudents.length > 0 ? involvedStudents.map((s) => s.name).join(', ') : '')
+
+    const studentId = normalizeNumericId(
+      data.student_id ?? (involvedStudents.length > 0 ? involvedStudents[0].id ?? null : null)
+    )
+
+    return {
+      student_id: studentId,
+      student_name: studentName,
+      staff_reporting: staffReporting,
+      date_of_incident: incidentDate,
+      time_of_incident: incidentTime,
+      involved_students: involvedStudents,
+      problem_behavior: behaviorList,
+      description_problem_behavior: description,
+      activity: toArray(data.activity),
+      description_activity: data.description_activity ?? '',
+      others_involved: toArray(data.others_involved),
+      description_others_involved: data.description_others_involved ?? '',
+      strategy_response: toArray(data.strategy_response),
+      description_strategy_response: data.description_strategy_response ?? '',
+      follow_up: toArray(data.follow_up),
+      description_follow_up: data.description_follow_up ?? '',
+      narrative: data.narrative ?? data.incident_summary ?? description ?? ''
+    }
+  }
+
+  async list(orderBy) {
+    const normalizedOrder = orderBy === 'incident_date' ? 'date_of_incident' : orderBy
+    const rows = await super.list(normalizedOrder)
+    return Array.isArray(rows) ? rows.map((row) => this.normalizeRow(row)) : []
+  }
+
+  async get(id) {
+    const row = await super.get(id)
+    return row ? this.normalizeRow(row) : row
+  }
+
+  async filter(criteria = {}, order) {
+    const normalizedOrder = order === 'incident_date' ? 'date_of_incident' : order
+    const rows = await super.filter(criteria, normalizedOrder)
+    return Array.isArray(rows) ? rows.map((row) => this.normalizeRow(row)) : []
+  }
+
+  async create(data) {
+    const payload = this.prepareForSave(data)
+    const res = await supabase.from(this.table).insert(payload).select('*').single()
+    normalizeError(res)
+    return this.normalizeRow(res.data)
+  }
+
+  async update(id, data) {
+    const payload = this.prepareForSave({ ...data, id })
+    const res = await supabase.from(this.table).update(payload).eq('id', id).select('*').single()
+    normalizeError(res)
+    return this.normalizeRow(res.data)
+  }
+}
+
+export const IncidentReport = new SupabaseIncidentReportEntity()
 export const User = new SupabaseEntity('users')
 
 export const getStorageType = async () => (supabase ? 'supabase' : 'error')

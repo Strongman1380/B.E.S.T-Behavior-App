@@ -166,16 +166,16 @@ class AIService {
         messages: [
           {
             role: "system",
-            content: "You are a professional educational behavioral specialist who creates concise, impactful narrative assessments. Transform brief behavioral observations into short but comprehensive narratives (exactly 4 sentences) that capture key behaviors and their implications. Use professional educational terminology while keeping the writing clear, direct, and engaging."
+            content: "You are a clinical behavioral analyst specializing in educational settings. Transform brief behavioral observations into concise clinical documentation (2-3 sentences maximum). Use precise behavioral terminology, focus on observable behaviors, and maintain objective clinical tone."
           },
           {
             role: "user",
             content: optimizedPrompt
           }
         ],
-        temperature: 0.5, // Slightly higher for more natural language
-        max_tokens: 400,   // Increased for 4-5 sentence responses
-        top_p: 0.9        // Added for better quality control
+        temperature: 0.3, // Lower for more clinical precision
+        max_tokens: 250,   // Reduced for 2-3 sentence responses
+        top_p: 0.8        // Reduced for more consistent clinical terminology
       });
 
       return completion.choices[0].message.content.trim();
@@ -246,9 +246,9 @@ class AIService {
               content: optimizedPrompt
             }
           ],
-          temperature: 0.4,  // Increased for more natural, flowing narratives
-          max_tokens: 1800,  // Increased for comprehensive 4-5 sentence responses
-          top_p: 0.85,
+          temperature: 0.3,  // Lower for clinical precision
+          max_tokens: 1200,  // Reduced for 3-4 sentence clinical responses
+          top_p: 0.8,
           frequency_penalty: 0.1,
           presence_penalty: 0.1
         });
@@ -347,16 +347,16 @@ class AIService {
         messages: [
           {
             role: "system",
-            content: "You are a professional educational behavioral specialist. Transform multiple brief behavioral observations into concise, impactful narratives using professional terminology. Each narrative should be exactly 4 sentences that capture key behavioral context and educational implications. Separate each enhanced narrative with '---' and maintain the original order."
+            content: "You are a clinical behavioral analyst specializing in educational settings. Transform multiple brief behavioral observations into concise clinical documentation (2-3 sentences each maximum). Use precise behavioral terminology, focus on observable behaviors, and maintain objective clinical tone. Separate each clinical note with '---' and maintain the original order."
           },
           {
             role: "user",
             content: batchPrompt
           }
         ],
-        temperature: 0.5,
-        max_tokens: 1200,
-        top_p: 0.9
+        temperature: 0.3,
+        max_tokens: 800,
+        top_p: 0.8
       });
 
       const enhancedText = completion.choices[0].message.content;
@@ -384,7 +384,7 @@ class AIService {
 
     const contextBlock = details.length ? `Context:\n- ${details.join('\n- ')}` : 'Context:\n- Observation recorded within daily evaluation data.';
 
-    return `Transform this behavioral observation into a professional, concise narrative for student documentation.
+    return `Convert this behavioral observation into clinical documentation suitable for behavioral records.
 
 ${contextBlock}
 
@@ -392,12 +392,12 @@ Original Observation:
 """${comment}"""
 
 Requirements:
-- Write exactly 4 sentences using professional educational language
-- Keep it short and sweet but comprehensive
-- Focus on key behaviors and their impact
-- End with a brief forward-looking statement
+- Write 2-3 sentences maximum using clinical behavioral terminology
+- Focus on observable, measurable behaviors and their functional impact
+- Use objective, clinical language without subjective interpretations
+- Include behavioral antecedents or consequences when relevant
 
-Enhanced Narrative:`;
+Clinical Documentation:`;
   }
 
   /**
@@ -413,14 +413,14 @@ Enhanced Narrative:`;
 
     const contextInfo = details.length ? `Context:\n- ${details.join('\n- ')}` : 'Context:\n- Daily evaluation excerpts.';
 
-    return `Transform these behavioral observations into professional, concise narratives. Each narrative must contain exactly 4 sentences, use educational behavioral terminology, and be separated by "---" in the same order provided.
+    return `Convert these behavioral observations into clinical documentation. Each clinical note must contain 2-3 sentences maximum, use precise behavioral terminology, focus on observable behaviors, and be separated by "---" in the same order provided.
 
 ${contextInfo}
 
-Original comments:
+Original observations:
 ${comments.map((comment, index) => `${index + 1}. ${comment}`).join('\n')}
 
-Enhanced behavioral narratives (separated by "---", same order):`;
+Clinical documentation (separated by "---", same order):`;
   }
 
   /**
@@ -482,7 +482,7 @@ Enhanced behavioral narratives (separated by "---", same order):`;
       ? summary.timeSlotHighlights.map(item => `- ${item.slotLabel}: avg ${item.averageRating} (${item.entryCount} entries${item.lowCount > 0 ? `, low scores: ${item.lowCount}` : ''})`).join('\n')
       : '- No consistent time-slot patterns detected from the available observations.';
 
-    return `You are analyzing behavioral data for ${options.studentName || 'the student'} during ${dateRangeText}. Produce an actionable, professional summary grounded in the evidence provided.
+    return `Conduct a clinical behavioral analysis for ${options.studentName || 'the student'} during ${dateRangeText}. Generate evidence-based documentation using behavioral assessment standards.
 
 STUDENT PROFILE:
 ${studentProfileLines.length ? studentProfileLines.map(line => `- ${line}`).join('\n') : '- Reporting context limited to date range provided.'}
@@ -507,20 +507,20 @@ ${summary.detailedObservations.slice(0, 20).join('\n')}
 INCIDENTS: ${summary.incidents.join('\n')}
 CONTACTS: ${summary.contacts.join('\n')}
 
-Return JSON with the following keys (string values, each 4-5 sentences long):
-- general_overview (comprehensive narrative of overall behavioral patterns and progress)
-- strengths (spotlighting specific positive behaviors and growth areas)
-- improvements (areas requiring coaching or intervention, tied to data)
-- incidents (summary of critical events or high-leverage concerns)
-- recommendations (actionable next steps with practical strategies)
+Return JSON with the following keys (string values, each 3-4 sentences):
+- general_overview (clinical summary of behavioral patterns with functional analysis)
+- strengths (documented positive behaviors with specific data references)
+- improvements (target behaviors requiring intervention with measurable criteria)
+- incidents (objective summary of critical behavioral events)
+- recommendations (evidence-based intervention strategies with implementation specifics)
 
-CRITICAL REQUIREMENTS:
-- Each field must contain 4-5 flowing, comprehensive sentences written in a professional, objective tone
-- Reference concrete evidence from the observations (dates, ratings, time slots, incidents)
-- Highlight patterns, triggers, environmental factors, and the impact on learning or social development
-- Celebrate strengths using asset-based language while still noting supporting data
-- Provide actionable recommendations with specific strategies (who, what, when) tied to observed needs
-- If data is sparse, acknowledge limitations while extrapolating reasonable insights from the available evidence`;
+CLINICAL DOCUMENTATION STANDARDS:
+- Each field must contain 3-4 concise sentences using precise behavioral terminology
+- Reference specific behavioral data (frequencies, durations, intensities, contexts)
+- Focus on functional behavioral analysis: antecedents, behaviors, consequences
+- Document observable behaviors only, avoiding subjective interpretations
+- Include measurable intervention targets and evidence-based strategies
+- Maintain clinical objectivity while acknowledging data limitations`;
   }
 
   /**
@@ -621,20 +621,20 @@ CRITICAL REQUIREMENTS:
    * System prompt for behavior analyst
    */
   getBehaviorAnalystSystemPrompt() {
-    return `You are a professional educational behavioral analyst creating comprehensive, data-driven summaries for educators and program staff.
+    return `You are a clinical behavioral analyst creating evidence-based behavioral assessments for educational teams.
 
-CORE PRINCIPLES:
-- Provide 4-5 sentence paragraphs for each requested field using professional, objective language.
-- Base every insight on the supplied evidence, referencing dates, time blocks, ratings, incidents, and contacts.
-- Highlight student assets and growth while addressing areas of concern with constructive, trauma-informed language.
-- Reference the 4-point behavioral scale where applicable (4 = exceeds, 3 = meets, 2 = needs improvement, 1 = does not meet expectations).
-- Offer actionable recommendations that specify strategies, responsible roles, and follow-up timelines when possible.
-- Acknowledge data limitations transparently if information is sparse.
+CLINICAL STANDARDS:
+- Provide 3-4 sentence clinical summaries for each field using precise behavioral terminology.
+- Document only observable, measurable behaviors with specific data references (dates, ratings, frequencies).
+- Use objective clinical language focusing on behavioral functions and environmental factors.
+- Reference the 4-point behavioral scale (4 = exceeds expectations, 3 = meets expectations, 2 = developing, 1 = requires intensive support).
+- Include functional behavioral analysis elements: antecedents, behaviors, consequences.
+- Maintain clinical objectivity while noting behavioral progress and intervention needs.
 
-OUTPUT FORMAT:
-- Return valid JSON only (no additional commentary).
+DOCUMENTATION FORMAT:
+- Return valid JSON only (no commentary).
 - Keys must include: general_overview, strengths, improvements, incidents, recommendations.
-- Values must be rich narrative strings (not lists) suitable for direct inclusion in reports.`;
+- Values must be concise clinical assessments suitable for behavioral documentation.`;
   }
 
   buildKpiInsightsPrompt(metrics, options = {}) {

@@ -8,28 +8,40 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, Search, Calendar, User, Plus, Eye, Trash2, Edit } from "lucide-react";
 import { format } from "date-fns";
-import { formatDate, parseYmd } from "@/utils";
+import { parseYmd } from "@/utils";
 import { toast } from 'sonner';
 import IncidentReportDialog from "../components/behavior/IncidentReportDialog";
 
-const INCIDENT_TYPES = [
-  "Aggressive Behavior",
-  "Disruptive Behavior", 
-  "Destruction of Property",
-  "Cheating",
-  "Refusing Redirection",
-  "Property Destruction",
-  "Theft"
+const DEFAULT_INCIDENT_TYPES = [
+  "Physical aggression",
+  "Self-injury",
+  "Disruption/tantrum",
+  "Inconsolable crying",
+  "Inappropriate language",
+  "Verbal aggressive",
+  "Non-compliance",
+  "Social withdrawal/isolation",
+  "Elopement",
+  "Property damage",
+  "Unsafe behaviors",
+  "Other:"
 ];
 
+const DEFAULT_TYPE_COLOR = "bg-slate-100 text-slate-800";
+
 const INCIDENT_TYPE_COLORS = {
-  "Aggressive Behavior": "bg-red-100 text-red-800 border-red-200",
-  "Disruptive Behavior": "bg-orange-100 text-orange-800 border-orange-200",
-  "Destruction of Property": "bg-purple-100 text-purple-800 border-purple-200",
-  "Cheating": "bg-yellow-100 text-yellow-800 border-yellow-200",
-  "Refusing Redirection": "bg-blue-100 text-blue-800 border-blue-200",
-  "Property Destruction": "bg-purple-100 text-purple-800 border-purple-200",
-  "Theft": "bg-red-100 text-red-800 border-red-200"
+  "Physical aggression": "bg-red-100 text-red-800 border-red-200",
+  "Self-injury": "bg-red-100 text-red-800 border-red-200",
+  "Disruption/tantrum": "bg-orange-100 text-orange-800 border-orange-200",
+  "Inconsolable crying": "bg-blue-100 text-blue-800 border-blue-200",
+  "Inappropriate language": "bg-yellow-100 text-yellow-800 border-yellow-200",
+  "Verbal aggressive": "bg-amber-100 text-amber-800 border-amber-200",
+  "Non-compliance": "bg-purple-100 text-purple-800 border-purple-200",
+  "Social withdrawal/isolation": "bg-sky-100 text-sky-800 border-sky-200",
+  "Elopement": "bg-emerald-100 text-emerald-800 border-emerald-200",
+  "Property damage": "bg-rose-100 text-rose-800 border-rose-200",
+  "Unsafe behaviors": "bg-red-200 text-red-900 border-red-300",
+  "Other:": DEFAULT_TYPE_COLOR
 };
 
 export default function IncidentReports() {
@@ -47,12 +59,37 @@ export default function IncidentReports() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [viewingReport, setViewingReport] = useState(null);
   const [editingReport, setEditingReport] = useState(null);
+  const [availableIncidentTypes, setAvailableIncidentTypes] = useState(DEFAULT_INCIDENT_TYPES);
+
+  const resolveIncidentDate = useCallback((report) => {
+    if (!report) return null;
+    const value = report.incident_date ?? report.date_of_incident ?? null;
+    if (!value) return null;
+    if (value instanceof Date) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      try {
+        return parseYmd(value);
+      } catch (error) {
+        console.warn('Failed to parse incident date string', value, error);
+        return null;
+      }
+    }
+    const dateValue = new Date(value);
+    return Number.isNaN(dateValue.getTime()) ? null : dateValue;
+  }, []);
+
+  const formatIncidentDate = useCallback((report, pattern) => {
+    const dateValue = resolveIncidentDate(report);
+    return dateValue ? format(dateValue, pattern) : 'Date not set';
+  }, [resolveIncidentDate]);
 
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       const [reportsData, studentsData, settingsData] = await Promise.all([
-        IncidentReport.list('incident_date'),
+        IncidentReport.list('date_of_incident'),
         Student.filter({ active: true }),
         Settings.list()
       ]);
@@ -65,6 +102,18 @@ export default function IncidentReports() {
       setReports(normalizedReports.reverse()); // Most recent first
       setStudents(studentsData);
       setSettings(settingsData[0] || null);
+
+      const derivedTypes = Array.from(new Set([
+        ...DEFAULT_INCIDENT_TYPES,
+        ...normalizedReports.flatMap(report => {
+          if (!report) return [];
+          if (Array.isArray(report.problem_behavior) && report.problem_behavior.length > 0) {
+            return report.problem_behavior;
+          }
+          return report.incident_type ? [report.incident_type] : [];
+        })
+      ].filter(Boolean))).sort((a, b) => a.localeCompare(b));
+      setAvailableIncidentTypes(derivedTypes);
     } catch (error) {
       console.error("Error loading data:", error);
       const msg = typeof error?.message === 'string' ? error.message : ''
@@ -134,7 +183,14 @@ export default function IncidentReports() {
 
     // Type filter
     if (filterType !== "all") {
-      filtered = filtered.filter(report => report.incident_type === filterType);
+      filtered = filtered.filter(report => {
+        if (!report) return false;
+        if (report.incident_type === filterType) return true;
+        if (Array.isArray(report.problem_behavior)) {
+          return report.problem_behavior.includes(filterType);
+        }
+        return false;
+      });
     }
 
     // Student filter
@@ -151,7 +207,7 @@ export default function IncidentReports() {
     if (filterStartDate) {
       const start = parseYmd(filterStartDate);
       filtered = filtered.filter(report => {
-        const incidentDate = report?.incident_date ? parseYmd(report.incident_date) : null;
+        const incidentDate = resolveIncidentDate(report);
         return incidentDate ? incidentDate >= start : false;
       });
     }
@@ -159,13 +215,13 @@ export default function IncidentReports() {
     if (filterEndDate) {
       const end = parseYmd(filterEndDate);
       filtered = filtered.filter(report => {
-        const incidentDate = report?.incident_date ? parseYmd(report.incident_date) : null;
+        const incidentDate = resolveIncidentDate(report);
         return incidentDate ? incidentDate <= end : false;
       });
     }
 
     setFilteredReports(filtered);
-  }, [reports, searchTerm, filterType, filterStudent, filterStartDate, filterEndDate, getReportStudentNames]);
+  }, [reports, searchTerm, filterType, filterStudent, filterStartDate, filterEndDate, getReportStudentNames, resolveIncidentDate]);
 
   const clearDateFilters = () => {
     setFilterStartDate("");
@@ -324,7 +380,7 @@ export default function IncidentReports() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
-                    {INCIDENT_TYPES.map(type => (
+                    {availableIncidentTypes.map(type => (
                       <SelectItem key={type} value={type}>{type}</SelectItem>
                     ))}
                   </SelectContent>
@@ -416,7 +472,7 @@ export default function IncidentReports() {
                         return (
                           <TableRow key={report.id}>
                             <TableCell className="font-medium">
-                              {formatDate(report.incident_date, 'MMM d, yyyy')}
+                              {formatIncidentDate(report, 'MMM d, yyyy')}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
@@ -434,8 +490,8 @@ export default function IncidentReports() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge className={INCIDENT_TYPE_COLORS[report.incident_type] || "bg-slate-100 text-slate-800"}>
-                                {report.incident_type}
+                              <Badge className={INCIDENT_TYPE_COLORS[report.incident_type] || DEFAULT_TYPE_COLOR}>
+                                {report.incident_type || 'Not specified'}
                               </Badge>
                             </TableCell>
                             <TableCell>{report.staff_name}</TableCell>
@@ -497,7 +553,7 @@ export default function IncidentReports() {
                               </div>
                             </div>
                             <p className="text-xs text-slate-500">
-                              {formatDate(report.incident_date, 'MMM d, yyyy')} • {report.staff_name}
+                              {formatIncidentDate(report, 'MMM d, yyyy')} • {report.staff_name}
                             </p>
                           </div>
                           <div className="flex gap-1">
@@ -527,8 +583,8 @@ export default function IncidentReports() {
                             </Button>
                           </div>
                         </div>
-                        <Badge className={`${INCIDENT_TYPE_COLORS[report.incident_type] || "bg-slate-100 text-slate-800"} text-xs`}>
-                          {report.incident_type}
+                        <Badge className={`${INCIDENT_TYPE_COLORS[report.incident_type] || DEFAULT_TYPE_COLOR} text-xs`}>
+                          {report.incident_type || 'Not specified'}
                         </Badge>
                       </div>
                     );

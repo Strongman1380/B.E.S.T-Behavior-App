@@ -37,6 +37,17 @@ const REPORT_TYPES = [
   { id: "dailyAverages", label: "Daily Averages Combined", icon: BarChart3 }
 ];
 
+const applyHeartlandRounding = (value) => {
+  if (!Number.isFinite(value)) return value;
+  if (value < 2) return 1;
+  if (value < 3) return 2;
+  if (value >= 3.5) return 4;
+  const rounded = Math.round(value);
+  if (rounded > 4) return 4;
+  if (rounded < 1) return 1;
+  return rounded;
+};
+
 export default function PrintReports() {
   const {
     dashboards,
@@ -844,7 +855,8 @@ export default function PrintReports() {
               const overall = calculateAverageFromSlots({ [slot.key]: slotData });
               let avgDisplay = '';
               if (overall.count > 0 && typeof overall.average === 'number' && !isNaN(overall.average)) {
-                avgDisplay = Math.round(overall.average);
+                const rounded = applyHeartlandRounding(overall.average);
+                avgDisplay = Number.isFinite(rounded) ? rounded : '';
               }
               const comment = escapeHtml(slotData.comment || '');
               return `
@@ -1418,10 +1430,11 @@ export default function PrintReports() {
       const avgWeekly = studentCount > 0 ? totalWeekly / studentCount : 0;
 
       const roundDisplay = (value) => {
-        if (value === null || value === undefined || Number.isNaN(value) || typeof value !== 'number' || value === 0) {
+        if (value === null || value === undefined || Number.isNaN(value) || typeof value !== 'number' || value <= 0) {
           return "--";
         }
-        return value.toFixed(1);
+        const rounded = applyHeartlandRounding(value);
+        return Number.isFinite(rounded) ? `${rounded}` : "--";
       };
 
       // Generate the student rows
