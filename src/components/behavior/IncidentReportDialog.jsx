@@ -88,6 +88,7 @@ const FOLLOW_UP_OPTIONS = [
 
 export default function IncidentReportDialog({ open, onOpenChange, student, settings, onSave, students = [], initialData = null, readOnly = false }) {
   const [formData, setFormData] = useState({
+    involved_students: [],
     student_name: '',
     staff_reporting: '',
     date_of_incident: new Date(),
@@ -174,8 +175,19 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
           });
         }
 
+        const involvedStudents = Array.isArray(initialData.involved_students) && initialData.involved_students.length > 0
+          ? initialData.involved_students.map(entry => ({
+              id: entry.id ?? entry.student_id ?? null,
+              name: entry.name ?? entry.student_name ?? ''
+            })).filter(entry => entry.name)
+          : [{
+              id: initialData.student_id ?? null,
+              name: initialData.student_name || ''
+            }].filter(entry => entry.name);
+
         setFormData({
-          student_name: initialData.student_name || '',
+          involved_students: involvedStudents,
+          student_name: involvedStudents.map(s => s.name).join(', ') || initialData.student_name || '',
           staff_reporting: initialData.staff_reporting || '',
           date_of_incident: typeof initialData.date_of_incident === 'string'
             ? parseYmd(initialData.date_of_incident)
@@ -197,8 +209,10 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
         });
       } else if (student) {
         // Create new report
+        const initialInvolved = student?.id ? [{ id: student.id, name: student.student_name || '' }] : [];
         setFormData({
-          student_name: student.student_name || '',
+          involved_students: initialInvolved,
+          student_name: initialInvolved.map(s => s.name).join(', '),
           staff_reporting: settings?.teacher_name || '',
           date_of_incident: new Date(),
           time_of_incident: format(new Date(), 'HH:mm'),
@@ -216,6 +230,7 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
         });
       } else {
         setFormData({
+          involved_students: [],
           student_name: '',
           staff_reporting: settings?.teacher_name || '',
           date_of_incident: new Date(),
@@ -252,22 +267,37 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
     }
   };
 
-  const handleStudentChange = (value) => {
-    const selected = students.find(s => String(s.id) === value) || null;
-    setFormData(prev => ({
-      ...prev,
-      student_name: selected?.student_name || value
-    }));
+  const isStudentSelected = (id) => formData.involved_students.some(student => String(student.id) === String(id));
+
+  const toggleStudentSelection = (studentEntry) => {
+    setFormData(prev => {
+      const exists = prev.involved_students.some(s => String(s.id) === String(studentEntry.id));
+      const updated = exists
+        ? prev.involved_students.filter(s => String(s.id) !== String(studentEntry.id))
+        : [...prev.involved_students, { id: studentEntry.id, name: studentEntry.student_name }];
+
+      return {
+        ...prev,
+        involved_students: updated,
+        student_name: updated.map(s => s.name).join(', ')
+      };
+    });
   };
 
   const handleSave = async () => {
-    if (!formData.student_name?.trim()) {
-      toast.error('Please enter a student name.');
+    if (!formData.involved_students || formData.involved_students.length === 0) {
+      toast.error('Select at least one student involved in the incident.');
       return;
     }
 
     if (!formData.staff_reporting?.trim()) {
       toast.error("Please fill in the staff reporting field.");
+      return;
+    }
+
+    const primaryStudent = formData.involved_students[0];
+    if (!primaryStudent?.id) {
+      toast.error('Selected students need valid IDs.');
       return;
     }
 
@@ -281,7 +311,13 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
       const followUpArray = Object.keys(formData.follow_up).filter(key => formData.follow_up[key]);
 
       const reportPayload = {
-        student_name: formData.student_name.trim(),
+        ...(initialData?.id ? { id: initialData.id } : {}),
+        student_id: primaryStudent.id,
+        student_name: formData.student_name.trim() || primaryStudent.name,
+        involved_students: formData.involved_students.map(entry => ({
+          id: entry.id,
+          name: entry.name
+        })),
         staff_reporting: formData.staff_reporting.trim(),
         date_of_incident: format(formData.date_of_incident, 'yyyy-MM-dd'),
         time_of_incident: formData.time_of_incident || null,
@@ -406,9 +442,9 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
           </style>
         </head>
         <body>
-          ${getPrintHeader("BEST Ed School", "Student Incident Report", new Date())}
+          ${getPrintHeader("BEST Ed School", "Incident Report", new Date())}
           ${printContent}
-          ${getPrintFooter(`Student: ${formData.student_name} | Date: ${format(formData.date_of_incident, 'MMM d, yyyy')}`)}
+          ${getPrintFooter(`Students: ${formData.involved_students.map(s => s.name).join(', ') || formData.student_name} | Date: ${format(formData.date_of_incident, 'MMM d, yyyy')}`)}
         </body>
       </html>
     `);
@@ -455,10 +491,14 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
                 
                 <div className="header-info">
                   <div className="info-row">
-                    <span className="info-label">Student Name:</span>
-                    <div className="info-box">{formData.student_name}</div>
+                    <span className="info-label">Student(s) Involved:</span>
+                    <div className="info-box">
+                      {formData.involved_students.length > 0
+                        ? formData.involved_students.map(s => s.name).join(', ')
+                        : formData.student_name || 'Not specified'}
+                    </div>
                   </div>
-                  
+
                   <div className="info-row">
                     <span className="info-label">Date:</span>
                     <div className="info-box">{format(formData.date_of_incident, 'MMMM d, yyyy')}</div>
@@ -556,13 +596,33 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
                 {/* Basic Information */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label>Student's Name *</Label>
-                    <Input
-                      value={formData.student_name}
-                      onChange={(e) => handleChange('student_name', e.target.value)}
-                      placeholder="Enter student's name"
-                      readOnly={readOnly}
-                    />
+                    <Label>Students Involved *</Label>
+                    <div className="border border-slate-200 rounded-lg max-h-48 overflow-y-auto p-3 bg-slate-50">
+                      {students.length === 0 ? (
+                        <p className="text-sm text-slate-500">No active students available.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {students.map((studentOption) => {
+                            const checked = isStudentSelected(studentOption.id);
+                            return (
+                              <label key={studentOption.id} className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                  checked={checked}
+                                  onCheckedChange={() => toggleStudentSelection(studentOption)}
+                                  disabled={readOnly}
+                                />
+                                <span>{studentOption.student_name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    {formData.involved_students.length > 0 && (
+                      <p className="text-xs text-slate-500">
+                        Selected: {formData.involved_students.map(s => s.name).join(', ')}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">

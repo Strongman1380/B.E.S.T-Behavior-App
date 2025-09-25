@@ -86,5 +86,6 @@ export const ContactLog = new PostgreSQLEntity(null, 'contact_logs');
 export const BehaviorSummary = new PostgreSQLEntity(null, 'behavior_summaries');
 export const IncidentReport = new PostgreSQLEntity(null, 'incident_reports');
 export const User = new PostgreSQLEntity(null, 'users');
+export const Dashboard = new PostgreSQLEntity(null, 'dashboards');
 
 export default pool;

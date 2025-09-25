@@ -1,6 +1,10 @@
 // Supabase storage layer used by the browser build
 // Implements the same interface as the PostgreSQL storage
 import { supabase } from '@/config/supabase'
+import {
+  normalizeDailyEvaluation,
+  prepareDailyEvaluationForSave,
+} from '@/utils/dailyEvaluationNormalizer'
 
 const isBrowser = typeof window !== 'undefined'
 
@@ -80,8 +84,21 @@ class SupabaseEntity {
 
     // Equality filters for remaining keys
     Object.entries(criteria).forEach(([k, v]) => {
-      if (v === undefined || v === null || v === '') return
+      if (v === undefined || v === '') return
       if (rm && (k === rm.from || k === rm.toKey)) return
+
+      if (v === null) {
+        q = q.is(k, null)
+        return
+      }
+
+      if (Array.isArray(v)) {
+        if (v.length > 0) {
+          q = q.in(k, v)
+        }
+        return
+      }
+
       q = q.eq(k, v)
     })
 
@@ -128,12 +145,53 @@ class SupabaseEntity {
 
 // Entities
 export const Student = new SupabaseEntity('students')
-export const DailyEvaluation = new SupabaseEntity('daily_evaluations')
+class SupabaseDailyEvaluationEntity extends SupabaseEntity {
+  constructor() {
+    super('daily_evaluations')
+  }
+
+  sanitizeForSave(data = {}) {
+    const prepared = prepareDailyEvaluationForSave(data) || {}
+    const { id, created_at, updated_at, ...rest } = prepared
+    return rest
+  }
+
+  normalizeRow(row) {
+    return normalizeDailyEvaluation(row)
+  }
+
+  async list(orderBy) {
+    const rows = await super.list(orderBy)
+    return Array.isArray(rows) ? rows.map((row) => this.normalizeRow(row)) : []
+  }
+
+  async get(id) {
+    const row = await super.get(id)
+    return row ? this.normalizeRow(row) : row
+  }
+
+  async filter(criteria = {}, order) {
+    const rows = await super.filter(criteria, order)
+    return Array.isArray(rows) ? rows.map((row) => this.normalizeRow(row)) : []
+  }
+
+  async create(data) {
+    const created = await super.create(this.sanitizeForSave(data))
+    return this.normalizeRow(created)
+  }
+
+  async update(id, data) {
+    const updated = await super.update(id, this.sanitizeForSave({ ...data, id }))
+    return this.normalizeRow(updated)
+  }
+}
+export const DailyEvaluation = new SupabaseDailyEvaluationEntity()
 export const Settings = new SupabaseEntity('settings')
 export const ContactLog = new SupabaseEntity('contact_logs')
 export const CreditsEarned = new SupabaseEntity('credits_earned')
 export const ClassesNeeded = new SupabaseEntity('classes_needed')
 export const Grade = new SupabaseEntity('grades')
+export const Dashboard = new SupabaseEntity('dashboards')
 // BehaviorSummary entity with schema mapping
 class SupabaseBehaviorSummaryEntity extends SupabaseEntity {
   constructor() {
@@ -186,17 +244,27 @@ class SupabaseBehaviorSummaryEntity extends SupabaseEntity {
   mapFromDb(row) {
     if (!row) return row
     const sd = row.summary_data || {}
+    const pick = (field) => {
+      const value = sd[field] !== undefined ? sd[field] : row[field]
+      if (value === undefined || value === null) return null
+      if (Array.isArray(value)) return value
+      if (typeof value === 'object') {
+        return Object.keys(value).length > 0 ? value : null
+      }
+      const str = `${value}`.trim()
+      return str.length > 0 ? value : null
+    }
     return {
       id: row.id,
       student_id: row.student_id,
       date_range_start: row.date_from,
       date_range_end: row.date_to,
-      prepared_by: sd.prepared_by || null,
-      general_behavior_overview: sd.general_behavior_overview || null,
-      strengths: sd.strengths || null,
-      improvements_needed: sd.improvements_needed || null,
-      behavioral_incidents: sd.behavioral_incidents || null,
-      summary_recommendations: sd.summary_recommendations || null,
+      prepared_by: pick('prepared_by'),
+      general_behavior_overview: pick('general_behavior_overview'),
+      strengths: pick('strengths'),
+      improvements_needed: pick('improvements_needed'),
+      behavioral_incidents: pick('behavioral_incidents'),
+      summary_recommendations: pick('summary_recommendations'),
       created_at: row.created_at,
       updated_at: row.updated_at,
       // Keep original for debugging if needed

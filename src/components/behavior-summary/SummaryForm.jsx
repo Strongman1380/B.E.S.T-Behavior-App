@@ -99,13 +99,27 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
 
   const debouncedSave = useDebounce(async (data) => {
     if (!studentId) return;
-    
+
     try {
-      await onSave(data, { silent: true });
+      // Ensure behavior summaries are saved with proper date range and student ID
+      const summaryData = {
+        ...data,
+        student_id: studentId,
+        summary_data: {
+          general_behavior_overview: data.general_behavior_overview || '',
+          strengths: data.strengths || '',
+          improvements_needed: data.improvements_needed || '',
+          behavioral_incidents: data.behavioral_incidents || '',
+          summary_recommendations: data.summary_recommendations || '',
+          prepared_by: data.prepared_by || ''
+        }
+      };
+
+      await onSave(summaryData, { silent: true });
       setHasUnsavedChanges(false);
       setAutoSaveStatus('saved');
       setLastSaved(new Date());
-      
+
       // Notify parent that changes are saved
       if (onUnsavedChanges) {
         onUnsavedChanges(false);
@@ -173,8 +187,17 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
   const handleSave = () => {
     const dataToSave = {
       ...formData,
+      student_id: studentId,
       date_range_start: format(formData.date_range_start, 'yyyy-MM-dd'),
-      date_range_end: format(formData.date_range_end, 'yyyy-MM-dd')
+      date_range_end: format(formData.date_range_end, 'yyyy-MM-dd'),
+      summary_data: {
+        general_behavior_overview: formData.general_behavior_overview || '',
+        strengths: formData.strengths || '',
+        improvements_needed: formData.improvements_needed || '',
+        behavioral_incidents: formData.behavioral_incidents || '',
+        summary_recommendations: formData.summary_recommendations || '',
+        prepared_by: formData.prepared_by || ''
+      }
     };
     onSave(dataToSave);
   };
@@ -588,7 +611,18 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       });
 
       // Generate AI summary with student-specific data (force refresh to ensure latest data)
-      const analysis = await aiService.generateBehaviorSummary(allComments, { startDate, endDate }, { studentId, forceRefresh: true });
+      const analysis = await aiService.generateBehaviorSummary(
+        allComments,
+        { startDate, endDate },
+        {
+          studentId,
+          studentName: student?.student_name,
+          gradeLevel: student?.grade_level,
+          schoolName: settings?.school_name,
+          teacherName: settings?.teacher_name,
+          forceRefresh: true
+        }
+      );
 
       // Ensure all fields have content with fallbacks
       const updatedData = {

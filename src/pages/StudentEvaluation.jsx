@@ -177,7 +177,15 @@ export default function StudentEvaluation() {
             )}
           </div>
         </div>
-        <EvaluationForm evaluation={evaluation} settings={settings} onSave={saveEvaluation} isSaving={isSaving} />
+        <EvaluationForm 
+          evaluation={evaluation} 
+          settings={settings} 
+          onSave={saveEvaluation} 
+          isSaving={isSaving}
+          studentName={student.student_name}
+          studentGrade={student.grade_level}
+          evaluationDate={date}
+        />
         <PrintDialog open={showPrintDialog} onOpenChange={setShowPrintDialog} student={student} settings={settings} date={date} />
       </div>
     </div>

@@ -11,7 +11,6 @@ import UserProfile from '@/components/auth/UserProfile';
 
 const navItems = [
     { title: 'Dashboard', icon: LayoutDashboard, url: createPageUrl('BehaviorDashboard') },
-    { title: 'Contact Logs', icon: MessageSquare, url: createPageUrl('ContactLogs') },
     { title: 'Quick Score', icon: Zap, url: createPageUrl('QuickScore') },
     { title: 'KPI Dashboard', icon: BarChart3, url: createPageUrl('KPIDashboard') },
     { title: 'B.E.S.T Interactive Grid', icon: Grid, url: createPageUrl('BestInteractiveGrid') },

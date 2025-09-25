@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster"
 import ErrorBoundary from './components/auth/ErrorBoundary'
 import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import { DashboardProvider } from './contexts/DashboardContext'
 // Enforce auth wrapping
 
 function App() {
@@ -53,7 +54,9 @@ function App() {
     <ErrorBoundary>
       <AuthProvider>
         <ProtectedRoute>
-          <Pages />
+          <DashboardProvider>
+            <Pages />
+          </DashboardProvider>
         </ProtectedRoute>
         <Toaster />
       </AuthProvider>

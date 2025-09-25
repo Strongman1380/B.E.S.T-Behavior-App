@@ -232,7 +232,7 @@ class AIService {
 
     try {
       const result = await this.withRetry(async () => {
-        const optimizedPrompt = this.buildBehaviorSummaryPrompt(commentsData, dateRange);
+        const optimizedPrompt = this.buildBehaviorSummaryPrompt(commentsData, dateRange, options);
 
         const completion = await this.client.chat.completions.create({
           model: "gpt-4o-mini",
@@ -373,35 +373,48 @@ class AIService {
    * Build optimized prompt for comment enhancement
    */
   buildCommentEnhancementPrompt(comment, context) {
-    const contextInfo = context.timeSlot ? `Time: ${context.timeSlot}` : '';
-    const behaviorContext = context.behaviorType ? `Behavior Type: ${context.behaviorType}` : '';
+    const details = [];
+    if (context.studentName) details.push(`Student: ${context.studentName}`);
+    if (context.gradeLevel) details.push(`Grade Level: ${context.gradeLevel}`);
+    if (context.timeSlot) details.push(`Time Slot: ${context.timeSlot}`);
+    if (context.evaluationDate) details.push(`Date: ${context.evaluationDate}`);
+    if (context.teacherName) details.push(`Staff/Reporter: ${context.teacherName}`);
+    if (context.scoreSnapshot) details.push(`Recorded Scores: ${context.scoreSnapshot}`);
+    if (context.behaviorType) details.push(`Observation Type: ${context.behaviorType}`);
 
-    return `Transform this behavioral observation into a comprehensive, professional narrative using clear behavioral language:
+    const contextBlock = details.length ? `Context:\n- ${details.join('\n- ')}` : 'Context:\n- Observation recorded within daily evaluation data.';
 
-Original: "${comment}"
-${contextInfo}
-${behaviorContext}
+    return `Elevate the following behavioral observation into a professional narrative suitable for student documentation.
+
+${contextBlock}
+
+Original Observation:
+"""${comment}"""
 
 Requirements:
-- Expand into 4-5 complete, flowing sentences
-- Use professional behavioral and educational terminology
-- Include specific behavioral descriptions and context
-- Describe observable actions, patterns, and interactions
-- Reference environmental factors and triggers when applicable
-- Maintain objective, professional tone throughout
-- Focus on behavioral dynamics and their educational implications
-- Connect behaviors to learning and social development
+- Expand into 4-5 cohesive sentences using professional educational terminology.
+- Describe observable actions, antecedents/triggers, replacement behaviors, and staff responses where applicable.
+- Maintain an objective tone while acknowledging both challenges and bright spots.
+- Reference the impact on learning, peer interactions, or classroom climate.
+- Close with a forward-looking sentence that connects to next steps, supports, or targeted goals.
 
-Enhanced behavioral narrative:`;
+Enhanced Narrative:`;
   }
 
   /**
    * Build optimized prompt for batch comment enhancement
    */
   buildBatchEnhancementPrompt(comments, context) {
-    const contextInfo = context.timeSlot ? `Context: ${context.timeSlot}` : '';
+    const details = [];
+    if (context.studentName) details.push(`Student: ${context.studentName}`);
+    if (context.gradeLevel) details.push(`Grade Level: ${context.gradeLevel}`);
+    if (context.timeSlot) details.push(`Primary Context: ${context.timeSlot}`);
+    if (context.teacherName) details.push(`Staff/Reporter: ${context.teacherName}`);
+    if (context.scoreSnapshot) details.push(`Recorded Scores: ${context.scoreSnapshot}`);
 
-    return `Transform these behavioral observations into comprehensive, professional narratives. Each response should be 4-5 flowing sentences using educational behavioral terminology. Return each enhanced comment separated by "---" in the same order:
+    const contextInfo = details.length ? `Context:\n- ${details.join('\n- ')}` : 'Context:\n- Daily evaluation excerpts.';
+
+    return `Transform these behavioral observations into comprehensive, professional narratives. Each narrative must contain 4-5 flowing sentences, use educational behavioral terminology, and be separated by "---" in the same order provided.
 
 ${contextInfo}
 
@@ -443,14 +456,46 @@ Enhanced behavioral narratives (separated by "---", same order):`;
   /**
    * Optimized behavior summary prompt
    */
-  buildBehaviorSummaryPrompt(commentsData, dateRange) {
+  buildBehaviorSummaryPrompt(commentsData, dateRange, options = {}) {
     const { startDate, endDate } = dateRange;
     const dateRangeText = startDate === endDate ? startDate : `${startDate} to ${endDate}`;
 
     // Pre-process and summarize data more efficiently
     const summary = this.preprocessCommentsData(commentsData);
 
-    return `Analyze behavioral data for ${dateRangeText} and create comprehensive, detailed behavioral narratives:
+    const studentProfileLines = [
+      options.studentName ? `Student: ${options.studentName}` : null,
+      options.gradeLevel ? `Grade Level: ${options.gradeLevel}` : null,
+      options.schoolName ? `Program/Campus: ${options.schoolName}` : null,
+      options.teacherName ? `Primary Staff: ${options.teacherName}` : null,
+      `Reporting Window: ${dateRangeText}`
+    ].filter(Boolean);
+
+    const sourceBreakdown = summary.sourceSummary.length
+      ? summary.sourceSummary.map(item => `- ${item}`).join('\n')
+      : '- Source details unavailable';
+
+    const ratingSnapshot = summary.numericRatingCount > 0
+      ? `Average numeric rating: ${summary.overallAverageRating} across ${summary.numericRatingCount} scoring entries. Low ratings (≤2): ${summary.lowRatingCount}.`
+      : 'Numeric rating data was not available within this window.';
+
+    const timeSlotInsights = summary.timeSlotHighlights.length
+      ? summary.timeSlotHighlights.map(item => `- ${item.slotLabel}: avg ${item.averageRating} (${item.entryCount} entries${item.lowCount > 0 ? `, low scores: ${item.lowCount}` : ''})`).join('\n')
+      : '- No consistent time-slot patterns detected from the available observations.';
+
+    return `You are analyzing behavioral data for ${options.studentName || 'the student'} during ${dateRangeText}. Produce an actionable, professional summary grounded in the evidence provided.
+
+STUDENT PROFILE:
+${studentProfileLines.length ? studentProfileLines.map(line => `- ${line}`).join('\n') : '- Reporting context limited to date range provided.'}
+
+DATA SOURCES:
+${sourceBreakdown}
+
+RATING SNAPSHOT:
+- ${ratingSnapshot}
+
+TIME-SLOT TRENDS:
+${timeSlotInsights}
 
 BEHAVIORAL DATA SUMMARY:
 - Total observations: ${summary.totalObservations}
@@ -463,18 +508,20 @@ ${summary.detailedObservations.slice(0, 20).join('\n')}
 INCIDENTS: ${summary.incidents.join('\n')}
 CONTACTS: ${summary.contacts.join('\n')}
 
-Generate JSON response with ALL required keys: general_overview, strengths, improvements, incidents, recommendations
+Return JSON with the following keys (string values, each 4-5 sentences long):
+- general_overview (comprehensive narrative of overall behavioral patterns and progress)
+- strengths (spotlighting specific positive behaviors and growth areas)
+- improvements (areas requiring coaching or intervention, tied to data)
+- incidents (summary of critical events or high-leverage concerns)
+- recommendations (actionable next steps with practical strategies)
 
 CRITICAL REQUIREMENTS:
-- Each field must contain 4-5 flowing, comprehensive sentences
-- Use professional educational and behavioral terminology throughout
-- Write detailed narratives that capture behavioral dynamics and educational implications
-- Include specific behavioral patterns, triggers, and environmental contexts
-- Reference observable behaviors with dates and rating analysis (4=exceeds, 3=meets, 2=needs improvement, 1=does not meet)
-- Connect behaviors to learning processes, social development, and educational outcomes
-- Provide detailed, actionable recommendations with specific implementation strategies
-- Maintain professional, objective tone while being comprehensive and descriptive
-- If limited data available, extrapolate professional insights based on documented observations within ${dateRangeText}`;
+- Each field must contain 4-5 flowing, comprehensive sentences written in a professional, objective tone
+- Reference concrete evidence from the observations (dates, ratings, time slots, incidents)
+- Highlight patterns, triggers, environmental factors, and the impact on learning or social development
+- Celebrate strengths using asset-based language while still noting supporting data
+- Provide actionable recommendations with specific strategies (who, what, when) tied to observed needs
+- If data is sparse, acknowledge limitations while extrapolating reasonable insights from the available evidence`;
   }
 
   /**
@@ -487,22 +534,43 @@ CRITICAL REQUIREMENTS:
       keyPatterns: [],
       detailedObservations: [],
       incidents: [],
-      contacts: []
+      contacts: [],
+      sourceSummary: [],
+      timeSlotHighlights: [],
+      overallAverageRating: null,
+      numericRatingCount: 0,
+      lowRatingCount: 0
     };
 
     // Count ratings and identify patterns
     const ratingCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
     const timeSlotPatterns = {};
+    const slotLabels = {};
+    const sourceCounts = {};
+    const numericRatings = [];
 
     commentsData.forEach(comment => {
-      if (comment.rating) {
-        ratingCounts[comment.rating] = (ratingCounts[comment.rating] || 0) + 1;
+      const ratingValue = Number(comment.rating);
+      if (Number.isFinite(ratingValue)) {
+        ratingCounts[ratingValue] = (ratingCounts[ratingValue] || 0) + 1;
+        numericRatings.push(ratingValue);
+        if (ratingValue <= 2) {
+          summary.lowRatingCount += 1;
+        }
       }
 
       if (comment.type === 'time_slot') {
         timeSlotPatterns[comment.slot] = timeSlotPatterns[comment.slot] || [];
-        timeSlotPatterns[comment.slot].push(comment.rating);
+        if (Number.isFinite(ratingValue)) {
+          timeSlotPatterns[comment.slot].push(ratingValue);
+        }
+        if (!slotLabels[comment.slot] && comment.slotLabel) {
+          slotLabels[comment.slot] = comment.slotLabel;
+        }
       }
+
+      const sourceKey = comment.source || comment.type || 'general';
+      sourceCounts[sourceKey] = (sourceCounts[sourceKey] || 0) + 1;
 
       // Categorize for inclusion
       if (comment.type === 'incident') {
@@ -519,6 +587,34 @@ CRITICAL REQUIREMENTS:
       .map(([rating, count]) => `${count}x rating ${rating}`)
       .join(', ');
 
+    if (numericRatings.length > 0) {
+      const total = numericRatings.reduce((acc, value) => acc + value, 0);
+      summary.numericRatingCount = numericRatings.length;
+      summary.overallAverageRating = (total / numericRatings.length).toFixed(2);
+    }
+
+    summary.sourceSummary = Object.entries(sourceCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([source, count]) => `${source.replace(/_/g, ' ')}: ${count}`);
+
+    summary.timeSlotHighlights = Object.entries(timeSlotPatterns)
+      .map(([slot, values]) => {
+        if (!values.length) return null;
+        const average = values.reduce((acc, value) => acc + value, 0) / values.length;
+        const lowCount = values.filter(value => value <= 2).length;
+        const slotLabel = slotLabels[slot] || slot.replace(/_/g, ' ');
+        return {
+          slot,
+          slotLabel,
+          averageRating: average.toFixed(2),
+          entryCount: values.length,
+          lowCount
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => (b.lowCount - a.lowCount) || (b.entryCount - a.entryCount))
+      .slice(0, 5);
+
     return summary;
   }
 
@@ -526,21 +622,137 @@ CRITICAL REQUIREMENTS:
    * System prompt for behavior analyst
    */
   getBehaviorAnalystSystemPrompt() {
-    return `You are a professional educational behavioral analyst creating comprehensive, detailed behavioral assessments. Your role is to transform observational data into rich, informative narratives that capture the full scope of student behavioral patterns and educational implications.
+    return `You are a professional educational behavioral analyst creating comprehensive, data-driven summaries for educators and program staff.
 
 CORE PRINCIPLES:
-- Create detailed, flowing narratives (4-5 sentences per section) using professional educational terminology
-- Base all assessments on observable, documented behaviors while providing comprehensive context
-- Maintain professional, objective tone while being descriptive and thorough
-- Reference specific dates and patterns from provided data
-- Connect behaviors to educational outcomes, learning processes, and developmental considerations
-- Include environmental factors, triggers, and intervention effectiveness
-- Provide actionable, specific recommendations with implementation strategies
+- Provide 4-5 sentence paragraphs for each requested field using professional, objective language.
+- Base every insight on the supplied evidence, referencing dates, time blocks, ratings, incidents, and contacts.
+- Highlight student assets and growth while addressing areas of concern with constructive, trauma-informed language.
+- Reference the 4-point behavioral scale where applicable (4 = exceeds, 3 = meets, 2 = needs improvement, 1 = does not meet expectations).
+- Offer actionable recommendations that specify strategies, responsible roles, and follow-up timelines when possible.
+- Acknowledge data limitations transparently if information is sparse.
 
-RATING SYSTEM:
-4 = Exceeds expectations, 3 = Meets expectations, 2 = Needs improvement, 1 = Does not meet expectations
+OUTPUT FORMAT:
+- Return valid JSON only (no additional commentary).
+- Keys must include: general_overview, strengths, improvements, incidents, recommendations.
+- Values must be rich narrative strings (not lists) suitable for direct inclusion in reports.`;
+  }
 
-Return valid JSON with comprehensive, detailed narratives for each section that demonstrate professional behavioral analysis expertise.`;
+  buildKpiInsightsPrompt(metrics, options = {}) {
+    const metricsPreview = JSON.stringify(metrics, null, 2);
+    const focus = options.scope || 'kpi_dashboard';
+
+    return `You are an educational data coach generating concise KPI insights for administrators (${focus}).
+
+DATA INPUT (JSON):
+${metricsPreview}
+
+TASK:
+Analyze the data and return JSON with the following structure:
+{
+  "panels": [
+    { "id": "behavior", "title": "Behavior Trends", "summary": "One to two sentences" },
+    { "id": "recognition", "title": "Recognition Rate", "summary": "One to two sentences" },
+    { "id": "incident", "title": "Incident Prevention", "summary": "One to two sentences" },
+    { "id": "data", "title": "Data Quality", "summary": "One to two sentences" }
+  ],
+  "focusAreas": ["Action-oriented bullet", "Another action"],
+  "celebrateSuccesses": ["Positive highlight", "Another highlight"]
+}
+
+REQUIREMENTS:
+- Always provide four panels using the specified ids and titles.
+- Summaries must reference the supplied data (ratings, steps, credits, incidents, trends).
+- Focus areas: max 3 short bullet strings with actionable language (verbs first).
+- Celebrate successes: max 3 short bullet strings highlighting measurable wins.
+- Avoid placeholders like N/A; if data is missing, state that directly (e.g., "Limited step data available this period.").
+- Output ONLY valid JSON without additional commentary.`;
+  }
+
+  parseJsonResponse(rawContent) {
+    if (!rawContent || typeof rawContent !== 'string') {
+      throw new Error('Empty AI response');
+    }
+
+    const trimmed = rawContent.trim();
+    const withoutFence = trimmed.replace(/^```json/i, '').replace(/```$/i, '').trim();
+
+    try {
+      return JSON.parse(withoutFence);
+    } catch (error) {
+      console.warn('AI response parse failed, attempting recovery fallback.', error);
+      const match = withoutFence.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          return JSON.parse(match[0]);
+        } catch (err) {
+          console.warn('AI response fallback parse failed.', err);
+          throw new Error('Failed to parse AI JSON response');
+        }
+      }
+      console.warn('AI response did not contain valid JSON payload.');
+      throw new Error('Invalid AI JSON response');
+    }
+  }
+
+  async generateKpiInsights(metrics, options = {}) {
+    const requestId = aiPerformanceMonitor.startRequest('kpi_insights', { scope: options.scope || 'kpi_dashboard' });
+
+    if (!this.client) {
+      aiPerformanceMonitor.endRequest(requestId, false, false, 'AI service not initialized');
+      throw new Error('AI service not initialized. Please check your OpenAI API key.');
+    }
+
+    const cacheKey = this.generateCacheKey('kpi_insights', { metrics, options });
+
+    if (this.pendingRequests.has(cacheKey)) {
+      aiPerformanceMonitor.endRequest(requestId, true, false);
+      return this.pendingRequests.get(cacheKey);
+    }
+
+    const cached = this.getCachedResponse(cacheKey, 180000);
+    if (cached) {
+      aiPerformanceMonitor.endRequest(requestId, true, true);
+      return cached;
+    }
+
+    const requestPromise = this.withRetry(async () => {
+      const prompt = this.buildKpiInsightsPrompt(metrics, options);
+
+      const completion = await this.client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an educational data strategist who produces concise, actionable KPI insights.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 450,
+        top_p: 0.9
+      });
+
+      return completion.choices[0].message.content.trim();
+    }, 'kpi insights');
+
+    this.pendingRequests.set(cacheKey, requestPromise);
+
+    try {
+      const raw = await requestPromise;
+      const parsed = this.parseJsonResponse(raw);
+      this.setCachedResponse(cacheKey, parsed);
+      aiPerformanceMonitor.endRequest(requestId, true, false);
+      return parsed;
+    } catch (error) {
+      aiPerformanceMonitor.endRequest(requestId, false, false, error.message);
+      throw error;
+    } finally {
+      this.pendingRequests.delete(cacheKey);
+    }
   }
 
   /**

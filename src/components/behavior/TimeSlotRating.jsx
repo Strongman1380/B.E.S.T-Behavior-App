@@ -26,15 +26,19 @@ const getInitialValue = (data, section) => {
   return undefined;
 };
 
-export default function TimeSlotRating({ timeKey, label, data, onChange }) {
+export default function TimeSlotRating({ timeKey, label, data, onChange, studentName = '', gradeLevel = '', evaluationDate, teacherName = '' }) {
   const safeData = data || {};
   const [isEnhancingComment, setIsEnhancingComment] = useState(false);
 
   const handleSectionChange = (section, value) => {
+    // Preserve all existing data and only update the specific section
     const newData = { ...safeData, [section]: value };
-    if ('rating' in newData) {
+
+    // Clean up legacy rating field if we have individual section scores
+    if ('rating' in newData && (newData.ai || newData.pi || newData.ce)) {
       delete newData.rating;
     }
+
     onChange(newData);
   };
   
@@ -52,9 +56,22 @@ export default function TimeSlotRating({ timeKey, label, data, onChange }) {
 
     setIsEnhancingComment(true);
     try {
+      const scoreSnapshot = SECTION_DEFINITIONS
+        .map(({ key, label: sectionLabel }) => {
+          const value = safeData?.[key];
+          return value ? `${sectionLabel}: ${value}` : null;
+        })
+        .filter(Boolean)
+        .join(', ');
+
       const enhanced = await aiService.enhanceComment(currentComment, {
         timeSlot: label,
-        behaviorType: 'time_slot'
+        behaviorType: 'time_slot',
+        studentName,
+        gradeLevel,
+        evaluationDate,
+        teacherName,
+        scoreSnapshot: scoreSnapshot || undefined
       });
 
       const newData = { ...safeData, comment: enhanced };

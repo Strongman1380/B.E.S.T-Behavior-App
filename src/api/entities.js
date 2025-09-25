@@ -10,6 +10,7 @@ import {
   BehaviorSummary,
   IncidentReport,
   User,
+  Dashboard,
   getStorageType,
   initializeSampleData
 } from './supabaseStorage.js'
@@ -25,6 +26,7 @@ export {
   BehaviorSummary,
   IncidentReport,
   User,
+  Dashboard,
   getStorageType,
   initializeSampleData
 };

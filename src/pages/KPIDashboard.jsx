@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog, CreditsEarned, Grade, Settings as SettingsEntity } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Suspense, lazy } from 'react';
-import { 
-  Users, AlertTriangle, Star, 
-  Calendar, Target, BarChart3, RefreshCw, Download, Trash2, FileText, ChevronDown
+import {
+  Users, AlertTriangle, Star,
+  Calendar, Target, BarChart3, RefreshCw, Download, Trash2, ChevronDown
 } from "lucide-react";
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks } from "date-fns";
 import { parseYmd, truncateDecimal, formatTruncated } from "@/utils";
@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { TIME_SLOT_KEYS } from "@/config/timeSlots";
 import ClearDataDialog from "@/components/kpi/ClearDataDialog";
 import { createZip } from "@/lib/zip";
+import { aiService } from "@/services/aiService";
 
 const BehaviorTrendChart = lazy(() => import('@/components/kpi/BehaviorTrendChart'));
 const IncidentTypesBar = lazy(() => import('@/components/kpi/IncidentTypesBar'));
@@ -39,6 +40,13 @@ const INCIDENT_TYPE_COLORS = {
   "Theft": "#EF4444"
 };
 
+const KPI_PANEL_STYLES = {
+  behavior: { container: 'bg-blue-50', title: 'text-blue-900', body: 'text-blue-800' },
+  recognition: { container: 'bg-green-50', title: 'text-green-900', body: 'text-green-800' },
+  incident: { container: 'bg-orange-50', title: 'text-orange-900', body: 'text-orange-800' },
+  data: { container: 'bg-purple-50', title: 'text-purple-900', body: 'text-purple-800' }
+};
+
 export default function KPIDashboard() {
   const [students, setStudents] = useState([]);
   const [evaluations, setEvaluations] = useState([]);
@@ -47,7 +55,7 @@ export default function KPIDashboard() {
   const [contactLogs, setContactLogs] = useState([]);
   const [creditsEarned, setCreditsEarned] = useState([]);
   const [creditsAvailable, setCreditsAvailable] = useState(true);
-  const [settings, setSettings] = useState(null);
+  const [, setSettings] = useState(null);
 
   // Academic/placeholder states
   const [stepsCompleted, setStepsCompleted] = useState([]);
@@ -57,6 +65,9 @@ export default function KPIDashboard() {
   const [dateRange, setDateRange] = useState('all'); // days
   const [selectedStudent, setSelectedStudent] = useState('all');
   const [showClearDataDialog, setShowClearDataDialog] = useState(false);
+  const [aiInsights, setAiInsights] = useState(null);
+  const [aiInsightsLoading, setAiInsightsLoading] = useState(false);
+  const [aiInsightsError, setAiInsightsError] = useState(null);
 
   // Helper: current date in local time
   const getCurrentDate = () => new Date();
@@ -550,15 +561,13 @@ export default function KPIDashboard() {
       `Total Grades: ${gradesSummary.totalGrades}`,
       `Average Grade: ${gradesSummary.totalGrades ? `${formatTruncated(gradesSummary.avgGrade, 2)}%` : 'N/A'}`,
       '',
-      'Student Improvement Status:',
-      `Needs Improvement: ${studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.needsImprovement : 'N/A'}`,
-      `Average: ${studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.average : 'N/A'}`,
-      `Excellent: ${studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.excellent : 'N/A'}`,
-      `Outstanding: ${studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.outstanding : 'N/A'}`,
-      `Steps Exceeds: ${studentImprovementStatus.hasStepsData ? studentImprovementStatus.stepsCategories.exceeds : 'N/A'}`,
-      `Steps Meets: ${studentImprovementStatus.hasStepsData ? studentImprovementStatus.stepsCategories.meets : 'N/A'}`,
-      `Steps Needs Work: ${studentImprovementStatus.hasStepsData ? studentImprovementStatus.stepsCategories.needsWork : 'N/A'}`,
-      `Fast Credit Earners: ${studentImprovementStatus.hasCreditsData ? studentImprovementStatus.creditsPerformance.fastEarners : 'N/A'}`,
+      'Student Progress Snapshot:',
+      `Steps Exceeds (≥16): ${progressSnapshot.hasStepsData ? progressSnapshot.stepsCategories.exceeds : 'N/A'}`,
+      `Steps Meets (10-15): ${progressSnapshot.hasStepsData ? progressSnapshot.stepsCategories.meets : 'N/A'}`,
+      `Steps Needs Work (<10): ${progressSnapshot.hasStepsData ? progressSnapshot.stepsCategories.needsWork : 'N/A'}`,
+      `Top Steps Student: ${progressSnapshot.topStepsStudent ? `${progressSnapshot.topStepsStudent.fullName} (${formatTruncated(progressSnapshot.topStepsStudent.steps ?? 0, 2)} steps)` : 'N/A'}`,
+      `Top Credits Student: ${progressSnapshot.topCreditStudent ? `${progressSnapshot.topCreditStudent.fullName} (${formatTruncated(progressSnapshot.topCreditStudent.credits ?? 0, 2)} credits)` : 'N/A'}`,
+      `Average Credits per Student: ${progressSnapshot.hasCreditsData ? formatTruncated(progressSnapshot.avgCreditsPerStudent ?? 0, 2) : 'N/A'}`,
       '',
       'Student Performance:',
       'Name,Avg Rating,4\'s Rate %,Incidents,Evaluations',
@@ -762,15 +771,26 @@ const exportAllCSVs = async () => {
   };
 
   const getTotalCreditsData = () => {
-    const filteredCredits = getCreditsData();
-    const totalCredits = filteredCredits.reduce((sum, credit) => sum + (credit.credit_value || 0), 0);
-    const studentsWithCredits = new Set(filteredCredits.map(credit => credit.student_id)).size;
-    const avgCreditsPerStudent = studentsWithCredits > 0 ? truncateDecimal(totalCredits / studentsWithCredits, 2) : 0;
+    const perStudent = getCreditsPerStudentData();
+    if (!perStudent.length) {
+      return {
+        totalCredits: 0,
+        avgCreditsPerStudent: 0,
+        studentTotals: [],
+        topStudent: null
+      };
+    }
+
+    const totalCredits = perStudent.reduce((sum, student) => sum + (student.credits || 0), 0);
+    const avgCreditsPerStudent = truncateDecimal(totalCredits / perStudent.length, 2);
+
+    const sortedTotals = [...perStudent].sort((a, b) => (b.credits ?? 0) - (a.credits ?? 0));
 
     return {
       totalCredits: truncateDecimal(totalCredits, 2),
-      totalStudents: studentsWithCredits,
-      avgCreditsPerStudent
+      avgCreditsPerStudent,
+      studentTotals: sortedTotals,
+      topStudent: sortedTotals[0] || null
     };
   };
 
@@ -913,15 +933,23 @@ const exportAllCSVs = async () => {
     const totalSteps = Array.from(totalsByStudent.values()).reduce((sum, value) => sum + value, 0);
     const avgStepsPerStudent = truncateDecimal(totalSteps / studentsWithSteps, 2);
 
+    const studentTotals = Array.from(totalsByStudent.entries()).map(([studentId, steps]) => {
+      const student = students.find(s => s.id === studentId);
+      return {
+        studentId,
+        steps: truncateDecimal(steps, 2),
+        fullName: student?.student_name || 'Unknown Student',
+        grade: student?.grade_level || null
+      };
+    }).sort((a, b) => (b.steps ?? 0) - (a.steps ?? 0));
+
     return {
       totalSteps: truncateDecimal(totalSteps, 2),
       totalStudents: studentsWithSteps,
       avgStepsPerStudent,
       hasData: true,
-      studentTotals: Array.from(totalsByStudent.entries()).map(([studentId, steps]) => ({
-        studentId,
-        steps: truncateDecimal(steps, 2)
-      }))
+      studentTotals,
+      topStudent: studentTotals[0] || null
     };
   };
 
@@ -1015,34 +1043,14 @@ const exportAllCSVs = async () => {
     };
   };
 
-  const getStudentImprovementStatus = () => {
-    const gradeAverages = gradesSummary.studentAverages || [];
-    const improvementCategories = {
-      needsImprovement: 0,
-      average: 0,
-      excellent: 0,
-      outstanding: 0
-    };
-
-    gradeAverages.forEach(item => {
-      const gpa = Number(item.gpa);
-      if (!Number.isFinite(gpa)) return;
-      if (gpa <= 2.4) improvementCategories.needsImprovement++;
-      else if (gpa <= 3.0) improvementCategories.average++;
-      else if (gpa <= 3.5) improvementCategories.excellent++;
-      else improvementCategories.outstanding++;
-    });
-
-    const hasGpaData = gradeAverages.length > 0;
-
+  const getProgressSnapshot = (stepsData, creditsData) => {
     const stepsCategories = {
       exceeds: 0,
       meets: 0,
       needsWork: 0
     };
 
-    const stepsStudentTotals = stepsSummary.studentTotals || [];
-    stepsStudentTotals.forEach(item => {
+    (stepsData?.studentTotals || []).forEach(item => {
       const value = Number(item.steps);
       if (!Number.isFinite(value)) return;
       if (value >= 16) stepsCategories.exceeds++;
@@ -1050,21 +1058,16 @@ const exportAllCSVs = async () => {
       else stepsCategories.needsWork++;
     });
 
-    const hasStepsData = stepsSummary.hasData;
-
-    const creditsPerStudent = getCreditsPerStudentData();
-    const creditsPerformance = {
-      fastEarners: creditsPerStudent.filter(student => student.credits >= 5).length
-    };
-    const hasCreditsData = creditsPerStudent.length > 0;
-
     return {
-      improvementCategories,
-      hasGpaData,
+      hasStepsData: Boolean(stepsData?.hasData),
       stepsCategories,
-      hasStepsData,
-      creditsPerformance,
-      hasCreditsData
+      topStepsStudent: stepsData?.topStudent || null,
+      totalSteps: stepsData?.totalSteps || 0,
+      avgStepsPerStudent: stepsData?.avgStepsPerStudent || 0,
+      hasCreditsData: Boolean(creditsData?.topStudent),
+      topCreditStudent: creditsData?.topStudent || null,
+      avgCreditsPerStudent: creditsData?.avgCreditsPerStudent || 0,
+      totalCredits: creditsData?.totalCredits || 0
     };
   };
 
@@ -1072,7 +1075,282 @@ const exportAllCSVs = async () => {
   const stepsSummary = getStepsSummary();
   const gradesSummary = getGradesSummary();
   const gpaSummary = getGPASummary();
-  const studentImprovementStatus = getStudentImprovementStatus();
+  const progressSnapshot = getProgressSnapshot(stepsSummary, totalCreditsData);
+
+  const aiMetricsPayload = useMemo(() => {
+    const selectedStudentLabel = selectedStudent === 'all'
+      ? 'All Students'
+      : (students.find(s => s.id === Number(selectedStudent))?.student_name || 'Unknown Student');
+
+    const incidentOverview = (incidentStats || []).slice(0, 6).map(item => ({
+      type: item.type,
+      count: item.count,
+      percentage: item.percentage
+    }));
+
+    const timeSlotHighlights = (timeSlotAnalysis || []).slice(0, 6).map(slot => ({
+      period: slot.period,
+      avgRating: slot.avgRating,
+      trend: slot.trend
+    }));
+
+    const weeklyHighlights = (weeklyTrends || []).slice(-4).map(week => ({
+      week: week.week,
+      avgRating: week.avgRating,
+      smileyRate: week.smileyRate
+    }));
+
+    const studentLeaders = (studentComparison || []).slice(0, 5).map(student => ({
+      name: student.name,
+      avgRating: student.avgRating,
+      behavioralAvg: student.behavioralAvg,
+      academicAvg: student.academicAvg,
+      smileyRate: student.smileyRate,
+      incidents: student.incidents
+    }));
+
+    return {
+      generatedAt: format(getCurrentDate(), 'yyyy-MM-dd HH:mm:ss'),
+      dateRange: dateRange === 'all' ? 'All Time' : `Last ${dateRange} days`,
+      selectedStudent: selectedStudentLabel,
+      overall: {
+        averageRating: truncateDecimal(overallMetrics.avgRating ?? 0, 2),
+        smileyRate: truncateDecimal(overallMetrics.smileyRate ?? 0, 2),
+        totalIncidents: overallMetrics.totalIncidents ?? 0,
+        totalEvaluations: overallMetrics.totalEvaluations ?? 0,
+        studentsEvaluated: overallMetrics.studentsEvaluated ?? 0
+      },
+      incidents: {
+        summary: incidentOverview,
+        total: overallMetrics.totalIncidents ?? 0
+      },
+      credits: {
+        totalCredits: totalCreditsData.totalCredits ?? 0,
+        avgPerStudent: totalCreditsData.avgCreditsPerStudent ?? 0,
+        topStudent: totalCreditsData.topStudent ? {
+          name: totalCreditsData.topStudent.fullName,
+          credits: totalCreditsData.topStudent.credits
+        } : null,
+        roster: (totalCreditsData.studentTotals || []).slice(0, 8).map(student => ({
+          name: student.fullName,
+          credits: student.credits
+        }))
+      },
+      steps: {
+        totalSteps: progressSnapshot.totalSteps ?? 0,
+        avgPerStudent: progressSnapshot.avgStepsPerStudent ?? 0,
+        topStudent: progressSnapshot.topStepsStudent ? {
+          name: progressSnapshot.topStepsStudent.fullName,
+          steps: progressSnapshot.topStepsStudent.steps
+        } : null,
+        categories: progressSnapshot.stepsCategories
+      },
+      timeSlots: timeSlotHighlights,
+      weeklyTrends: weeklyHighlights,
+      studentHighlights: studentLeaders
+    };
+  }, [
+    dateRange,
+    selectedStudent,
+    students,
+    overallMetrics.avgRating,
+    overallMetrics.smileyRate,
+    overallMetrics.totalIncidents,
+    overallMetrics.totalEvaluations,
+    overallMetrics.studentsEvaluated,
+    incidentStats,
+    totalCreditsData.totalCredits,
+    totalCreditsData.avgCreditsPerStudent,
+    totalCreditsData.topStudent,
+    totalCreditsData.studentTotals,
+    progressSnapshot.totalSteps,
+    progressSnapshot.avgStepsPerStudent,
+    progressSnapshot.stepsCategories,
+    progressSnapshot.topStepsStudent,
+    timeSlotAnalysis,
+    weeklyTrends,
+    studentComparison
+  ]);
+
+  const aiMetricsString = useMemo(() => JSON.stringify(aiMetricsPayload), [aiMetricsPayload]);
+
+  const fallbackPanels = useMemo(() => {
+    const panels = [
+      {
+        id: 'behavior',
+        title: 'Behavior Trends',
+        message: overallMetrics.avgRating >= 3.5
+          ? 'Overall behavior is trending strongly upward. Maintain current supports and celebrate progress.'
+          : overallMetrics.avgRating >= 3
+            ? 'Behavior is steady with room for refinement. Reinforce successful routines and monitor dips.'
+            : 'Behavior ratings show consistent challenges. Prioritize targeted coaching and structured supports.'
+      },
+      {
+        id: 'recognition',
+        title: 'Recognition Rate',
+        message: overallMetrics.smileyRate >= 30
+          ? 'Positive recognition is thriving. Continue celebrating success moments daily.'
+          : overallMetrics.smileyRate >= 20
+            ? 'Recognition momentum is growing—build in additional spot-checks and praise.'
+            : 'Increase positive reinforcement touchpoints to boost 4 ratings and morale.'
+      },
+      {
+        id: 'incident',
+        title: 'Incident Prevention',
+        message: overallMetrics.totalIncidents === 0
+          ? 'No incidents logged—students are responding well to expectations and supports.'
+          : `${overallMetrics.totalIncidents} incident${overallMetrics.totalIncidents === 1 ? '' : 's'} recorded. Review triggers and tighten handoff plans.`
+      },
+      {
+        id: 'data',
+        title: 'Data Quality',
+        message: overallMetrics.totalEvaluations >= Math.max(1, overallMetrics.studentsEvaluated) * (dateRange === 'all' ? 5 : parseInt(dateRange, 10)) * 0.6
+          ? 'Data coverage is strong enough for confident decisions.'
+          : 'Add more daily evaluations to sharpen insight accuracy.'
+      }
+    ];
+
+    return panels;
+  }, [
+    overallMetrics.avgRating,
+    overallMetrics.smileyRate,
+    overallMetrics.totalIncidents,
+    overallMetrics.totalEvaluations,
+    overallMetrics.studentsEvaluated,
+    dateRange
+  ]);
+
+  const fallbackFocusAreas = useMemo(() => {
+    const items = [];
+
+    if (overallMetrics.avgRating < 3) {
+      items.push('Prioritize targeted coaching for students averaging below expectations.');
+    }
+    if (overallMetrics.smileyRate < 20) {
+      items.push('Schedule extra recognition touchpoints to lift 4 ratings.');
+    }
+    if ((progressSnapshot.stepsCategories?.needsWork || 0) > 0) {
+      items.push('Plan check-ins for students falling short of weekly step goals.');
+    }
+    if ((progressSnapshot.stepsCategories?.meets || 0) === 0 && (progressSnapshot.stepsCategories?.exceeds || 0) === 0) {
+      items.push('Clarify expectations for step completion with advisory groups.');
+    }
+
+    if (!items.length) {
+      items.push('Maintain existing supports and continue monitoring key behavior indicators.');
+    }
+
+    return items;
+  }, [
+    overallMetrics.avgRating,
+    overallMetrics.smileyRate,
+    progressSnapshot.stepsCategories
+  ]);
+
+  const fallbackCelebrate = useMemo(() => {
+    const items = [];
+
+    if (overallMetrics.avgRating >= 3.5) {
+      items.push('Overall ratings show outstanding engagement—share wins with families.');
+    }
+    if (overallMetrics.totalIncidents === 0) {
+      items.push('Zero incidents logged—commend staff for proactive management.');
+    }
+    if (progressSnapshot.topStepsStudent) {
+      items.push(`${progressSnapshot.topStepsStudent.fullName} completed ${formatTruncated(progressSnapshot.topStepsStudent.steps ?? 0, 2)} steps—spotlight this dedication.`);
+    }
+    if (totalCreditsData.topStudent) {
+      items.push(`${totalCreditsData.topStudent.fullName} leads credits with ${formatTruncated(totalCreditsData.topStudent.credits ?? 0, 2)} earned.`);
+    }
+
+    if (!items.length) {
+      items.push('Consistent participation recorded—acknowledge student effort this week.');
+    }
+
+    return items;
+  }, [
+    overallMetrics.avgRating,
+    overallMetrics.totalIncidents,
+    progressSnapshot.topStepsStudent,
+    totalCreditsData.topStudent
+  ]);
+
+  const panelsToDisplay = useMemo(() => {
+    const sourcePanels = Array.isArray(aiInsights?.panels) && aiInsights.panels.length
+      ? aiInsights.panels
+      : fallbackPanels;
+
+    return sourcePanels.map((panel, index) => {
+      const fallbackPanel = fallbackPanels[index % fallbackPanels.length];
+      const title = panel.title || fallbackPanel.title;
+      const rawId = (panel.id || title || '').toLowerCase();
+      let normalizedId = rawId;
+
+      if (!KPI_PANEL_STYLES[normalizedId]) {
+        if (rawId.includes('recogn')) normalizedId = 'recognition';
+        else if (rawId.includes('incident') || rawId.includes('safety')) normalizedId = 'incident';
+        else if (rawId.includes('data') || rawId.includes('quality')) normalizedId = 'data';
+        else normalizedId = 'behavior';
+      }
+
+      const message = (panel.summary || panel.message || panel.description || '').trim();
+
+      return {
+        id: normalizedId,
+        title,
+        message: message || fallbackPanel.message
+      };
+    });
+  }, [aiInsights?.panels, fallbackPanels]);
+
+  const focusItems = useMemo(() => {
+    const fromAi = Array.isArray(aiInsights?.focusAreas)
+      ? aiInsights.focusAreas.map(item => String(item).trim()).filter(Boolean)
+      : [];
+    return fromAi.length ? fromAi : fallbackFocusAreas;
+  }, [aiInsights?.focusAreas, fallbackFocusAreas]);
+
+  const celebrateItems = useMemo(() => {
+    const fromAi = Array.isArray(aiInsights?.celebrateSuccesses)
+      ? aiInsights.celebrateSuccesses.map(item => String(item).trim()).filter(Boolean)
+      : [];
+    return fromAi.length ? fromAi : fallbackCelebrate;
+  }, [aiInsights?.celebrateSuccesses, fallbackCelebrate]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const runAiInsights = async () => {
+      if (!aiMetricsString) return;
+
+      setAiInsightsLoading(true);
+      setAiInsightsError(null);
+
+      try {
+        const parsedMetrics = JSON.parse(aiMetricsString);
+        const response = await aiService.generateKpiInsights(parsedMetrics, { scope: 'kpi_dashboard' });
+        if (!cancelled) {
+          setAiInsights(response);
+        }
+      } catch (error) {
+        console.warn('AI KPI insights unavailable:', error?.message || error);
+        if (!cancelled) {
+          setAiInsights(null);
+          setAiInsightsError(error);
+        }
+      } finally {
+        if (!cancelled) {
+          setAiInsightsLoading(false);
+        }
+      }
+    };
+
+    runAiInsights();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [aiMetricsString]);
 
   const exportEnhancedCSVHandler = async () => {
     try {
@@ -1087,7 +1365,7 @@ const exportAllCSVs = async () => {
         stepsSummary,
         gradesSummary,
         gpaSummary,
-        studentImprovementStatus,
+        progressSnapshot,
         dateRange: dateRange === 'all' ? 'All Time' : `Last ${dateRange} days`,
         selectedStudent: selectedStudent === 'all' ? 'All Students' : students.find(s => s.id === Number(selectedStudent))?.student_name || 'Unknown'
       };
@@ -1251,7 +1529,7 @@ const exportAllCSVs = async () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">4's Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">4s Rate</CardTitle>
               <Star className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -1490,80 +1768,89 @@ const exportAllCSVs = async () => {
             </Card>
           </div>
 
-          {/* Student Improvement Status */}
+          {/* Student Progress Snapshot */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base sm:text-lg">Student Improvement Status</CardTitle>
+              <CardTitle className="text-base sm:text-lg">Student Progress Snapshot</CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
               <div className="space-y-4">
-                <div className="text-sm text-slate-600 mb-4">
-                  {studentImprovementStatus.hasGpaData || studentImprovementStatus.hasStepsData || studentImprovementStatus.hasCreditsData
-                    ? 'Based on available GPA, steps, and credit data.'
-                    : 'Student improvement metrics will appear once academic data is recorded.'}
+                <div className="text-sm text-slate-600">
+                  {progressSnapshot.hasStepsData || progressSnapshot.hasCreditsData
+                    ? 'Snapshot of steps completed and credits earned for the selected range.'
+                    : 'Progress metrics will appear once step or credit data is recorded.'}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <h4 className="font-semibold text-red-900 text-sm">Needs Improvement</h4>
-                    <p className="text-xs text-red-700 mt-1">GPA ≤ 2.4</p>
-                    <div className="text-lg font-bold text-red-600 mt-2">
-                      {studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.needsImprovement : 'N/A'}
-                    </div>
-                    <p className="text-xs text-red-600">Students</p>
-                  </div>
-                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <h4 className="font-semibold text-yellow-900 text-sm">Average</h4>
-                    <p className="text-xs text-yellow-700 mt-1">GPA 2.5 - 3.0</p>
-                    <div className="text-lg font-bold text-yellow-600 mt-2">
-                      {studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.average : 'N/A'}
-                    </div>
-                    <p className="text-xs text-yellow-600">Students</p>
-                  </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 className="font-semibold text-blue-900 text-sm">Excellent</h4>
-                    <p className="text-xs text-blue-700 mt-1">GPA 3.1 - 3.5</p>
-                    <div className="text-lg font-bold text-blue-600 mt-2">
-                      {studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.excellent : 'N/A'}
-                    </div>
-                    <p className="text-xs text-blue-600">Students</p>
+                    <h4 className="font-semibold text-blue-900 text-sm">Steps Leader</h4>
+                    {progressSnapshot.topStepsStudent ? (
+                      <div className="mt-2">
+                        <p className="text-lg font-bold text-blue-700">{progressSnapshot.topStepsStudent.fullName}</p>
+                        <p className="text-xs text-blue-600">{progressSnapshot.topStepsStudent.grade || 'Grade N/A'}</p>
+                        <p className="text-sm text-blue-800 mt-1">
+                          {formatTruncated(progressSnapshot.topStepsStudent.steps ?? 0, 2)} steps completed
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-blue-700 mt-2">No step data recorded.</p>
+                    )}
                   </div>
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <h4 className="font-semibold text-green-900 text-sm">Outstanding</h4>
-                    <p className="text-xs text-green-700 mt-1">GPA 3.6 - 4.0</p>
-                    <div className="text-lg font-bold text-green-600 mt-2">
-                      {studentImprovementStatus.hasGpaData ? studentImprovementStatus.improvementCategories.outstanding : 'N/A'}
-                    </div>
-                    <p className="text-xs text-green-600">Students</p>
+
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <h4 className="font-semibold text-amber-900 text-sm">Credits Leader</h4>
+                    {progressSnapshot.topCreditStudent ? (
+                      <div className="mt-2">
+                        <p className="text-lg font-bold text-amber-700">{progressSnapshot.topCreditStudent.fullName}</p>
+                        <p className="text-xs text-amber-600">{progressSnapshot.topCreditStudent.grade || 'Grade N/A'}</p>
+                        <p className="text-sm text-amber-800 mt-1">
+                          {formatTruncated(progressSnapshot.topCreditStudent.credits ?? 0, 2)} credits earned
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-amber-700 mt-2">No credits recorded.</p>
+                    )}
                   </div>
                 </div>
-                <div className="mt-4 p-3 bg-slate-50 rounded-lg">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                    <div className="text-xs text-slate-500">Average Steps per Student</div>
+                    <div className="text-xl font-semibold text-slate-800">
+                      {progressSnapshot.hasStepsData ? formatTruncated(progressSnapshot.avgStepsPerStudent ?? 0, 2) : 'N/A'}
+                    </div>
+                    <div className="text-xs text-slate-500">Total steps logged: {progressSnapshot.hasStepsData ? formatTruncated(progressSnapshot.totalSteps ?? 0, 2) : '0'}</div>
+                  </div>
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                    <div className="text-xs text-slate-500">Average Credits per Student</div>
+                    <div className="text-xl font-semibold text-slate-800">
+                      {progressSnapshot.hasCreditsData ? formatTruncated(progressSnapshot.avgCreditsPerStudent ?? 0, 2) : 'N/A'}
+                    </div>
+                    <div className="text-xs text-slate-500">Total credits awarded: {progressSnapshot.hasCreditsData ? formatTruncated(progressSnapshot.totalCredits ?? 0, 2) : '0'}</div>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-3 bg-slate-100 rounded-lg">
                   <h4 className="font-semibold text-slate-900 text-sm mb-2">Steps Performance</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                     <div className="text-center">
                       <div className="font-medium text-green-700">Exceeds (≥16)</div>
                       <div className="text-lg font-bold text-green-600">
-                        {studentImprovementStatus.hasStepsData ? studentImprovementStatus.stepsCategories.exceeds : 'N/A'}
+                        {progressSnapshot.hasStepsData ? progressSnapshot.stepsCategories.exceeds : 'N/A'}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="font-medium text-blue-700">Meets (15)</div>
+                      <div className="font-medium text-blue-700">Meets (10-15)</div>
                       <div className="text-lg font-bold text-blue-600">
-                        {studentImprovementStatus.hasStepsData ? studentImprovementStatus.stepsCategories.meets : 'N/A'}
+                        {progressSnapshot.hasStepsData ? progressSnapshot.stepsCategories.meets : 'N/A'}
                       </div>
                     </div>
                     <div className="text-center">
                       <div className="font-medium text-red-700">Needs Work (&lt;10)</div>
                       <div className="text-lg font-bold text-red-600">
-                        {studentImprovementStatus.hasStepsData ? studentImprovementStatus.stepsCategories.needsWork : 'N/A'}
+                        {progressSnapshot.hasStepsData ? progressSnapshot.stepsCategories.needsWork : 'N/A'}
                       </div>
                     </div>
-                  </div>
-                </div>
-                <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-                  <h4 className="font-semibold text-slate-900 text-sm mb-2">Credits Performance</h4>
-                  <p className="text-xs text-slate-600">Credits earned quickly highlight excellent progress</p>
-                  <div className="mt-2 text-sm">
-                    <span className="font-medium">Fast Earners:</span> {studentImprovementStatus.hasCreditsData ? studentImprovementStatus.creditsPerformance.fastEarners : 'N/A'} students
                   </div>
                 </div>
               </div>
@@ -1575,69 +1862,42 @@ const exportAllCSVs = async () => {
             <CardTitle>Additional Insights & Recommendations</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-semibold text-blue-900 mb-2">Behavior Trends</h4>
-                <p className="text-sm text-blue-800">
-                  {overallMetrics.avgRating >= 3 ? 
-                    "Overall behavior is trending positively. Continue current strategies." :
-                    "Behavior scores indicate need for intervention strategies."
-                  }
-                </p>
+            {(aiInsightsLoading || aiInsightsError) && (
+              <div className="mb-4 text-xs text-slate-500 flex items-center justify-between">
+                <span>{aiInsightsLoading ? 'Generating AI-powered insights…' : 'AI insights unavailable. Showing data-driven guidance.'}</span>
+                {aiInsightsError && <span className="text-red-500">{aiInsightsError?.message ? 'AI service offline' : ''}</span>}
               </div>
-              
-              <div className="p-4 bg-green-50 rounded-lg">
-                <h4 className="font-semibold text-green-900 mb-2">Recognition Rate</h4>
-                <p className="text-sm text-green-800">
-                  {overallMetrics.smileyRate >= 20 ? 
-                    "Good positive reinforcement rate. Students are receiving recognition." :
-                    "Consider increasing positive behavior recognition opportunities."
-                  }
-                </p>
-              </div>
-              
-              <div className="p-4 bg-orange-50 rounded-lg">
-                <h4 className="font-semibold text-orange-900 mb-2">Incident Prevention</h4>
-                <p className="text-sm text-orange-800">
-                  {overallMetrics.totalIncidents === 0 ? 
-                    "Excellent! No incidents recorded in this period." :
-                    `${overallMetrics.totalIncidents} incidents recorded. Review patterns for prevention strategies.`
-                  }
-                </p>
-              </div>
+            )}
 
-              <div className="p-4 bg-purple-50 rounded-lg">
-                <h4 className="font-semibold text-purple-900 mb-2">Data Quality</h4>
-                <p className="text-sm text-purple-800">
-                  {overallMetrics.totalEvaluations >= (overallMetrics.studentsEvaluated * parseInt(dateRange) * 0.8) ? 
-                    "Good data coverage for reliable insights." :
-                    "Consider increasing evaluation frequency for better insights."
-                  }
-                </p>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {panelsToDisplay.map((panel, index) => {
+                const styles = KPI_PANEL_STYLES[panel.id] || KPI_PANEL_STYLES.behavior;
+                return (
+                  <div key={`${panel.id}-${index}`} className={`p-4 rounded-lg ${styles.container}`}>
+                    <h4 className={`font-semibold mb-2 ${styles.title}`}>{panel.title}</h4>
+                    <p className={`text-sm ${styles.body}`}>{panel.message}</p>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Action Items */}
             <div className="mt-6 p-4 bg-slate-100 rounded-lg">
               <h4 className="font-semibold text-slate-900 mb-3">Recommended Action Items</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h5 className="font-medium text-slate-800 mb-2">🎯 Focus Areas</h5>
                   <ul className="text-sm text-slate-700 space-y-1">
-                    {overallMetrics.avgRating < 3 && <li>• Implement targeted behavior interventions</li>}
-                    {overallMetrics.smileyRate < 20 && <li>• Increase positive reinforcement strategies</li>}
-                    {overallMetrics.totalIncidents > 0 && <li>• Review incident patterns for prevention</li>}
-                    {timeSlotAnalysis.some(slot => slot.avgRating < 2.5) && <li>• Address challenging time periods</li>}
+                    {focusItems.map((item, idx) => (
+                      <li key={`focus-${idx}`}>• {item}</li>
+                    ))}
                   </ul>
                 </div>
                 <div>
                   <h5 className="font-medium text-slate-800 mb-2">📈 Celebrate Successes</h5>
                   <ul className="text-sm text-slate-700 space-y-1">
-                    {overallMetrics.avgRating >= 3.5 && <li>• Excellent overall behavior ratings!</li>}
-                    {overallMetrics.smileyRate >= 30 && <li>• High positive recognition rate!</li>}
-                    {overallMetrics.totalIncidents === 0 && <li>• Zero incidents - great classroom management!</li>}
-                    {studentComparison.filter(s => s.avgRating >= 3.5).length > 0 && 
-                      <li>• {studentComparison.filter(s => s.avgRating >= 3.5).length} students showing excellent progress!</li>}
+                    {celebrateItems.map((item, idx) => (
+                      <li key={`celebrate-${idx}`}>• {item}</li>
+                    ))}
                   </ul>
                 </div>
               </div>

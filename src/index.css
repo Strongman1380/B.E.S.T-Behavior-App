@@ -223,6 +223,10 @@ button:focus-visible {
     display: none !important;
   }
 
+  body {
+    background: white !important;
+  }
+
   /* Ensure full width for printed content */
   .kpi-dashboard {
     width: 100% !important;
@@ -240,10 +244,31 @@ button:focus-visible {
     box-shadow: none !important;
   }
 
+  .kpi-dashboard [class*="CardContent"],
+  .kpi-dashboard [class*="CardHeader"],
+  .kpi-dashboard [class*="CardFooter"] {
+    overflow: visible !important;
+  }
+
   /* Ensure tables don't break awkwardly */
   table {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  /* Force grids into a single column for printing */
+  .kpi-dashboard .grid,
+  .kpi-dashboard [class*="grid-cols-"],
+  .kpi-dashboard [class*="md:grid"],
+  .kpi-dashboard [class*="lg:grid"],
+  .kpi-dashboard [class*="sm:grid"] {
+    display: block !important;
+  }
+
+  .kpi-dashboard .grid > *,
+  .kpi-dashboard [class*="grid-cols-"] > * {
+    width: 100% !important;
+    max-width: none !important;
   }
 
   /* Charts should fit properly */
@@ -256,39 +281,7 @@ button:focus-visible {
   /* Page margins for better printing */
   @page {
     margin: 0.5in;
-    size: A4;
-  }
-
-  /* Ensure text is readable */
-  body {
-    font-size: 12px !important;
-    line-height: 1.4 !important;
-    color: black !important;
-    background: white !important;
-  }
-
-  /* Hide any background gradients or images */
-  .bg-gradient-to-br,
-  .bg-gradient-to-r {
-    background: white !important;
-  }
-
-  /* Make sure headings are prominent */
-  h1, h2, h3, h4 {
-    color: black !important;
-    break-after: avoid;
-    page-break-after: avoid;
-  }
-
-  /* Ensure lists and content flow properly */
-  .space-y-3 > * + * {
-    margin-top: 0.5rem !important;
-  }
-
-  /* Badge styling for print */
-  .badge {
-    border: 1px solid #d1d5db !important;
-    background: #f9fafb !important;
-    color: #374151 !important;
+    size: auto;
   }
 }
+

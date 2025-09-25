@@ -27,7 +27,7 @@ const useDebounce = (callback, delay) => {
   return debouncedCallback;
 };
 
-export default function EvaluationForm({ evaluation, settings, onSave, isSaving }) {
+export default function EvaluationForm({ evaluation, settings, onSave, isSaving, studentName = '', studentGrade = '', evaluationDate }) {
   const [formData, setFormData] = useState({ time_slots: {}, general_comments: '' });
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isEnhancingComments, setIsEnhancingComments] = useState(false);
@@ -39,6 +39,15 @@ export default function EvaluationForm({ evaluation, settings, onSave, isSaving 
       time_slots: evaluation?.time_slots || {},
       general_comments: evaluation?.general_comments || ''
     };
+
+    // Preserve existing time slot data to prevent data loss
+    if (formData.time_slots && Object.keys(formData.time_slots).length > 0) {
+      newFormData.time_slots = {
+        ...newFormData.time_slots,
+        ...formData.time_slots
+      };
+    }
+
     setFormData(newFormData);
     setHasUnsavedChanges(false);
   }, [evaluation, settings]);
@@ -85,7 +94,12 @@ export default function EvaluationForm({ evaluation, settings, onSave, isSaving 
     setIsEnhancingComments(true);
     try {
       const enhanced = await aiService.enhanceComment(formData.general_comments, {
-        behaviorType: 'general_comments'
+        behaviorType: 'general_comments',
+        studentName,
+        gradeLevel: studentGrade,
+        evaluationDate: evaluationDate || evaluation?.date,
+        schoolName: settings?.school_name,
+        teacherName: settings?.teacher_name
       });
 
       const newFormData = { ...formData, general_comments: enhanced };
@@ -111,6 +125,10 @@ export default function EvaluationForm({ evaluation, settings, onSave, isSaving 
             label={label}
             data={formData.time_slots?.[key] || {}}
             onChange={(data) => handleTimeSlotChange(key, data)}
+            studentName={studentName}
+            gradeLevel={studentGrade}
+            evaluationDate={evaluationDate || evaluation?.date}
+            teacherName={settings?.teacher_name}
           />
         ))}
       </div>

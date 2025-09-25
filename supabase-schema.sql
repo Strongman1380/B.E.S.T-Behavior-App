@@ -22,7 +22,9 @@ CREATE TABLE IF NOT EXISTS daily_evaluations (
   time_slots JSONB DEFAULT '{}',
   general_comments TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  -- Ensure only one evaluation per student per date
+  CONSTRAINT unique_student_date_evaluation UNIQUE (student_id, date)
 );
 
 -- Settings table
@@ -58,6 +60,7 @@ CREATE TABLE IF NOT EXISTS incident_reports (
   staff_reporting TEXT NOT NULL,
   date_of_incident DATE NOT NULL,
   time_of_incident TIME,
+  involved_students JSONB DEFAULT '[]',
   problem_behavior JSONB DEFAULT '[]',
   description_problem_behavior TEXT DEFAULT '',
   activity JSONB DEFAULT '[]',
@@ -234,6 +237,74 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECU
 CREATE TRIGGER update_credits_earned_updated_at BEFORE UPDATE ON credits_earned FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_classes_needed_updated_at BEFORE UPDATE ON classes_needed FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_grades_updated_at BEFORE UPDATE ON grades FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Add unique constraint if it doesn't exist (for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'unique_student_date_evaluation'
+    ) THEN
+        -- First, merge any duplicate entries before adding constraint
+        -- to preserve all data instead of deleting
+        WITH duplicates AS (
+            SELECT student_id, date,
+                   string_agg(DISTINCT teacher_name, ', ') as merged_teacher_name,
+                   string_agg(DISTINCT school, ', ') as merged_school,
+                   string_agg(DISTINCT general_comments, E'\n---\n') as merged_comments,
+                   MIN(id) as keep_id,
+                   array_agg(time_slots) as all_time_slots,
+                   MIN(created_at) as earliest_created,
+                   MAX(updated_at) as latest_updated
+            FROM daily_evaluations
+            GROUP BY student_id, date
+            HAVING COUNT(*) > 1
+        ),
+        merged_time_slots AS (
+            SELECT student_id, date, keep_id,
+                   jsonb_object_agg(
+                       slot_key,
+                       slot_data
+                   ) as merged_slots
+            FROM duplicates d,
+                 LATERAL (
+                     SELECT jsonb_object_keys(time_slot) as slot_key,
+                            time_slot->jsonb_object_keys(time_slot) as slot_data
+                     FROM unnest(d.all_time_slots) as time_slot
+                     WHERE time_slot IS NOT NULL AND time_slot != '{}'::jsonb
+                 ) slots
+            GROUP BY student_id, date, keep_id
+        )
+        UPDATE daily_evaluations
+        SET
+            teacher_name = d.merged_teacher_name,
+            school = d.merged_school,
+            general_comments = d.merged_comments,
+            time_slots = COALESCE(m.merged_slots, '{}'),
+            updated_at = d.latest_updated
+        FROM duplicates d
+        LEFT JOIN merged_time_slots m ON d.keep_id = m.keep_id
+        WHERE daily_evaluations.id = d.keep_id;
+
+        -- Delete the duplicate entries after merging data
+        DELETE FROM daily_evaluations
+        WHERE id NOT IN (
+            SELECT MIN(id)
+            FROM daily_evaluations
+            GROUP BY student_id, date
+        );
+
+        -- Now add the unique constraint
+        ALTER TABLE daily_evaluations
+        ADD CONSTRAINT unique_student_date_evaluation UNIQUE (student_id, date);
+    END IF;
+END $$;
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_daily_evaluations_student_date ON daily_evaluations(student_id, date);
+CREATE INDEX IF NOT EXISTS idx_daily_evaluations_date ON daily_evaluations(date);
+CREATE INDEX IF NOT EXISTS idx_behavior_summaries_student ON behavior_summaries(student_id);
+CREATE INDEX IF NOT EXISTS idx_behavior_summaries_date_range ON behavior_summaries(date_from, date_to);
 
 
 -- Insert sample data (optional - remove if you don't want sample data)

@@ -57,7 +57,12 @@ export default function IncidentReports() {
         Settings.list()
       ]);
       
-      setReports(reportsData.reverse()); // Most recent first
+      const normalizedReports = (Array.isArray(reportsData) ? reportsData : []).map(report => ({
+        ...report,
+        involved_students: Array.isArray(report?.involved_students) ? report.involved_students : []
+      }));
+
+      setReports(normalizedReports.reverse()); // Most recent first
       setStudents(studentsData);
       setSettings(settingsData[0] || null);
     } catch (error) {
@@ -78,16 +83,53 @@ export default function IncidentReports() {
     loadData();
   }, [loadData]);
 
+  const getReportStudentNames = useCallback((report) => {
+    if (Array.isArray(report?.involved_students) && report.involved_students.length > 0) {
+      return report.involved_students.map(entry => {
+        const id = entry.id ?? entry.student_id;
+        const name = entry.name ?? entry.student_name;
+        if (name) return name;
+        const studentMatch = students.find(s => Number(s.id) === Number(id));
+        return studentMatch?.student_name || 'Unknown Student';
+      }).join(', ');
+    }
+    const fallback = students.find(s => Number(s.id) === Number(report.student_id))?.student_name;
+    return fallback || report.student_name || 'Unknown Student';
+  }, [students]);
+
+  const getReportStudentList = useCallback((report) => {
+    if (Array.isArray(report?.involved_students) && report.involved_students.length > 0) {
+      return report.involved_students.map(entry => {
+        const id = entry.id ?? entry.student_id;
+        const name = entry.name ?? entry.student_name;
+        if (name) return { id, name };
+        const studentMatch = students.find(s => Number(s.id) === Number(id));
+        return { id, name: studentMatch?.student_name || 'Unknown Student' };
+      });
+    }
+    const fallbackStudent = students.find(s => Number(s.id) === Number(report.student_id));
+    if (fallbackStudent) {
+      return [{ id: fallbackStudent.id, name: fallbackStudent.student_name }];
+    }
+    if (report.student_name) {
+      return [{ id: report.student_id ?? null, name: report.student_name }];
+    }
+    return [];
+  }, [students]);
+
   const filterReports = useCallback(() => {
     let filtered = reports;
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(report => 
-        report.student_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.incident_summary?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.staff_name?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(report => {
+        const names = getReportStudentNames(report).toLowerCase();
+        return (
+          names.includes(searchTerm.toLowerCase()) ||
+          report.incident_summary?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          report.staff_name?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      });
     }
 
     // Type filter
@@ -98,7 +140,12 @@ export default function IncidentReports() {
     // Student filter
     if (filterStudent !== "all") {
       const selectedId = Number(filterStudent);
-      filtered = filtered.filter(report => report.student_id === selectedId);
+      filtered = filtered.filter(report => {
+        if (Array.isArray(report.involved_students) && report.involved_students.some(entry => Number(entry.id ?? entry.student_id) === selectedId)) {
+          return true;
+        }
+        return Number(report.student_id) === selectedId;
+      });
     }
 
     if (filterStartDate) {
@@ -118,7 +165,7 @@ export default function IncidentReports() {
     }
 
     setFilteredReports(filtered);
-  }, [reports, searchTerm, filterType, filterStudent, filterStartDate, filterEndDate]);
+  }, [reports, searchTerm, filterType, filterStudent, filterStartDate, filterEndDate, getReportStudentNames]);
 
   const clearDateFilters = () => {
     setFilterStartDate("");
@@ -141,6 +188,30 @@ export default function IncidentReports() {
       const msg = typeof error?.message === 'string' ? error.message : ''
       const detail = typeof error?.details === 'string' ? error.details : ''
       const hint = typeof error?.hint === 'string' ? error.hint : ''
+      const combinedMessage = `${msg} ${detail} ${hint}`.toLowerCase();
+      if (combinedMessage.includes('involved_students') && Array.isArray(reportData?.involved_students)) {
+        try {
+          toast.warning('Database schema missing multi-student support. Saving one incident per student.');
+          const targets = reportData.involved_students.length > 0
+            ? reportData.involved_students
+            : [{ id: reportData.student_id, name: reportData.student_name }];
+          for (const entry of targets) {
+            const legacyPayload = {
+              ...reportData,
+              ...(reportData.id ? { id: reportData.id } : {}),
+              student_id: entry.id,
+              student_name: entry.name
+            };
+            delete legacyPayload.involved_students;
+            await IncidentReport.save(legacyPayload);
+          }
+          await loadData();
+          return;
+        } catch (fallbackError) {
+          console.error('Fallback save failed:', fallbackError);
+          toast.error('Legacy incident save also failed. Please update the database schema.');
+        }
+      }
       if (msg.includes('Supabase not configured')) {
         toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
       } else if (msg.toLowerCase().includes('row-level security')) {
@@ -188,11 +259,6 @@ export default function IncidentReports() {
 
   const handleEditReport = (report) => {
     setEditingReport(report);
-  };
-
-  const getStudentName = (studentId, fallbackName = '') => {
-    const student = students.find(s => s.id === studentId);
-    return student?.student_name || fallbackName || 'Unknown Student';
   };
 
   if (isLoading) {
@@ -344,103 +410,129 @@ export default function IncidentReports() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredReports.map(report => (
-                        <TableRow key={report.id}>
-                          <TableCell className="font-medium">
-                            {formatDate(report.incident_date, 'MMM d, yyyy')}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <User className="w-4 h-4 text-slate-400" />
-                              {getStudentName(report.student_id, report.student_name)}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={INCIDENT_TYPE_COLORS[report.incident_type] || "bg-slate-100 text-slate-800"}>
-                              {report.incident_type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{report.staff_name}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex gap-1 justify-end">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleViewReport(report)}
-                                className="text-slate-500 hover:text-slate-800"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEditReport(report)}
-                                className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteReport(report.id)}
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {filteredReports.map(report => {
+                        const studentEntries = getReportStudentList(report);
+                        const hasStudentEntries = studentEntries.length > 0;
+                        return (
+                          <TableRow key={report.id}>
+                            <TableCell className="font-medium">
+                              {formatDate(report.incident_date, 'MMM d, yyyy')}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <User className="w-4 h-4 text-slate-400" />
+                                <div className="flex flex-wrap gap-1">
+                                  {studentEntries.map(entry => (
+                                    <Badge key={`${report.id}-${entry.id}-${entry.name}`} variant="secondary" className="bg-slate-100 text-slate-800">
+                                      {entry.name}
+                                    </Badge>
+                                  ))}
+                                  {!hasStudentEntries && (
+                                    <span className="text-sm text-slate-500">Unknown Student</span>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={INCIDENT_TYPE_COLORS[report.incident_type] || "bg-slate-100 text-slate-800"}>
+                                {report.incident_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{report.staff_name}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex gap-1 justify-end">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleViewReport(report)}
+                                  className="text-slate-500 hover:text-slate-800"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEditReport(report)}
+                                  className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteReport(report.id)}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
 
                 {/* Mobile Card View */}
                 <div className="md:hidden divide-y divide-slate-200">
-                  {filteredReports.map(report => (
-                    <div key={report.id} className="p-4">
-                      <div className="flex justify-between items-start gap-3 mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <User className="w-4 h-4 text-slate-400" />
-                            <p className="font-semibold text-slate-900 text-sm">{getStudentName(report.student_id, report.student_name)}</p>
+                  {filteredReports.map(report => {
+                    const studentEntries = getReportStudentList(report);
+                    const hasStudentEntries = studentEntries.length > 0;
+                    return (
+                      <div key={report.id} className="p-4">
+                        <div className="flex justify-between items-start gap-3 mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <User className="w-4 h-4 text-slate-400" />
+                              <div className="flex flex-wrap gap-1">
+                                {studentEntries.map(entry => (
+                                  <Badge key={`${report.id}-mobile-${entry.id}-${entry.name}`} variant="secondary" className="bg-slate-100 text-slate-800">
+                                    {entry.name}
+                                  </Badge>
+                                ))}
+                                {!hasStudentEntries && (
+                                  <span className="text-sm text-slate-500">Unknown Student</span>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-xs text-slate-500">
+                              {formatDate(report.incident_date, 'MMM d, yyyy')} • {report.staff_name}
+                            </p>
                           </div>
-                          <p className="text-xs text-slate-500">
-                            {formatDate(report.incident_date, 'MMM d, yyyy')} • {report.staff_name}
-                          </p>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleViewReport(report)}
+                              className="w-8 h-8 text-slate-500"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditReport(report)}
+                              className="w-8 h-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteReport(report.id)}
+                              className="w-8 h-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleViewReport(report)}
-                            className="w-8 h-8 text-slate-500"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditReport(report)}
-                            className="w-8 h-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteReport(report.id)}
-                            className="w-8 h-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        <Badge className={`${INCIDENT_TYPE_COLORS[report.incident_type] || "bg-slate-100 text-slate-800"} text-xs`}>
+                          {report.incident_type}
+                        </Badge>
                       </div>
-                      <Badge className={`${INCIDENT_TYPE_COLORS[report.incident_type] || "bg-slate-100 text-slate-800"} text-xs`}>
-                        {report.incident_type}
-                      </Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             )}

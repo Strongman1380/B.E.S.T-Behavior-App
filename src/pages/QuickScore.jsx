@@ -14,8 +14,22 @@ import { cn } from "@/lib/utils";
 
 import StudentList from "../components/quick-score/StudentList";
 import EvaluationForm from "../components/behavior/EvaluationForm";
+import DashboardTabsBar from "@/components/dashboard/DashboardTabsBar";
+import useDashboardScope from "@/hooks/useDashboardScope";
 
 export default function QuickScore() {
+  const {
+    dashboards,
+    dashboardsLoading,
+    selectedDashboardId,
+    setSelectedDashboardId,
+    defaultDashboardName,
+    currentDashboardName,
+    studentFilter,
+    dashboardsSupported,
+    disableDashboards,
+  } = useDashboardScope();
+
   const [students, setStudents] = useState([]);
   const [evaluations, setEvaluations] = useState([]);
   const [settings, setSettings] = useState(null);
@@ -34,11 +48,33 @@ export default function QuickScore() {
       if(showLoading) setIsLoading(true);
       console.log("Loading Quick Score data for date:", selectedDateYmd);
       
-      const [studentsData, evaluationsData, settingsData] = await Promise.all([
-        Student.filter({ active: true }).catch(err => {
-          console.error("Error loading students:", err);
+      let studentsData;
+      let evaluationsData;
+      let settingsData;
+
+      const fetchStudents = async () => {
+        try {
+          return await Student.filter(studentFilter, 'student_name').catch(err => {
+            throw err;
+          });
+        } catch (error) {
+          const message = String(error?.message || error?.details || '').toLowerCase();
+          const dashboardMissing = message.includes('dashboard') && (message.includes('not exist') || message.includes('could not find'));
+          if (dashboardMissing) {
+            console.warn('Quick Score student fetch failed due to missing dashboard column. Disabling multi-dashboard mode.');
+            disableDashboards();
+            return await Student.filter({ active: true }, 'student_name').catch(innerErr => {
+              console.error("Error loading students after fallback:", innerErr);
+              return [];
+            });
+          }
+          console.error("Error loading students:", error);
           return [];
-        }),
+        }
+      };
+
+      const [studentsResult, evaluationsResult, settingsResult] = await Promise.all([
+        fetchStudents(),
         DailyEvaluation.filter({ date: selectedDateYmd }).catch(err => {
           console.error("Error loading evaluations:", err);
           return [];
@@ -48,13 +84,39 @@ export default function QuickScore() {
           return [];
         })
       ]);
-      
+
+      studentsData = Array.isArray(studentsResult) ? studentsResult : [];
+      evaluationsData = Array.isArray(evaluationsResult) ? evaluationsResult : [];
+      settingsData = Array.isArray(settingsResult) ? settingsResult : [];
+
       console.log("Quick Score data loaded:", { studentsData, evaluationsData, settingsData });
-      
-      setStudents(studentsData || []);
-      setEvaluations(evaluationsData || []);
+
+      const studentIdSet = new Set(studentsData.map(student => student.id));
+      const scopedEvaluations = evaluationsData.filter(evaluation => studentIdSet.has(evaluation.student_id));
+
+      const latestEvaluationByStudent = new Map();
+      scopedEvaluations.forEach(evaluation => {
+        const key = evaluation.student_id;
+        const existing = latestEvaluationByStudent.get(key);
+        if (!existing) {
+          latestEvaluationByStudent.set(key, evaluation);
+          return;
+        }
+        const existingTimestamp = new Date(existing.updated_at || existing.created_at || existing.date || selectedDateYmd).getTime();
+        const evaluationTimestamp = new Date(evaluation.updated_at || evaluation.created_at || evaluation.date || selectedDateYmd).getTime();
+        if (evaluationTimestamp >= existingTimestamp) {
+          latestEvaluationByStudent.set(key, evaluation);
+        }
+      });
+
+      setStudents(studentsData);
+      setEvaluations(Array.from(latestEvaluationByStudent.values()));
       setSettings(settingsData?.[0] || null);
-      
+      setCurrentStudentIndex(prev => {
+        if (studentsData.length === 0) return 0;
+        return Math.min(prev, studentsData.length - 1);
+      });
+
     } catch (error) { 
       console.error("Load data error:", error); // Keep original console log
       if (error.message.includes('429') || error.message.includes('Rate limit')) {
@@ -65,41 +127,62 @@ export default function QuickScore() {
     } finally {
       if(showLoading) setIsLoading(false);
     }
-  }, [selectedDateYmd]);
+  }, [selectedDateYmd, studentFilter, disableDashboards]);
 
   useEffect(() => { 
     loadData(); 
   }, [loadData]);
+
+  useEffect(() => {
+    setCurrentStudentIndex(0);
+    setIsStudentListOpen(false);
+  }, [selectedDashboardId]);
   
   const saveEvaluation = async (formData, showToast = true) => {
     const studentId = students[currentStudentIndex]?.id;
     if (!studentId) return;
-    
+
     setIsSaving(true);
     try {
-      const existingEvaluation = evaluations.find(e => e.student_id === studentId);
-      
+      // Find existing evaluation for this student and date
+      const existingEvaluation = evaluations.find(e =>
+        e.student_id === studentId && e.date === selectedDateYmd
+      );
+
+      // Ensure all time slot data is preserved by merging with existing data
+      const mergedTimeSlots = existingEvaluation?.time_slots
+        ? { ...existingEvaluation.time_slots, ...formData.time_slots }
+        : formData.time_slots || {};
+
+      const dataToSave = {
+        ...formData,
+        time_slots: mergedTimeSlots,
+        date: selectedDateYmd,
+        student_id: studentId
+      };
+
+      let savedEvaluation;
       if (existingEvaluation) {
-        await DailyEvaluation.update(existingEvaluation.id, formData);
-        // Update local state instead of reloading
-        setEvaluations(prev => prev.map(e => 
-          e.id === existingEvaluation.id ? { ...e, ...formData } : e
+        savedEvaluation = await DailyEvaluation.update(existingEvaluation.id, dataToSave);
+        // Update local state with merged data
+        setEvaluations(prev => prev.map(e =>
+          e.id === existingEvaluation.id ? savedEvaluation : e
         ));
       } else {
-        const newEvaluation = await DailyEvaluation.create({ student_id: studentId, date: selectedDateYmd, ...formData });
-        // Add to local state instead of reloading
-        setEvaluations(prev => [...prev, newEvaluation]);
+        savedEvaluation = await DailyEvaluation.create(dataToSave);
+        // Add to local state
+        setEvaluations(prev => [...prev, savedEvaluation]);
       }
-      
+
       // Only show toast for manual saves, not auto-saves
       if (showToast) {
         toast.success(`${students[currentStudentIndex].student_name}'s evaluation saved!`);
       }
-      
-    } catch (error) { 
+
+    } catch (error) {
       console.error("Save evaluation error:", error);
       // Always show error toasts
-      toast.error("Failed to save evaluation.");
+      toast.error("Failed to save evaluation. Please try again.");
     }
     setIsSaving(false);
   };
@@ -163,12 +246,23 @@ export default function QuickScore() {
       )}
 
       <main className={`flex-1 flex flex-col overflow-y-auto ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-0'}`}>
+        {dashboardsSupported && (
+          <div className="bg-white border-b border-slate-200 p-3 sm:p-4">
+            <DashboardTabsBar
+              dashboards={dashboards}
+              defaultDashboardName={defaultDashboardName}
+              selectedDashboardId={selectedDashboardId}
+              onSelect={setSelectedDashboardId}
+              isLoading={dashboardsLoading}
+            />
+          </div>
+        )}
         {!currentStudent ? (
           <div className="flex-1 flex items-center justify-center text-center p-4">
             <div>
               <UserCheck className="w-16 h-16 mx-auto text-slate-300 mb-4" />
               <h2 className="text-xl font-bold text-slate-800">No Students Found</h2>
-              <p className="text-slate-500">Add students from the main dashboard to begin scoring.</p>
+              <p className="text-slate-500">Add students to the {currentDashboardName} dashboard to begin scoring.</p>
             </div>
           </div>
         ) : (
@@ -235,6 +329,9 @@ export default function QuickScore() {
                 settings={settings} 
                 onSave={saveEvaluation} 
                 isSaving={isSaving} 
+                studentName={currentStudent?.student_name}
+                studentGrade={currentStudent?.grade_level}
+                evaluationDate={selectedDateYmd}
               />
             </div>
           </>
