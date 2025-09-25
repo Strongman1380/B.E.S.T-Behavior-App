@@ -41,14 +41,17 @@ export default function EvaluationForm({ evaluation, settings, onSave, isSaving,
     };
 
     // Preserve existing time slot data to prevent data loss
-    if (formData.time_slots && Object.keys(formData.time_slots).length > 0) {
-      newFormData.time_slots = {
-        ...newFormData.time_slots,
-        ...formData.time_slots
-      };
-    }
+    // Use functional update to get the current state
+    setFormData(prevFormData => {
+      if (prevFormData.time_slots && Object.keys(prevFormData.time_slots).length > 0) {
+        newFormData.time_slots = {
+          ...newFormData.time_slots,
+          ...prevFormData.time_slots
+        };
+      }
+      return newFormData;
+    });
 
-    setFormData(newFormData);
     setHasUnsavedChanges(false);
   }, [evaluation, settings]);
 

@@ -99,9 +99,24 @@ BEGIN
     END IF;
 END $$;
 
--- Step 8: Add updated_at triggers if they don't exist
+-- Step 8: Create updated_at function if it doesn't exist, then add triggers
 DO $$
 BEGIN
+    -- First ensure the trigger function exists
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_proc
+        WHERE proname = 'update_updated_at_column'
+    ) THEN
+        CREATE OR REPLACE FUNCTION update_updated_at_column()
+        RETURNS TRIGGER AS $trigger$
+        BEGIN
+            NEW.updated_at = NOW();
+            RETURN NEW;
+        END;
+        $trigger$ language 'plpgsql';
+    END IF;
+
+    -- Then create triggers if they don't exist
     IF NOT EXISTS (
         SELECT 1 FROM pg_trigger
         WHERE tgname = 'update_daily_evaluations_updated_at'

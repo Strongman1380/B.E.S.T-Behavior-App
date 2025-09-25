@@ -313,7 +313,7 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
       const reportPayload = {
         ...(initialData?.id ? { id: initialData.id } : {}),
         student_id: primaryStudent.id,
-        student_name: formData.student_name.trim() || primaryStudent.name,
+        student_name: formData.student_name?.trim() || primaryStudent?.name || '',
         involved_students: formData.involved_students.map(entry => ({
           id: entry.id,
           name: entry.name
@@ -461,7 +461,7 @@ export default function IncidentReportDialog({ open, onOpenChange, student, sett
         <DialogHeader className="flex-row items-center justify-between pr-10">
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            {readOnly ? 'View' : 'Create'} Incident Report - {formData.student_name.trim() || 'New Report'}
+            {readOnly ? 'View' : 'Create'} Incident Report - {formData.student_name?.trim() || 'New Report'}
           </DialogTitle>
           <div className="flex items-center gap-2">
             <Button onClick={() => setShowPrintPreview(!showPrintPreview)} variant="outline">

@@ -265,13 +265,16 @@ BEGIN
                    jsonb_object_agg(
                        slot_key,
                        slot_data
-                   ) as merged_slots
+                   ) FILTER (WHERE slot_key IS NOT NULL AND slot_data IS NOT NULL) as merged_slots
             FROM duplicates d,
                  LATERAL (
                      SELECT jsonb_object_keys(time_slot) as slot_key,
                             time_slot->jsonb_object_keys(time_slot) as slot_data
                      FROM unnest(d.all_time_slots) as time_slot
-                     WHERE time_slot IS NOT NULL AND time_slot != '{}'::jsonb
+                     WHERE time_slot IS NOT NULL
+                       AND time_slot != '{}'::jsonb
+                       AND jsonb_typeof(time_slot) = 'object'
+                       AND jsonb_object_keys(time_slot) IS NOT NULL
                  ) slots
             GROUP BY student_id, date, keep_id
         )

@@ -26,7 +26,7 @@ const getInitialValue = (data, section) => {
   return undefined;
 };
 
-export default function TimeSlotRating({ timeKey, label, data, onChange, studentName = '', gradeLevel = '', evaluationDate, teacherName = '' }) {
+export default function TimeSlotRating({ timeKey, label, data, onChange, studentName = '', gradeLevel = '', evaluationDate = '', teacherName = '' }) {
   const safeData = data || {};
   const [isEnhancingComment, setIsEnhancingComment] = useState(false);
 

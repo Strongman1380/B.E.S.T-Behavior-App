@@ -834,14 +834,7 @@ export default function PrintReports() {
               return latest;
             };
 
-            const escapeHtml = (unsafe) => {
-              return (unsafe || '').toString()
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-            };
+            // Using the escapeHtml function defined earlier
 
             // Generate rows for time slots
             const timeSlots = TIME_SLOTS;
