@@ -15,6 +15,7 @@ import { TIME_SLOTS } from "@/config/timeSlots";
 import DashboardTabsBar from "@/components/dashboard/DashboardTabsBar";
 import useDashboardScope from "@/hooks/useDashboardScope";
 import { DEFAULT_DASHBOARD_ID } from "@/contexts/DashboardContext";
+import { aiService } from "@/services/aiService";
 
 const DATE_PRESETS = [
   { label: "Today", value: "today" },
@@ -32,9 +33,9 @@ const REPORT_TYPES = [
   { id: "behavior", label: "Behavior Sheets", icon: FileText },
   { id: "incidents", label: "Incident Reports", icon: AlertTriangle },
   { id: "heartlandBehavior", label: "Heartland Boys Home Staff Report", icon: FileText },
-  { id: "heartlandDirector", label: "Heartland Boys Home Director Report", icon: BarChart3 },
   { id: "weeklyAverages", label: "Weekly End of Day Averages", icon: BarChart3 },
-  { id: "dailyAverages", label: "Daily Averages Combined", icon: BarChart3 }
+  { id: "dailyAverages", label: "Daily Averages Combined", icon: BarChart3 },
+  { id: "hbhBestPrintout", label: "HBH BEST Print out", icon: BarChart3 }
 ];
 
 const applyHeartlandRounding = (value) => {
@@ -238,7 +239,7 @@ export default function PrintReports() {
         data: {}
       };
 
-      // Fetch data for preview
+      // Fetch data for preview - only fetch what's actually selected
       if (selectedReportTypes.includes("behavior")) {
         const evaluations = await DailyEvaluation.filter({
           date_from: startDate,
@@ -247,6 +248,9 @@ export default function PrintReports() {
         preview.data.evaluations = evaluations.filter(e => 
           selectedSet.has(normalizeId(e.student_id))
         );
+      } else {
+        // Explicitly set to null/undefined when not selected to prevent stale data
+        preview.data.evaluations = null;
       }
 
       if (selectedReportTypes.includes("incidents")) {
@@ -260,6 +264,9 @@ export default function PrintReports() {
           selectedSet.has(normalizeId(i.student_id))
         );
         console.log("Filtered incidents:", preview.data.incidents.length);
+      } else {
+        // Explicitly set to null when not selected to prevent stale data
+        preview.data.incidents = null;
       }
 
       if (selectedReportTypes.includes("heartlandBehavior")) {
@@ -270,16 +277,8 @@ export default function PrintReports() {
         preview.data.heartlandEvaluations = evaluations.filter(e => 
           selectedSet.has(normalizeId(e.student_id))
         );
-      }
-
-      if (selectedReportTypes.includes("heartlandDirector")) {
-        const evaluations = await DailyEvaluation.filter({
-          date_from: startDate,
-          date_to: endDate
-        });
-        preview.data.heartlandDirectorEvaluations = evaluations.filter(e => 
-          selectedSet.has(normalizeId(e.student_id))
-        );
+      } else {
+        preview.data.heartlandEvaluations = null;
       }
 
       if (selectedReportTypes.includes("weeklyAverages")) {
@@ -290,6 +289,8 @@ export default function PrintReports() {
         preview.data.weeklyEvaluations = evaluations.filter(e => 
           selectedSet.has(normalizeId(e.student_id))
         );
+      } else {
+        preview.data.weeklyEvaluations = null;
       }
 
       if (selectedReportTypes.includes("dailyAverages")) {
@@ -303,6 +304,23 @@ export default function PrintReports() {
           selectedSet.has(normalizeId(e.student_id))
         );
         console.log("Daily Averages - Filtered evaluations:", preview.data.dailyAveragesEvaluations.length);
+      } else {
+        preview.data.dailyAveragesEvaluations = null;
+      }
+
+      if (selectedReportTypes.includes("hbhBestPrintout")) {
+        const evaluations = await DailyEvaluation.filter({
+          date_from: startDate,
+          date_to: endDate
+        });
+        console.log("HBH BEST Print out - Raw evaluations:", evaluations.length);
+        console.log("HBH BEST Print out - Selected students:", selectedSet);
+        preview.data.hbhBestEvaluations = evaluations.filter(e => 
+          selectedSet.has(normalizeId(e.student_id))
+        );
+        console.log("HBH BEST Print out - Filtered evaluations:", preview.data.hbhBestEvaluations.length);
+      } else {
+        preview.data.hbhBestEvaluations = null;
       }
 
       setPreviewData(preview);
@@ -314,32 +332,8 @@ export default function PrintReports() {
     setIsGenerating(false);
   };
 
-  // BEST Logo as base64 data URL for print reports (actual BEST logo)
-  const BEST_LOGO_DATA_URL = "data:image/svg+xml;base64," + btoa(`
-<svg width="160" height="80" viewBox="0 0 160 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Light blue background -->
-  <rect x="10" y="10" width="140" height="50" rx="8" fill="#ADD8E6" stroke="#4169E1" stroke-width="1"/>
-
-  <!-- Orange triangular rays around the top -->
-  <polygon points="30,5 35,15 25,15" fill="#FFA500"/>
-  <polygon points="50,2 55,12 45,12" fill="#FFA500"/>
-  <polygon points="70,2 75,12 65,12" fill="#FFA500"/>
-  <polygon points="90,2 95,12 85,12" fill="#FFA500"/>
-  <polygon points="110,2 115,12 105,12" fill="#FFA500"/>
-  <polygon points="130,5 135,15 125,15" fill="#FFA500"/>
-
-  <!-- Green triangles at bottom -->
-  <polygon points="25,60 35,70 15,70" fill="#228B22"/>
-  <polygon points="125,60 135,70 115,70" fill="#228B22"/>
-
-  <!-- BEST text in yellow/green with blue stroke -->
-  <text x="80" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="900" fill="#9ACD32" stroke="#4169E1" stroke-width="1" text-anchor="middle">BEST</text>
-
-  <!-- Subtitle text -->
-  <text x="80" y="75" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#228B22" text-anchor="middle">Berniklau Education</text>
-  <text x="80" y="85" font-family="Arial, sans-serif" font-size="8" fill="#228B22" text-anchor="middle">-Solutions Team-</text>
-</svg>
-`);
+  // BEST Logo URL for print reports
+  const BEST_LOGO_URL = "/best-logo.png";
 
   const escapeHtml = (value) => {
     if (value === null || value === undefined) return '';
@@ -350,6 +344,17 @@ export default function PrintReports() {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   };
+
+  // Reusable header for Heartland staff reports
+  const renderHeartlandHeader = (title, dashboardLabel) => `
+    <div style="display: flex; align-items: flex-start; gap: 16px;">
+      <img src="${BEST_LOGO_URL}" alt="BEST Logo" style="width: 96px; height: 96px; flex-shrink: 0;" />
+      <div style="display: flex; flex-direction: column; justify-content: flex-start;">
+        <h1 style="margin: 0; font-size: 24px; letter-spacing: 0.5px;">${escapeHtml(title)}</h1>
+        <div style="font-size: 12px; font-weight: 500; color: #444;">${escapeHtml(dashboardLabel || '')}</div>
+      </div>
+    </div>
+  `;
 
   const formatSlotLabelForSheet = (label) => {
     if (!label) return '';
@@ -471,7 +476,7 @@ export default function PrintReports() {
                 color: #111;
               }
               .sheet { width: 100%; }
-              .header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+              .header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
               .header img { width: 80px; height: 80px; }
               .title-block h1 { margin: 0; font-size: 24px; letter-spacing: 0.5px; }
               .meta { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 12px; padding: 8px 12px; border: 2px solid #000; }
@@ -491,12 +496,8 @@ export default function PrintReports() {
           </head>
           <body>
             <div class="sheet">
-              <div class="header">
-                <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" />
-                <div class="title-block">
-                  <h1>BEHAVIOR MONITORING SCHEDULE</h1>
-                  <div style="font-size: 12px; font-weight: 500; color: #444;">${escapeHtml(defaultDashboardName || 'Heartland Boys Home')}</div>
-                </div>
+              <div style="margin-bottom: 16px;">
+                ${renderHeartlandHeader('BEHAVIOR MONITORING SCHEDULE', defaultDashboardName || 'Heartland Boys Home')}
               </div>
               <div class="meta">
                 <div><span>Student Name:</span> ${escapeHtml(student.student_name)}</div>
@@ -550,13 +551,13 @@ export default function PrintReports() {
     }
   }, [heartlandStudentId, heartlandDate, students, defaultDashboardName, normalizeId, prepareIdForQuery]);
 
-  const printReports = () => {
+  const printReports = async () => {
     if (!previewData) {
       toast.error("Please generate a preview first");
       return;
     }
 
-    const printContent = generatePrintContent();
+    const printContent = await generatePrintContent();
     const printWindow = window.open('', '', 'height=800,width=1200');
     printWindow.document.write(`
       <html>
@@ -616,24 +617,243 @@ export default function PrintReports() {
     }, 500);
   };
 
-  const generatePrintContent = () => {
+  const generateHBHBestPrintout = async (dateRange, selectedStudentData, data) => {
+    if (!data.hbhBestEvaluations) return '';
+    
+    console.log("Generating HBH BEST Print out with", data.hbhBestEvaluations.length, "evaluations");
+    
+    // Group evaluations by student and calculate period averages
+    const studentPeriodAverages = {};
+    const studentComments = {};
+    
+    // Initialize data structures
+    selectedStudentData.forEach(student => {
+      studentPeriodAverages[student.id] = {};
+      studentComments[student.id] = [];
+      
+      // Initialize each period with empty data
+      TIME_SLOTS.forEach(slot => {
+        studentPeriodAverages[student.id][slot.key] = { sum: 0, count: 0, average: 0 };
+      });
+    });
+    
+    // Process evaluations to calculate averages and collect comments
+    data.hbhBestEvaluations.forEach(evaluation => {
+      if (evaluation.time_slots) {
+        Object.keys(evaluation.time_slots).forEach(slotKey => {
+          const slotData = evaluation.time_slots[slotKey];
+          if (slotData && studentPeriodAverages[evaluation.student_id] && studentPeriodAverages[evaluation.student_id][slotKey]) {
+            // Get numeric values from the slot
+            const numericValues = getNumericSectionValues(slotData);
+            if (numericValues.length > 0) {
+              const slotAverage = numericValues.reduce((sum, val) => sum + val, 0) / numericValues.length;
+              studentPeriodAverages[evaluation.student_id][slotKey].sum += slotAverage;
+              studentPeriodAverages[evaluation.student_id][slotKey].count += 1;
+            }
+            
+            // Collect comments
+            if (slotData.notes && slotData.notes.trim()) {
+              studentComments[evaluation.student_id].push({
+                date: evaluation.date,
+                period: slotKey,
+                comment: slotData.notes.trim(),
+                rating: numericValues.length > 0 ? numericValues.reduce((sum, val) => sum + val, 0) / numericValues.length : null
+              });
+            }
+          }
+        });
+      }
+      
+      // Also collect general comments if they exist
+      if (evaluation.general_comments && evaluation.general_comments.trim()) {
+        studentComments[evaluation.student_id].push({
+          date: evaluation.date,
+          period: 'general',
+          comment: evaluation.general_comments.trim(),
+          rating: null
+        });
+      }
+    });
+    
+    // Calculate final averages
+    Object.keys(studentPeriodAverages).forEach(studentId => {
+      TIME_SLOTS.forEach(slot => {
+        const periodData = studentPeriodAverages[studentId][slot.key];
+        if (periodData.count > 0) {
+          periodData.average = Math.round(periodData.sum / periodData.count);
+        }
+      });
+    });
+    
+    // Generate AI comment summaries for each student
+    const studentAISummaries = {};
+    
+    // Calculate daily averages for each student first
+    const studentDailyAverages = {};
+    selectedStudentData.forEach(student => {
+      const periodAverages = studentPeriodAverages[student.id];
+      let totalSum = 0;
+      let totalCount = 0;
+      
+      TIME_SLOTS.forEach(slot => {
+        if (periodAverages[slot.key].count > 0) {
+          totalSum += periodAverages[slot.key].average;
+          totalCount += 1;
+        }
+      });
+      
+      studentDailyAverages[student.id] = totalCount > 0 ? Math.round(totalSum / totalCount) : 0;
+    });
+
+    // Generate AI summaries for each student
+    const generateAISummariesPromises = selectedStudentData.map(async (student) => {
+      const comments = studentComments[student.id];
+      if (comments.length > 0) {
+        try {
+          // Prepare comments data for AI service
+          const commentsData = comments.map(comment => ({
+            content: comment.comment,
+            date: comment.date,
+            source: `Period ${comment.period}`,
+            type: 'behavior_note',
+            rating: comment.rating
+          }));
+          
+          // Include period averages for more comprehensive AI analysis
+          const periodAverages = studentPeriodAverages[student.id];
+          const dailyAverage = studentDailyAverages[student.id] || 0;
+          
+          const aiSummary = await aiService.generateBehaviorSummary(
+            commentsData,
+            dateRange,
+            {
+              studentId: student.id,
+              studentName: student.student_name,
+              forceRefresh: false,
+              periodAverages: periodAverages,
+              dailyAverage: dailyAverage,
+              reportType: 'hbh_best_printout',
+              teacherName: settings?.teacher_name,
+              schoolName: settings?.school_name
+            }
+          );
+          
+          studentAISummaries[student.id] = aiSummary.general_overview || 'No behavioral summary available.';
+        } catch (error) {
+          console.error(`Failed to generate AI summary for student ${student.student_name}:`, error);
+          studentAISummaries[student.id] = comments.map(c => c.comment).join(' ').substring(0, 200) + '...';
+        }
+      } else {
+        studentAISummaries[student.id] = 'No comments available for this period.';
+      }
+    });
+    
+    // Wait for all AI summaries to complete
+    try {
+      await Promise.all(generateAISummariesPromises);
+    } catch (error) {
+      console.error('Error generating AI summaries:', error);
+    }
+    
+
+    
+    const formatPeriodLabel = (slot) => {
+      const parts = slot.label.split(' - ');
+      if (parts.length === 2) {
+        return `${parts[0]}<br/>${parts[1]}`;
+      }
+      return slot.label;
+    };
+    
+    const displayValue = (value) => {
+      return value > 0 ? value.toString() : 'N/A';
+    };
+    
+    return `
+      <div class="report-header">
+        <img src="${BEST_LOGO_URL}" alt="BEST Logo" class="report-logo" />
+        <div class="report-title">HBH BEST Print out</div>
+        <div class="report-subtitle">
+          ${formatDate(dateRange.start, 'EEEE, MMMM d, yyyy')} - ${formatDate(dateRange.end, 'EEEE, MMMM d, yyyy')}
+        </div>
+        <div class="report-subtitle">
+          ${settings?.school_name || 'School'} • Generated by ${settings?.teacher_name || 'Teacher'}
+        </div>
+      </div>
+
+      <div class="evaluation-content">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 10px;">
+          <thead>
+            <tr>
+              <th style="border: 1px solid #000; padding: 6px; background: #f4f4f4; text-align: left; font-size: 10px; width: 100px; font-weight: bold;">Student</th>
+              ${TIME_SLOTS.map(slot => `
+                <th style="border: 1px solid #000; padding: 4px; background: #f4f4f4; text-align: center; font-size: 9px; width: 60px; font-weight: bold; line-height: 1.1;">
+                  ${formatPeriodLabel(slot)}
+                </th>
+              `).join('')}
+              <th style="border: 1px solid #000; padding: 6px; background: #f4f4f4; text-align: center; font-size: 10px; width: 60px; font-weight: bold;">Daily<br/>Average</th>
+              <th style="border: 1px solid #000; padding: 6px; background: #f4f4f4; text-align: center; font-size: 10px; width: 300px; font-weight: bold;">Comments</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${selectedStudentData.map(student => {
+              const periodAverages = studentPeriodAverages[student.id];
+              const dailyAverage = studentDailyAverages[student.id];
+              const aiSummary = studentAISummaries[student.id] || 'No summary available.';
+              
+              return `
+                <tr>
+                  <td style="border: 1px solid #000; padding: 6px; text-align: left; font-weight: 600; font-size: 10px; vertical-align: top;">${escapeHtml(student.student_name)}</td>
+                  ${TIME_SLOTS.map(slot => `
+                    <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 10px; vertical-align: top;">
+                      ${displayValue(periodAverages[slot.key].average)}
+                    </td>
+                  `).join('')}
+                  <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: 600; font-size: 10px; vertical-align: top;">
+                    ${displayValue(dailyAverage)}
+                  </td>
+                  <td style="border: 1px solid #000; padding: 6px; text-align: left; font-size: 9px; vertical-align: top; line-height: 1.2;">
+                    ${escapeHtml(aiSummary)}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+        
+        <div class="scale" style="font-size: 10px; margin-top: 15px;">
+          <b>Behavior Rating Scale:</b><br/>
+          <strong>4 - Exceeds Expectations:</strong> Student consistently demonstrates exceptional behavior and goes above and beyond expectations.<br/>
+          <strong>3 - Meets Expectations:</strong> Student demonstrates appropriate behavior and follows guidelines consistently.<br/>
+          <strong>2 - Needs Improvement:</strong> Student shows some behavioral issues that require attention and support.<br/>
+          <strong>1 - Does Not Meet Expectations:</strong> Student demonstrates significant behavioral concerns requiring immediate intervention.
+        </div>
+      </div>`;
+  };
+
+  const generatePrintContent = async () => {
     if (!previewData) return '';
 
     const { dateRange, students: selectedStudentData, reportTypes, data } = previewData;
+    console.log("Generating print content with reportTypes:", reportTypes);
+    console.log("Available data keys:", Object.keys(data));
+    console.log("data.evaluations exists:", !!data.evaluations);
+    console.log("data.incidents exists:", !!data.incidents);
+    
     let content = '';
     let isFirstPage = true;
+
+    // If HBH BEST Print out is selected, only generate that report
+    if (reportTypes.includes("hbhBestPrintout")) {
+      return await generateHBHBestPrintout(dateRange, selectedStudentData, data);
+    }
 
     selectedStudentData.forEach((student) => {
       let hasStudentContent = false;
 
-      // Skip individual student reports if only Heartland Director Report is needed
-      if (reportTypes.includes("heartlandDirector") && reportTypes.length === 1) {
-        // If only director report is selected, skip all individual processing
-        return;
-      }
-
       // Behavior Sheets - Each evaluation date gets its own page
       if (reportTypes.includes("behavior") && data.evaluations) {
+        console.log("Processing behavior sheets for student:", student.student_name);
         const studentEvaluations = data.evaluations.filter(e => e.student_id === student.id);
         
         if (studentEvaluations.length > 0) {
@@ -656,7 +876,7 @@ export default function PrintReports() {
             
             content += `
               <div class="report-header">
-                <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" class="report-logo" />
+                <img src="${BEST_LOGO_URL}" alt="BEST Logo" class="report-logo" />
                 <div class="report-title">Behavior Evaluation Sheet</div>
                 <div class="report-subtitle">
                   ${student.student_name} • ${formatDate(date, 'EEEE, MMMM d, yyyy')}
@@ -699,8 +919,16 @@ export default function PrintReports() {
               const getValue = (section) => {
                 const raw = slotData[section];
                 if (raw !== undefined && raw !== null && `${raw}`.trim().length > 0) {
-                  const value = `${raw}`;
-                  return value === 'A/B' ? 'AB' : value;
+                  const value = `${raw}`.trim();
+                  // Handle all possible rating values including AB and NS
+                  if (['AB', 'NS', '4', '3', '2', '1'].includes(value)) {
+                    return value;
+                  }
+                  // Handle legacy A/B format
+                  if (value === 'A/B') {
+                    return 'AB';
+                  }
+                  return value;
                 }
                 const fallback = typeof slotData.rating === 'number' ? slotData.rating :
                                (typeof slotData.score === 'number' ? slotData.score : '');
@@ -759,7 +987,7 @@ export default function PrintReports() {
 
             content += `
               <div class="report-header">
-                <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" class="report-logo" />
+                <img src="${BEST_LOGO_URL}" alt="BEST Logo" class="report-logo" />
                 <div class="report-title">Incident Report</div>
                 <div class="report-subtitle">
                   ${student.student_name} • ${formatDate(incident.incident_date, 'EEEE, MMMM d, yyyy')}
@@ -881,10 +1109,8 @@ export default function PrintReports() {
 
             content += `
               <div style="width: 8.5in; min-height: 11in; margin: 0 auto; padding: 0.5in; font-family: Arial, sans-serif; color: #000; background: white; page-break-after: always;">
-                <div style="margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 15px; padding-left: 110px; position: relative;">
-                  <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" style="width: 100px; height: 120px; position: absolute; top: -10px; left: 0;" />
-                  <h1 style="font-size: 24px; font-weight: bold; margin: 8px 0; text-transform: uppercase; text-align: left;">BEHAVIOR MONITORING SCHEDULE</h1>
-                  <div style="font-size: 12px; font-weight: 500; color: #444; text-align: left;">${escapeHtml(defaultDashboardName || 'Heartland Boys Home')}</div>
+                <div style="margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 15px;">
+                  ${renderHeartlandHeader('BEHAVIOR MONITORING SCHEDULE', defaultDashboardName || 'Heartland Boys Home')}
                 </div>
                 <div style="margin-bottom: 20px; font-size: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                   <div><span style="font-weight: bold;">Student Name:</span> ${escapeHtml(student.student_name)}</div>
@@ -1002,7 +1228,7 @@ export default function PrintReports() {
 
           content += `
             <div class="report-header">
-              <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" class="report-logo" />
+              <img src="${BEST_LOGO_URL}" alt="BEST Logo" class="report-logo" />
               <div class="report-title">Weekly End of Day Averages</div>
               <div class="report-subtitle">
                 ${student.student_name} • ${formatDate(dateRange.start, 'MMMM d, yyyy')} - ${formatDate(dateRange.end, 'MMMM d, yyyy')}
@@ -1069,7 +1295,7 @@ export default function PrintReports() {
 
         content += `
           <div class="report-header">
-            <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" class="report-logo" />
+            <img src="${BEST_LOGO_URL}" alt="BEST Logo" class="report-logo" />
             <div class="report-title">Student Reports</div>
             <div class="report-subtitle">
               ${student.student_name} • ${formatDate(dateRange.start, 'MMMM d, yyyy')} - ${formatDate(dateRange.end, 'MMMM d, yyyy')}
@@ -1233,7 +1459,7 @@ export default function PrintReports() {
 
       content += `
         <div class="report-header">
-          <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" class="report-logo" />
+          <img src="${BEST_LOGO_URL}" alt="BEST Logo" class="report-logo" />
           <div class="report-title">Combined Daily Averages Report</div>
           <div class="report-subtitle">
             All Students • ${formatDate(dateRange.start, 'MMMM d, yyyy')} - ${formatDate(dateRange.end, 'MMMM d, yyyy')}
@@ -1286,215 +1512,7 @@ export default function PrintReports() {
         </div>`;
     }
 
-    // Heartland Boys Home Director Report - Summary Grid for All Students (OUTSIDE student loop)
-    if (reportTypes.includes("heartlandDirector") && data.heartlandDirectorEvaluations) {
-      console.log("Processing Heartland Director Report - Summary Only");
-      console.log("Available evaluations:", data.heartlandDirectorEvaluations.length);
-      console.log("Selected students:", selectedStudentData.length);
-      console.log("Date range:", dateRange.start, "to", dateRange.end);
-      
-      if (!isFirstPage) content += '<div class="page-break"></div>';
-      
-      // Helper function to get all dates that should be included in Heartland week format
-      const getHeartlandWeekDates = (startDate, endDate) => {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const validDates = [];
-        
-        // Go through each date in the range
-        let current = new Date(start);
-        while (current <= end) {
-          const dayOfWeek = current.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-          
-          // Include Thursday (4), Friday (5), Monday (1), Tuesday (2), Wednesday (3)
-          if (dayOfWeek === 1 || dayOfWeek === 2 || dayOfWeek === 3 || dayOfWeek === 4 || dayOfWeek === 5) {
-            validDates.push(format(current, 'yyyy-MM-dd'));
-          }
-          
-          current.setDate(current.getDate() + 1);
-        }
-        
-        console.log("Heartland week dates found:", validDates);
-        return validDates;
-      };
 
-      const heartlandWeekDates = getHeartlandWeekDates(dateRange.start, dateRange.end);
-      
-      // Calculate averages for each student
-      const studentAverages = {};
-      selectedStudentData.forEach(student => {
-        console.log(`Processing student: ${student.student_name} (ID: ${student.id})`);
-        
-        const studentEvals = data.heartlandDirectorEvaluations.filter(e => {
-          const matchesStudent = normalizeId(e.student_id) === normalizeId(student.id);
-          const matchesDate = heartlandWeekDates.includes(e.date);
-          return matchesStudent && matchesDate;
-        });
-        
-        console.log(`  Found ${studentEvals.length} evaluations for ${student.student_name}`);
-        
-        if (studentEvals.length > 0) {
-          // Combine all time slots for this student across the week
-          const allTimeSlots = [];
-          studentEvals.forEach(evaluation => {
-            if (evaluation.time_slots) {
-              // For each time slot in this evaluation, extract the section data
-              TIME_SLOTS.forEach(timeSlot => {
-                const slotData = evaluation.time_slots[timeSlot.key];
-                if (slotData) {
-                  allTimeSlots.push(slotData);
-                }
-              });
-            }
-          });
-
-          console.log(`  Total time slots collected for ${student.student_name}:`, allTimeSlots.length);
-
-          // Calculate section averages directly from all slot data
-          let piSum = 0, piCount = 0;
-          let aiSum = 0, aiCount = 0; 
-          let ceSum = 0, ceCount = 0;
-          let overallSum = 0, overallCount = 0;
-
-          allTimeSlots.forEach(slotData => {
-            // Peer Interaction (PI)
-            if (slotData.pi && !isNaN(Number(slotData.pi))) {
-              piSum += Number(slotData.pi);
-              piCount++;
-            }
-            // Adult Interaction (AI)
-            if (slotData.ai && !isNaN(Number(slotData.ai))) {
-              aiSum += Number(slotData.ai);
-              aiCount++;
-            }
-            // Classroom Expectations (CE)
-            if (slotData.ce && !isNaN(Number(slotData.ce))) {
-              ceSum += Number(slotData.ce);
-              ceCount++;
-            }
-            
-            // Calculate overall for this slot
-            const slotScores = [];
-            if (slotData.pi && !isNaN(Number(slotData.pi))) slotScores.push(Number(slotData.pi));
-            if (slotData.ai && !isNaN(Number(slotData.ai))) slotScores.push(Number(slotData.ai));
-            if (slotData.ce && !isNaN(Number(slotData.ce))) slotScores.push(Number(slotData.ce));
-            
-            if (slotScores.length > 0) {
-              const slotAvg = slotScores.reduce((a, b) => a + b, 0) / slotScores.length;
-              overallSum += slotAvg;
-              overallCount++;
-            }
-          });
-          
-          const avgPI = piCount > 0 ? piSum / piCount : 0;
-          const avgAI = aiCount > 0 ? aiSum / aiCount : 0;
-          const avgCE = ceCount > 0 ? ceSum / ceCount : 0;
-          const avgOverall = overallCount > 0 ? overallSum / overallCount : 0;
-          
-          console.log(`  Calculated averages for ${student.student_name}:`, {
-            PI: avgPI, AI: avgAI, CE: avgCE, Overall: avgOverall
-          });
-          
-          studentAverages[student.id] = {
-            peerInteraction: avgPI,
-            adultInteraction: avgAI, 
-            classroomExpectations: avgCE,
-            weeklyAverage: avgOverall
-          };
-        } else {
-          console.log(`  No evaluations found for ${student.student_name}, setting to 0`);
-          studentAverages[student.id] = {
-            peerInteraction: 0,
-            adultInteraction: 0,
-            classroomExpectations: 0,
-            weeklyAverage: 0
-          };
-        }
-      });
-
-      // Calculate column averages
-      let totalPI = 0, totalAI = 0, totalCE = 0, totalWeekly = 0;
-      let studentCount = selectedStudentData.length;
-      
-      selectedStudentData.forEach(student => {
-        const avg = studentAverages[student.id];
-        totalPI += avg.peerInteraction;
-        totalAI += avg.adultInteraction; 
-        totalCE += avg.classroomExpectations;
-        totalWeekly += avg.weeklyAverage;
-      });
-
-      const avgPI = studentCount > 0 ? totalPI / studentCount : 0;
-      const avgAI = studentCount > 0 ? totalAI / studentCount : 0;
-      const avgCE = studentCount > 0 ? totalCE / studentCount : 0;
-      const avgWeekly = studentCount > 0 ? totalWeekly / studentCount : 0;
-
-      const roundDisplay = (value) => {
-        if (value === null || value === undefined || Number.isNaN(value) || typeof value !== 'number' || value <= 0) {
-          return "--";
-        }
-        const rounded = applyHeartlandRounding(value);
-        return Number.isFinite(rounded) ? `${rounded}` : "--";
-      };
-
-      // Generate the student rows
-      const studentRowsHtml = selectedStudentData.map(student => {
-        const avg = studentAverages[student.id];
-        return `
-          <tr>
-            <td style="border: 1px solid #000; padding: 8px; text-align: left; font-weight: 600;">${student.student_name}</td>
-            <td style="border: 1px solid #000; padding: 8px; text-align: center;">${roundDisplay(avg.peerInteraction)}</td>
-            <td style="border: 1px solid #000; padding: 8px; text-align: center;">${roundDisplay(avg.adultInteraction)}</td>
-            <td style="border: 1px solid #000; padding: 8px; text-align: center;">${roundDisplay(avg.classroomExpectations)}</td>
-            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: 600;">${roundDisplay(avg.weeklyAverage)}</td>
-          </tr>
-        `;
-      }).join('');
-
-      content += `
-        <div style="width: 8.5in; min-height: 11in; margin: 0 auto; padding: 0.5in; font-family: Arial, sans-serif; color: #000; background: white; page-break-after: always;">
-          <div style="margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 15px; padding-left: 110px; position: relative;">
-            <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" style="width: 100px; height: 120px; position: absolute; top: -10px; left: 0;" />
-            <h1 style="font-size: 24px; font-weight: bold; margin: 8px 0; text-transform: uppercase; text-align: left;">HEARTLAND BOYS HOME DIRECTOR REPORT</h1>
-            <div style="font-size: 14px; font-weight: 500; color: #444; text-align: left;">Weekly Behavior Summary - Thursday to Wednesday</div>
-            <div style="font-size: 12px; font-weight: 500; color: #666; text-align: left;">Period: ${format(new Date(dateRange.start), 'MMMM d, yyyy')} to ${format(new Date(dateRange.end), 'MMMM d, yyyy')}</div>
-          </div>
-          
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
-            <thead>
-              <tr style="background: #f4f4f4;">
-                <th style="border: 1px solid #000; padding: 12px; text-align: center; font-weight: bold; width: 30%;">Student Name</th>
-                <th style="border: 1px solid #000; padding: 12px; text-align: center; font-weight: bold; width: 17.5%;">Peer Interaction</th>
-                <th style="border: 1px solid #000; padding: 12px; text-align: center; font-weight: bold; width: 17.5%;">Adult Interaction</th>
-                <th style="border: 1px solid #000; padding: 12px; text-align: center; font-weight: bold; width: 17.5%;">Classroom Expectations</th>
-                <th style="border: 1px solid #000; padding: 12px; text-align: center; font-weight: bold; width: 17.5%;">Weekly Average</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${studentRowsHtml}
-              <tr style="background: #e8f4fd; font-weight: bold;">
-                <td style="border: 1px solid #000; padding: 12px; text-align: center; font-weight: bold;">AVERAGES</td>
-                <td style="border: 1px solid #000; padding: 12px; text-align: center; font-weight: bold;">${roundDisplay(avgPI)}</td>
-                <td style="border: 1px solid #000; padding: 12px; text-align: center; font-weight: bold;">${roundDisplay(avgAI)}</td>
-                <td style="border: 1px solid #000; padding: 12px; text-align: center; font-weight: bold;">${roundDisplay(avgCE)}</td>
-                <td style="border: 1px solid #000; padding: 12px; text-align: center; font-weight: bold;">${roundDisplay(avgWeekly)}</td>
-              </tr>
-            </tbody>
-          </table>
-          
-          <div style="margin-bottom: 20px; padding: 15px; background: #f8f8f8; border: 1px solid #ddd; font-size: 12px;">
-            <strong>BEHAVIOR RATING SCALE</strong><br/>
-            4 = Exceeds expectations<br/>
-            3 = Meets expectations<br/>
-            2 = Needs Improvement / Does not meet expectations<br/>
-            1 = Unsatisfactory Behavior
-          </div>
-          
-          <div style="font-size: 11px; color: #666; margin-top: 20px;">
-            <strong>Note:</strong> This report covers the Heartland Boys Home week format (Thursday through Wednesday) and shows weekly averages for all three behavioral scoring areas. Data includes evaluations from: Thursday, Friday, Monday, Tuesday, and Wednesday of each week in the selected date range.
-          </div>
-        </div>`;
-    }
 
     return content;
   };
@@ -1801,12 +1819,6 @@ export default function PrintReports() {
                         <span>{previewData.data.heartlandEvaluations?.length || 0} evaluations</span>
                       </div>
                     )}
-                    {previewData.reportTypes.includes("heartlandDirector") && (
-                      <div className="flex justify-between">
-                        <span className="font-medium">Heartland Director Report:</span>
-                        <span>{previewData.data.heartlandDirectorEvaluations?.length || 0} evaluations</span>
-                      </div>
-                    )}
                     {previewData.reportTypes.includes("weeklyAverages") && (
                       <div className="flex justify-between">
                         <span className="font-medium">Weekly Averages:</span>
@@ -1817,6 +1829,12 @@ export default function PrintReports() {
                       <div className="flex justify-between">
                         <span className="font-medium">Daily Averages Combined:</span>
                         <span>{previewData.data.dailyAveragesEvaluations?.length || 0} evaluations</span>
+                      </div>
+                    )}
+                    {previewData.reportTypes.includes("hbhBestPrintout") && (
+                      <div className="flex justify-between">
+                        <span className="font-medium">HBH BEST Print out:</span>
+                        <span>{previewData.data.hbhBestEvaluations?.length || 0} evaluations</span>
                       </div>
                     )}
                   </div>

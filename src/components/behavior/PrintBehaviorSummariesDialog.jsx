@@ -332,7 +332,10 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
             }).map((summary) => (
               <div key={summary.id} className="behavior-form">
                 
-                <div className="form-title">Student Behavior Summary Report</div>
+                <div className="flex items-center gap-4 mb-4">
+                  <img src="/best-logo.png" alt="BEST Logo" className="w-16 h-16" />
+                  <div className="form-title">Student Behavior Summary Report</div>
+                </div>
                 
                 <div className="header-info">
                   <div className="info-row">
@@ -382,7 +385,7 @@ export default function PrintBehaviorSummariesDialog({ open, onOpenChange, stude
                   <div className="content-section">
                     <div className="section-label">Behavioral Incident Summary</div>
                     <div className="content-box">
-                      {summary.behavioral_incidents && summary.behavioral_incidents.trim()
+                      {summary.behavioral_incidents && String(summary.behavioral_incidents).trim()
                         ? summary.behavioral_incidents
                         : 'No behavioral incidents reported for this period.'}
                     </div>

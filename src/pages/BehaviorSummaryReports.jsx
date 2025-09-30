@@ -59,7 +59,14 @@ export default function BehaviorSummaryReports() {
   const saveSummary = async (formData, opts = {}) => {
     const { silent = false } = opts || {};
     const studentId = students[currentStudentIndex]?.id;
-    if (!studentId) return;
+    const studentName = students[currentStudentIndex]?.student_name;
+
+    if (!studentId) {
+      console.warn('No student selected for behavior summary save operation');
+      return;
+    }
+
+    console.log('Saving behavior summary for student:', studentName, 'Date range:', formData.date_range_start, 'to', formData.date_range_end);
 
     setIsSaving(true);
     try {
@@ -69,30 +76,62 @@ export default function BehaviorSummaryReports() {
         formData.date_range_start,
         formData.date_range_end
       );
-      
+
+      console.log('Existing summary found:', existingSummary ? 'Yes (ID: ' + existingSummary.id + ')' : 'No');
+
+      // Validate that we have meaningful data to save
+      const hasContent = Object.keys(formData).some(key => {
+        if (key.includes('date_range') || key === 'student_id' || key === 'prepared_by') return false;
+        return formData[key] && typeof formData[key] === 'string' && formData[key].trim().length > 0;
+      });
+
+      console.log('Summary has meaningful content:', hasContent);
+
+      let savedSummary;
       if (existingSummary) {
-        await BehaviorSummary.update(existingSummary.id, formData);
-        console.log("Updated existing summary for student/date range:", students[currentStudentIndex].student_name, formData.date_range_start, formData.date_range_end);
+        savedSummary = await BehaviorSummary.update(existingSummary.id, formData);
+        console.log("Updated existing summary for student/date range:", studentName, formData.date_range_start, formData.date_range_end);
+        console.log("Update result:", savedSummary ? 'Success' : 'Unknown');
       } else {
-        const created = await BehaviorSummary.create({ student_id: studentId, ...formData });
-        console.log("Created new summary for student/date range:", students[currentStudentIndex].student_name, formData.date_range_start, formData.date_range_end);
-        // Ensure created object has id and mapped fields
-        formData = { ...created };
+        const dataToCreate = { student_id: studentId, ...formData };
+        savedSummary = await BehaviorSummary.create(dataToCreate);
+        console.log("Created new summary for student/date range:", studentName, formData.date_range_start, formData.date_range_end);
+        console.log("Create result ID:", savedSummary?.id);
+        // Ensure created object has proper structure
+        formData = { ...savedSummary };
       }
-      
+
+      // Verify the operation was successful
+      if (savedSummary && (savedSummary.id || existingSummary?.id)) {
+        console.log('Behavior summary save operation completed successfully');
+      } else {
+        console.warn('Behavior summary save operation may have failed - no ID confirmation');
+      }
+
       if (!silent) {
-        toast.success(`${students[currentStudentIndex].student_name}'s behavior summary saved!`);
+        toast.success(`${studentName}'s behavior summary saved!`);
       }
-      
+
       // Update local state
-      const updatedSummaries = existingSummary 
+      const updatedSummaries = existingSummary
         ? summaries.map(s => s.id === existingSummary.id ? { ...s, ...formData } : s)
         : [...summaries, { ...formData }];
-      
+
       setSummaries(updatedSummaries);
+      console.log('Local summaries state updated, total count:', updatedSummaries.length);
       
     } catch (error) {
       console.error("Save summary error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+        studentId,
+        studentName,
+        dateRange: `${formData.date_range_start} to ${formData.date_range_end}`,
+        hasContent
+      });
+
       const msg = typeof error?.message === 'string' ? error.message : ''
       if (msg.includes('Supabase not configured')) {
         toast.error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and redeploy.')
@@ -101,7 +140,7 @@ export default function BehaviorSummaryReports() {
       } else if (msg.toLowerCase().includes('permission') || error?.code === '42501') {
         toast.error('Permission denied. Check RLS policies for anon role in Supabase.')
       } else {
-        toast.error("Failed to save behavior summary.");
+        toast.error("Failed to save behavior summary. Check console for details.");
       }
     }
     setIsSaving(false);

@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { FileText, Download } from "lucide-react";
 import { format } from "date-fns";
 import { formatDate } from "@/utils";
+import { getPrintStyles, getPrintHeader } from "@/utils/printStyles";
 
 export default function PrintAllDialog({ open, onOpenChange, students, evaluations, settings, date }) {
   const generatePrintContent = () => {
@@ -13,6 +14,7 @@ export default function PrintAllDialog({ open, onOpenChange, students, evaluatio
 
       return `
         <div style="page-break-after: always; padding: 20px; font-family: Arial, sans-serif;">
+          ${getPrintHeader()}
           <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
             <div>
               <strong>Student's Name:</strong> ${student.student_name}
@@ -78,10 +80,7 @@ export default function PrintAllDialog({ open, onOpenChange, students, evaluatio
         <head>
           <title>Student Evaluations - ${formatDate(date, 'MMMM d, yyyy')}</title>
           <style>
-            body { margin: 0; font-family: Arial, sans-serif; }
-            @media print {
-              body { margin: 0; }
-            }
+            ${getPrintStyles()}
           </style>
         </head>
         <body>

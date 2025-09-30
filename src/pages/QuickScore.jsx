@@ -140,7 +140,12 @@ export default function QuickScore() {
   
   const saveEvaluation = async (formData, showToast = true) => {
     const studentId = students[currentStudentIndex]?.id;
-    if (!studentId) return;
+    if (!studentId) {
+      console.warn('No student selected for save operation');
+      return;
+    }
+
+    console.log('Saving evaluation for student:', students[currentStudentIndex]?.student_name, 'Date:', selectedDateYmd);
 
     setIsSaving(true);
     try {
@@ -149,29 +154,57 @@ export default function QuickScore() {
         e.student_id === studentId && e.date === selectedDateYmd
       );
 
+      console.log('Existing evaluation found:', existingEvaluation ? 'Yes' : 'No');
+
       // Ensure all time slot data is preserved by merging with existing data
       const mergedTimeSlots = existingEvaluation?.time_slots
         ? { ...existingEvaluation.time_slots, ...formData.time_slots }
         : formData.time_slots || {};
 
+      // Validate that we have actual data to save
+      const hasTimeSlotData = Object.keys(mergedTimeSlots).some(key => {
+        const slot = mergedTimeSlots[key];
+        return slot && (slot.ai || slot.pi || slot.ce || slot.comment);
+      });
+
       const dataToSave = {
         ...formData,
         time_slots: mergedTimeSlots,
         date: selectedDateYmd,
-        student_id: studentId
+        student_id: studentId,
+        // Ensure we preserve existing ID and timestamps
+        ...(existingEvaluation && {
+          id: existingEvaluation.id,
+          created_at: existingEvaluation.created_at
+        })
       };
+
+      console.log('Data to save:', {
+        hasTimeSlotData,
+        timeSlotKeys: Object.keys(mergedTimeSlots),
+        generalComments: dataToSave.general_comments?.length || 0
+      });
 
       let savedEvaluation;
       if (existingEvaluation) {
         savedEvaluation = await DailyEvaluation.update(existingEvaluation.id, dataToSave);
+        console.log('Updated existing evaluation:', savedEvaluation.id);
         // Update local state with merged data
         setEvaluations(prev => prev.map(e =>
           e.id === existingEvaluation.id ? savedEvaluation : e
         ));
       } else {
         savedEvaluation = await DailyEvaluation.create(dataToSave);
+        console.log('Created new evaluation:', savedEvaluation.id);
         // Add to local state
         setEvaluations(prev => [...prev, savedEvaluation]);
+      }
+
+      // Verify the save was successful
+      if (savedEvaluation && savedEvaluation.id) {
+        console.log('Save operation completed successfully for student:', students[currentStudentIndex]?.student_name);
+      } else {
+        console.warn('Save operation may have failed - no ID returned');
       }
 
       // Only show toast for manual saves, not auto-saves
@@ -181,6 +214,13 @@ export default function QuickScore() {
 
     } catch (error) {
       console.error("Save evaluation error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        studentId,
+        selectedDateYmd,
+        hasTimeSlotData: Object.keys(formData.time_slots || {}).length > 0
+      });
       // Always show error toasts
       toast.error("Failed to save evaluation. Please try again.");
     }

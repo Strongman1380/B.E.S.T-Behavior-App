@@ -192,6 +192,7 @@ export const ContactLog = new SupabaseEntity('contact_logs')
 export const CreditsEarned = new SupabaseEntity('credits_earned')
 export const ClassesNeeded = new SupabaseEntity('classes_needed')
 export const Grade = new SupabaseEntity('grades')
+export const StepsCompleted = new SupabaseEntity('steps_completed')
 export const Dashboard = new SupabaseEntity('dashboards')
 // BehaviorSummary entity with schema mapping
 class SupabaseBehaviorSummaryEntity extends SupabaseEntity {
@@ -457,14 +458,58 @@ class SupabaseIncidentReportEntity extends SupabaseEntity {
 
   async create(data) {
     const payload = this.prepareForSave(data)
-    const res = await supabase.from(this.table).insert(payload).select('*').single()
+    // First attempt: try with full payload (including involved_students)
+    let res = await supabase.from(this.table).insert(payload).select('*').single()
+    if (res?.error) {
+      const msg = String(res.error?.message || '')
+      const code = String(res.error?.code || '')
+      // Handle legacy schema without involved_students column
+      if (msg.includes('involved_students') || code === '42703') {
+        const { involved_students, ...legacyPayload } = payload
+        // If multiple students were selected, create one row per student
+        const students = Array.isArray(involved_students) ? involved_students : []
+        if (students.length > 1) {
+          const rows = students.map((s) => ({
+            ...legacyPayload,
+            student_id: s?.id ?? legacyPayload.student_id ?? null,
+            student_name: s?.name ?? legacyPayload.student_name ?? '',
+          }))
+          const multi = await supabase.from(this.table).insert(rows).select('*')
+          normalizeError(multi)
+          // Return the first inserted row for consistency
+          return this.normalizeRow(Array.isArray(multi.data) ? multi.data[0] : multi.data)
+        }
+        // Single student – just retry without involved_students
+        res = await supabase.from(this.table).insert(legacyPayload).select('*').single()
+      }
+    }
     normalizeError(res)
     return this.normalizeRow(res.data)
   }
 
   async update(id, data) {
     const payload = this.prepareForSave({ ...data, id })
-    const res = await supabase.from(this.table).update(payload).eq('id', id).select('*').single()
+    // First attempt: try with full payload (including involved_students)
+    let res = await supabase
+      .from(this.table)
+      .update(payload)
+      .eq('id', id)
+      .select('*')
+      .single()
+    if (res?.error) {
+      const msg = String(res.error?.message || '')
+      const code = String(res.error?.code || '')
+      // Handle legacy schema without involved_students column
+      if (msg.includes('involved_students') || code === '42703') {
+        const { involved_students, ...legacyPayload } = payload
+        res = await supabase
+          .from(this.table)
+          .update(legacyPayload)
+          .eq('id', id)
+          .select('*')
+          .single()
+      }
+    }
     normalizeError(res)
     return this.normalizeRow(res.data)
   }

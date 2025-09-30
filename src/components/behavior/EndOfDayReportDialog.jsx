@@ -114,8 +114,13 @@ export default function EndOfDayReportDialog({ open, onOpenChange, students, eva
           <Button onClick={handlePrint}>Print</Button>
         </DialogHeader>
         <div id="end-of-day-report" className="space-y-3">
-          <h1 className="text-lg font-semibold text-slate-900">Daily Average Score Report</h1>
-          <p className="text-sm text-slate-600">{reportDate}</p>
+          <div className="flex items-center gap-4 mb-4">
+            <img src="/best-logo.png" alt="BEST Logo" className="w-16 h-16" />
+            <div>
+              <h1 className="text-lg font-semibold text-slate-900">Daily Average Score Report</h1>
+              <p className="text-sm text-slate-600">{reportDate}</p>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full border border-slate-200 text-sm">
               <thead className="bg-slate-100">

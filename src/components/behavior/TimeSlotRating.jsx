@@ -76,10 +76,10 @@ export default function TimeSlotRating({ timeKey, label, data, onChange, student
 
       const newData = { ...safeData, comment: enhanced };
       onChange(newData);
-      toast.success('Comment enhanced successfully!');
+      toast.success('Period note updated!');
     } catch (error) {
       console.error('AI enhancement failed:', error);
-      toast.error('Failed to enhance comment. Please try again.');
+      toast.error('Could not update the note. Please try again.');
     } finally {
       setIsEnhancingComment(false);
     }
@@ -126,7 +126,7 @@ export default function TimeSlotRating({ timeKey, label, data, onChange, student
               ) : (
                 <Sparkles className="w-3 h-3" />
               )}
-              {isEnhancingComment ? 'Enhancing...' : 'Enhance'}
+              {isEnhancingComment ? 'Rewriting...' : 'Refresh Note'}
             </Button>
           </div>
           <Textarea

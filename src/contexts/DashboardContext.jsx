@@ -135,7 +135,9 @@ export function DashboardProvider({ children }) {
 export function useDashboardContext() {
   const context = useContext(DashboardContext);
   if (!context) {
-    throw new Error('useDashboardContext must be used within a DashboardProvider');
+    // Instead of throwing, return a default context to prevent crashes
+    console.warn('useDashboardContext used outside DashboardProvider - using fallback mode');
+    return null;
   }
   return context;
 }

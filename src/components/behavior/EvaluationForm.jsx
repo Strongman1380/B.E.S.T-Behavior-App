@@ -96,10 +96,9 @@ export default function EvaluationForm({ evaluation, settings, onSave, isSaving,
 
     setIsEnhancingComments(true);
     try {
-      const enhanced = await aiService.enhanceComment(formData.general_comments, {
+      const enhanced = await aiService.expandGeneralComment(formData.general_comments, {
         behaviorType: 'general_comments',
         studentName,
-        gradeLevel: studentGrade,
         evaluationDate: evaluationDate || evaluation?.date,
         schoolName: settings?.school_name,
         teacherName: settings?.teacher_name
@@ -109,10 +108,10 @@ export default function EvaluationForm({ evaluation, settings, onSave, isSaving,
       setFormData(newFormData);
       setHasUnsavedChanges(true);
       debouncedSave(newFormData);
-      toast.success('Comments enhanced successfully!');
+      toast.success('Progress note generated!');
     } catch (error) {
       console.error('AI enhancement failed:', error);
-      toast.error('Failed to enhance comments. Please try again.');
+      toast.error('Could not generate progress note. Please try again.');
     } finally {
       setIsEnhancingComments(false);
     }
@@ -150,7 +149,7 @@ export default function EvaluationForm({ evaluation, settings, onSave, isSaving,
             ) : (
               <Sparkles className="w-4 h-4" />
             )}
-            {isEnhancingComments ? 'Enhancing...' : 'Enhance with AI'}
+            {isEnhancingComments ? 'Generating...' : 'Build Daily Narrative'}
           </Button>
         </div>
         <Textarea

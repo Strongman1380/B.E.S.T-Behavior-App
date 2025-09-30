@@ -65,10 +65,33 @@ const KPIPrintLayout = React.forwardRef(({ data, schoolName, dateRange }, ref) =
         margin: '0 auto',
       }}
     >
-      <header style={{ textAlign: 'center', marginBottom: '24px' }}>
+      <header style={{ textAlign: 'center', marginBottom: '24px', borderBottom: '3px solid #2563eb', paddingBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px', marginBottom: '10px' }}>
+          <div style={{ 
+            width: '80px', 
+            height: '60px', 
+            backgroundImage: 'url(/best-logo.png)', 
+            backgroundSize: 'contain', 
+            backgroundRepeat: 'no-repeat', 
+            backgroundPosition: 'center',
+            borderRadius: '8px'
+          }}></div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '18px', fontWeight: '700', color: '#1f2937', margin: '0' }}>{schoolName}</div>
+            <div style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0' }}>Behavioral Excellence in Student Tracking</div>
+          </div>
+        </div>
         <h1 style={{ fontSize: '28px', marginBottom: '4px' }}>KPI Dashboard Report</h1>
-        <div style={{ fontSize: '14px', color: '#4b5563' }}>{schoolName}</div>
         <div style={{ fontSize: '12px', color: '#6b7280' }}>{dateRange}</div>
+        <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '5px' }}>
+          Generated: {new Intl.DateTimeFormat('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }).format(new Date())}
+        </div>
       </header>
 
       <section>

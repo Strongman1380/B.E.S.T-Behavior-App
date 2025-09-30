@@ -49,8 +49,13 @@ export default function PrintContactLogsDialog({ open, onOpenChange, student, lo
         </DialogHeader>
         <div id="print-logs-area" className="flex-grow overflow-y-auto p-2 bg-slate-100">
             <div className="p-8 bg-white shadow-sm">
-                <h1 className="text-3xl font-bold mb-2">Contact Log Report</h1>
-                <h2 className="text-xl text-slate-700 mb-6">{student.student_name}</h2>
+                <div className="flex items-center gap-4 mb-6">
+                    <img src="/best-logo.png" alt="BEST Logo" className="w-20 h-20" />
+                    <div>
+                        <h1 className="text-3xl font-bold mb-2">Contact Log Report</h1>
+                        <h2 className="text-xl text-slate-700">{student.student_name}</h2>
+                    </div>
+                </div>
                 
                 <div className="space-y-6">
                   {logs.map(log => (

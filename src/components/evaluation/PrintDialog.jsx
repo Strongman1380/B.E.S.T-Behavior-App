@@ -12,7 +12,10 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
     const rows = TIME_SLOTS;
     return `
       <div style="padding: 16px; font-family: Arial, sans-serif; color: #000;">
-        <div style="text-align:center; font-size:22px; font-weight:800; letter-spacing:.5px; margin-bottom:6px; text-transform:uppercase;">BEHAVIOR MONITORING SCHEDULE</div>
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+          <img src="/best-logo.png" alt="BEST Logo" style="width: 64px; height: 64px;" />
+          <div style="text-align:center; font-size:22px; font-weight:800; letter-spacing:.5px; text-transform:uppercase;">BEHAVIOR MONITORING SCHEDULE</div>
+        </div>
         <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;">
           <div><span style="font-weight:600;">Student Name:</span> ${student.name}</div>
           <div><span style="font-weight:600;">Date:</span> ${formatDate(date, 'MMMM d, yyyy')}</div>

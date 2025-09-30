@@ -23,7 +23,6 @@ export default function StudentComparisonList({ data }) {
                 <span>Academic: {student.academicAvg}/4</span>
               )}
               <span>4's Rate: {student.smileyRate}%</span>
-              <span>Incidents: {student.incidents}</span>
             </div>
           </div>
           <div className="flex gap-1 sm:gap-2 self-start sm:self-center">

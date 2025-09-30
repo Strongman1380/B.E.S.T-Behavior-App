@@ -3,38 +3,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Printer, ChevronLeft, ChevronRight, User, Edit3 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Printer, ChevronLeft, ChevronRight, User, Edit3, Save, X } from 'lucide-react';
 import { Student, DailyEvaluation, Settings } from '@/api/entities';
 import { TIME_SLOTS } from '@/config/timeSlots';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-const BEST_LOGO_DATA_URL = "data:image/svg+xml;base64," + btoa(`
-<svg width="160" height="80" viewBox="0 0 160 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Light blue background -->
-  <rect x="10" y="10" width="140" height="50" rx="8" fill="#ADD8E6" stroke="#4169E1" stroke-width="1"/>
-
-  <!-- Orange triangular rays around the top -->
-  <polygon points="30,5 35,15 25,15" fill="#FFA500"/>
-  <polygon points="50,2 55,12 45,12" fill="#FFA500"/>
-  <polygon points="70,2 75,12 65,12" fill="#FFA500"/>
-  <polygon points="90,2 95,12 85,12" fill="#FFA500"/>
-  <polygon points="110,2 115,12 105,12" fill="#FFA500"/>
-  <polygon points="130,5 135,15 125,15" fill="#FFA500"/>
-
-  <!-- Green triangles at bottom -->
-  <polygon points="25,60 35,70 15,70" fill="#228B22"/>
-  <polygon points="125,60 135,70 115,70" fill="#228B22"/>
-
-  <!-- BEST text in yellow/green with blue stroke -->
-  <text x="80" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="900" fill="#9ACD32" stroke="#4169E1" stroke-width="1" text-anchor="middle">BEST</text>
-
-  <!-- Subtitle text -->
-  <text x="80" y="75" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#228B22" text-anchor="middle">Berniklau Education</text>
-  <text x="80" y="85" font-family="Arial, sans-serif" font-size="8" fill="#228B22" text-anchor="middle">-Solutions Team-</text>
-</svg>
-`);
+const BEST_LOGO_URL = "/best-logo.png";
 
 export default function BestInteractiveGrid() {
   const [students, setStudents] = useState([]);
@@ -45,6 +22,8 @@ export default function BestInteractiveGrid() {
   const [weekData, setWeekData] = useState({});
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [editingComments, setEditingComments] = useState(null);
+  const [commentsValue, setCommentsValue] = useState('');
   const [currentWeek, setCurrentWeek] = useState(() => {
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
@@ -287,6 +266,60 @@ export default function BestInteractiveGrid() {
     setEditValue('');
   };
 
+  const handleCommentsEdit = (date, currentComments) => {
+    setEditingComments(date);
+    setCommentsValue(currentComments || '');
+  };
+
+  const handleCommentsSave = async (date) => {
+    try {
+      // Find or create evaluation for this date
+      let evaluation = weekData[date];
+      if (!evaluation) {
+        // Create new evaluation
+        evaluation = await DailyEvaluation.create({
+          student_id: selectedStudent.id,
+          date: date,
+          time_slots: {},
+          general_comments: commentsValue.trim()
+        });
+      } else {
+        // Update existing evaluation
+        await DailyEvaluation.update(evaluation.id, {
+          general_comments: commentsValue.trim()
+        });
+      }
+
+      // Update local state
+      setWeekData(prev => ({
+        ...prev,
+        [date]: {
+          ...evaluation,
+          general_comments: commentsValue.trim()
+        }
+      }));
+
+      setEditingComments(null);
+      setCommentsValue('');
+      toast.success('Comments updated successfully');
+    } catch (error) {
+      console.error('Error saving comments:', error);
+      toast.error('Failed to save comments');
+    }
+  };
+
+  const handleCommentsCancel = () => {
+    setEditingComments(null);
+    setCommentsValue('');
+  };
+
+  const handleCommentsKeyPress = (e, date) => {
+    if (e.key === 'Escape') {
+      handleCommentsCancel();
+    }
+    // Note: We don't save on Enter for textarea since users might want line breaks
+  };
+
   const handleKeyPress = (e, date, slotKey, section) => {
     if (e.key === 'Enter') {
       handleCellSave(date, slotKey, section);
@@ -338,7 +371,7 @@ export default function BestInteractiveGrid() {
     // Generate print content that exactly matches the grid layout
     let printContent = `
       <div class="report-header">
-        <img src="${BEST_LOGO_DATA_URL}" alt="BEST Hub Logo" class="report-logo" />
+        <img src="${BEST_LOGO_URL}" alt="BEST Logo" class="report-logo" />
         <div class="header-content">
           <div class="report-title">Berniklau Education - Solutions Team</div>
           <div class="report-subtitle">Weekly Behavior Tracking</div>
@@ -996,10 +1029,60 @@ export default function BestInteractiveGrid() {
                         
                         {/* Comments Section */}
                         <div className="comments-section mt-4">
-                          <div className="comments-title font-semibold text-sm mb-2">Comments:</div>
-                          <div className="comments-box border border-slate-300 min-h-[60px] p-3 bg-white rounded text-sm">
-                            {evaluation?.general_comments || ''}
+                          <div className="comments-title font-semibold text-sm mb-2 flex items-center justify-between">
+                            <span>Comments:</span>
+                            {editingComments !== day.date && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCommentsEdit(day.date, evaluation?.general_comments)}
+                                className="h-6 px-2 text-xs"
+                              >
+                                <Edit3 className="h-3 w-3 mr-1" />
+                                Edit
+                              </Button>
+                            )}
                           </div>
+                          {editingComments === day.date ? (
+                            <div className="space-y-2">
+                              <Textarea
+                                value={commentsValue}
+                                onChange={(e) => setCommentsValue(e.target.value)}
+                                onKeyDown={(e) => handleCommentsKeyPress(e, day.date)}
+                                className="min-h-[80px] text-sm"
+                                placeholder="Enter general comments for this day..."
+                                autoFocus
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleCommentsSave(day.date)}
+                                  className="h-7 px-3 text-xs"
+                                >
+                                  <Save className="h-3 w-3 mr-1" />
+                                  Save
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleCommentsCancel}
+                                  className="h-7 px-3 text-xs"
+                                >
+                                  <X className="h-3 w-3 mr-1" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div 
+                              className="comments-box border border-slate-300 min-h-[60px] p-3 bg-white rounded text-sm cursor-pointer hover:bg-slate-50 transition-colors"
+                              onClick={() => handleCommentsEdit(day.date, evaluation?.general_comments)}
+                            >
+                              {evaluation?.general_comments || (
+                                <span className="text-slate-400 italic">Click to add comments...</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

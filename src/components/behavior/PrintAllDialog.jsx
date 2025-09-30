@@ -18,6 +18,8 @@ export default function PrintAllDialog({ open, onOpenChange, students, evaluatio
             .sheet { page-break-after: always; }
             .sheet:last-child { page-break-after: auto; }
             .title { text-align: center; font-size: 22px; font-weight: 800; letter-spacing: .5px; margin-bottom: 6px; text-transform: uppercase; }
+            .header-with-logo { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+            .header-logo { width: 64px; height: 64px; flex-shrink: 0; }
             .meta { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
             .meta .label { font-weight: 600; }
             table.schedule { width: 100%; border-collapse: collapse; margin-top: 8px; }
@@ -61,7 +63,10 @@ export default function PrintAllDialog({ open, onOpenChange, students, evaluatio
               if (!evaluation) return null;
               return (
                 <div key={student.id} className={`sheet p-8 bg-white shadow-sm ${index > 0 ? 'page-break' : 'no-page-break'}`}>
-                  <div className="title">BEHAVIOR MONITORING SCHEDULE</div>
+                  <div className="header-with-logo">
+                    <img src="/best-logo.png" alt="BEST Logo" className="header-logo" />
+                    <div className="title">BEHAVIOR MONITORING SCHEDULE</div>
+                  </div>
                   <div className="meta">
                     <div><span className="label">Student Name:</span> {student.student_name}</div>
                     <div><span className="label">Date:</span> {format(new Date(date), 'MMMM d, yyyy')}</div>
@@ -85,9 +90,18 @@ export default function PrintAllDialog({ open, onOpenChange, students, evaluatio
                         const getValue = (section) => {
                           const raw = data?.[section];
                           if (raw !== undefined && raw !== null && `${raw}`.trim().length > 0) {
-                            const value = `${raw}`;
-                            return value === 'A/B' ? 'AB' : value;
+                            const value = `${raw}`.trim();
+                            // Handle all possible rating values including AB and NS
+                            if (['AB', 'NS', '4', '3', '2', '1'].includes(value)) {
+                              return value;
+                            }
+                            // Handle legacy A/B format
+                            if (value === 'A/B') {
+                              return 'AB';
+                            }
+                            return value;
                           }
+                          // Only fall back to numeric rating if no section-specific value exists
                           return fallback !== '' ? `${fallback}` : '';
                         };
                         return (

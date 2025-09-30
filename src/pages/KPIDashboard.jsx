@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog, CreditsEarned, Grade, Settings as SettingsEntity } from "@/api/entities";
+import { Student, DailyEvaluation, IncidentReport, BehaviorSummary, ContactLog, CreditsEarned, Grade, StepsCompleted, Settings as SettingsEntity } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Suspense, lazy } from 'react';
 import {
   Users, AlertTriangle, Star,
-  Calendar, Target, BarChart3, RefreshCw, Download, Trash2, ChevronDown
+  Calendar, Target, BarChart3, RefreshCw, Download, Trash2, ChevronDown,
+  ArrowUpRight, ArrowDownRight, Minus, Info, GraduationCap, Trophy, CheckCircle,
+  Lightbulb, TrendingUp, Clock, Settings, FileText, Database, X
 } from "lucide-react";
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks } from "date-fns";
 import { parseYmd, truncateDecimal, formatTruncated } from "@/utils";
@@ -17,11 +19,12 @@ import { TIME_SLOT_KEYS } from "@/config/timeSlots";
 import ClearDataDialog from "@/components/kpi/ClearDataDialog";
 import { createZip } from "@/lib/zip";
 import { aiService } from "@/services/aiService";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const BehaviorTrendChart = lazy(() => import('@/components/kpi/BehaviorTrendChart'));
-const IncidentTypesBar = lazy(() => import('@/components/kpi/IncidentTypesBar'));
 const RatingDistributionBar = lazy(() => import('@/components/kpi/RatingDistributionBar'));
 const TimeSlotAnalysisBar = lazy(() => import('@/components/kpi/TimeSlotAnalysisBar'));
+const WeeklyProgressChart = lazy(() => import('@/components/kpi/WeeklyProgressChart'));
 const WeeklyTrendsArea = lazy(() => import('@/components/kpi/WeeklyTrendsArea'));
 
 const StudentComparisonList = lazy(() => import('@/components/kpi/StudentComparisonList'));
@@ -68,6 +71,7 @@ export default function KPIDashboard() {
   const [aiInsights, setAiInsights] = useState(null);
   const [aiInsightsLoading, setAiInsightsLoading] = useState(false);
   const [aiInsightsError, setAiInsightsError] = useState(null);
+  const [showDataTools, setShowDataTools] = useState(false);
 
   // Helper: current date in local time
   const getCurrentDate = () => new Date();
@@ -124,8 +128,14 @@ export default function KPIDashboard() {
         gradesData = [];
       }
 
-      // Placeholder future data
-      const stepsData = [];
+      let stepsData = [];
+      try {
+        stepsData = await StepsCompleted.list('-date_completed');
+      } catch (stepsError) {
+        console.warn('Failed to load Steps:', stepsError?.message || stepsError);
+        stepsData = [];
+      }
+
       const gpasData = [];
 
       setStudents(studentsData);
@@ -135,7 +145,7 @@ export default function KPIDashboard() {
       setContactLogs(contactsData);
       setSettings(settingsData?.[0] || null);
       setCreditsEarned(Array.isArray(creditsData) ? creditsData : []);
-      setStepsCompleted(stepsData);
+      setStepsCompleted(Array.isArray(stepsData) ? stepsData : []);
       setGrades(Array.isArray(gradesData) ? gradesData : []);
       setGpas(gpasData);
     } catch (error) {
@@ -550,8 +560,7 @@ export default function KPIDashboard() {
       'Overall Metrics:',
       `Average Rating: ${formatTruncated(overallMetrics.avgRating, 2)}/4`,
       `4's Rate: ${formatTruncated(overallMetrics.smileyRate, 2)}%`,
-      `Total Incidents: ${overallMetrics.totalIncidents}`,
-      `Students Tracked: ${overallMetrics.studentsEvaluated}`,
+      `Active Students: ${activeStudentsCount}`,
       `Total Evaluations: ${overallMetrics.totalEvaluations}`,
       '',
       'Academic KPIs:',
@@ -738,13 +747,124 @@ const exportAllCSVs = async () => {
   });
 
   const behaviorTrendData = getBehaviorTrendData();
-  const incidentStats = getIncidentStats();
   const ratingDistribution = getRatingDistribution();
   const overallMetrics = getOverallMetrics();
   const studentComparison = getStudentComparison();
   const timeSlotAnalysis = getTimeSlotAnalysis();
   const weeklyTrends = getWeeklyTrends();
   const activeStudentsCount = students.length;
+
+  // Helpers for additional KPIs
+  const getDateBoundsForRange = () => {
+    if (dateRange === 'all') return null;
+    const daysBack = parseInt(dateRange);
+    const end = getCurrentDate();
+    const start = subDays(end, daysBack - 1);
+    return { start, end };
+  };
+
+  const computeBehaviorStats = (evals) => {
+    let total = 0, sum = 0;
+    const byStudent = new Map();
+    evals.forEach(e => {
+      if (!e?.time_slots) return;
+      Object.values(e.time_slots).forEach(slot => {
+        const nums = getNumericSectionValues(slot);
+        if (!nums?.length) return;
+        let sSum = 0, sCnt = 0;
+        nums.forEach(v => { total++; sum += v; sSum += v; sCnt++; });
+        if (sCnt > 0) {
+          const prev = byStudent.get(e.student_id) || { sum: 0, count: 0 };
+          byStudent.set(e.student_id, { sum: prev.sum + sSum, count: prev.count + sCnt });
+        }
+      });
+    });
+    const perStudentAvgs = Array.from(byStudent.values())
+      .map(({ sum, count }) => (count > 0 ? sum / count : 0));
+    const avg = total > 0 ? sum / total : 0;
+    const mean = perStudentAvgs.length ? perStudentAvgs.reduce((a,b)=>a+b,0)/perStudentAvgs.length : 0;
+    const variance = perStudentAvgs.length ? perStudentAvgs.reduce((a,v)=>a+Math.pow(v-mean,2),0)/perStudentAvgs.length : 0;
+    const stddev = Math.sqrt(variance);
+    return { avg, stddev };
+  };
+
+  const getPriorPeriodDelta = () => {
+    const bounds = getDateBoundsForRange();
+    if (!bounds) return null; // Not meaningful for 'all'
+    const { start, end } = bounds;
+    const days = parseInt(dateRange);
+    const priorStart = subDays(start, days);
+    const priorEnd = subDays(end, days);
+    const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
+    const currentEvals = evaluations.filter(e => {
+      const d = parseYmd(e.date);
+      if (selectedId != null && e.student_id !== selectedId) return false;
+      return d >= start && d <= end;
+    });
+    const priorEvals = evaluations.filter(e => {
+      const d = parseYmd(e.date);
+      if (selectedId != null && e.student_id !== selectedId) return false;
+      return d >= priorStart && d <= priorEnd;
+    });
+    const cur = computeBehaviorStats(currentEvals).avg;
+    const prev = computeBehaviorStats(priorEvals).avg;
+    const delta = cur - prev;
+    return { cur, prev, delta };
+  };
+
+  const getCoverageRate = () => {
+    const { filteredEvaluations } = getFilteredData();
+    const covered = new Set(filteredEvaluations.map(e => e.student_id));
+    return activeStudentsCount > 0 ? truncateDecimal((covered.size / activeStudentsCount) * 100, 2) : 0;
+  };
+
+  const getSlotCoverage = () => {
+    const { filteredEvaluations } = getFilteredData();
+    let filled = 0; let possible = 0;
+    filteredEvaluations.forEach(e => {
+      if (!e?.time_slots) return;
+      Object.values(e.time_slots).forEach(slot => {
+        possible++;
+        const nums = getNumericSectionValues(slot);
+        if (nums && nums.length) filled++;
+      });
+    });
+    return possible > 0 ? truncateDecimal((filled / possible) * 100, 2) : 0;
+  };
+
+  const priorDelta = getPriorPeriodDelta();
+  const coverageRate = getCoverageRate();
+  const consistencyIndex = truncateDecimal(computeBehaviorStats(getFilteredData().filteredEvaluations).stddev, 2);
+  const slotCoverage = getSlotCoverage();
+
+  const computeCoverageForWindow = (start, end) => {
+    const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
+    const evals = evaluations.filter(e => {
+      const d = parseYmd(e.date);
+      if (selectedId != null && e.student_id !== selectedId) return false;
+      return d >= start && d <= end;
+    });
+    const covered = new Set(evals.map(e => e.student_id));
+    return activeStudentsCount > 0 ? truncateDecimal((covered.size / activeStudentsCount) * 100, 2) : 0;
+  };
+
+  let coverageDelta = null;
+  const bounds = getDateBoundsForRange();
+  if (bounds) {
+    const days = parseInt(dateRange);
+    const { start, end } = bounds;
+    const prevStart = subDays(start, days);
+    const prevEnd = subDays(end, days);
+    const prevRate = computeCoverageForWindow(prevStart, prevEnd);
+    coverageDelta = truncateDecimal(coverageRate - prevRate, 2);
+  }
+
+  const Trend = ({ delta }) => {
+    if (delta == null) return null;
+    if (delta > 0) return (<span className="ml-2 inline-flex items-center text-emerald-600 text-xs"><ArrowUpRight className="w-3 h-3 mr-0.5"/>+{delta}</span>);
+    if (delta < 0) return (<span className="ml-2 inline-flex items-center text-rose-600 text-xs"><ArrowDownRight className="w-3 h-3 mr-0.5"/>{delta}</span>);
+    return (<span className="ml-2 inline-flex items-center text-slate-500 text-xs"><Minus className="w-3 h-3 mr-0.5"/>0.00</span>);
+  };
 
   // Credits processing functions
   const getCreditsData = () => {
@@ -1075,18 +1195,70 @@ const exportAllCSVs = async () => {
   const stepsSummary = getStepsSummary();
   const gradesSummary = getGradesSummary();
   const gpaSummary = getGPASummary();
+
+  // Calculate deltas for academic metrics
+  const getAcademicDeltas = () => {
+    const bounds = getDateBoundsForRange();
+    if (!bounds) return { gradesDelta: null, stepsDelta: null };
+    
+    const { start, end } = bounds;
+    const days = parseInt(dateRange);
+    const priorStart = subDays(start, days);
+    const priorEnd = subDays(end, days);
+    const selectedId = selectedStudent === 'all' ? null : Number(selectedStudent);
+
+    // Calculate grades delta
+    let currentGrades = grades.filter(g => {
+      const d = parseYmd(g.date_entered);
+      if (selectedId != null && g.student_id !== selectedId) return false;
+      return d >= start && d <= end;
+    });
+    let priorGrades = grades.filter(g => {
+      const d = parseYmd(g.date_entered);
+      if (selectedId != null && g.student_id !== selectedId) return false;
+      return d >= priorStart && d <= priorEnd;
+    });
+
+    const currentAvgGrade = currentGrades.length > 0 ? 
+      currentGrades.reduce((sum, g) => sum + (Number(g.grade_value) || 0), 0) / currentGrades.length : 0;
+    const priorAvgGrade = priorGrades.length > 0 ? 
+      priorGrades.reduce((sum, g) => sum + (Number(g.grade_value) || 0), 0) / priorGrades.length : 0;
+    const gradesDelta = currentAvgGrade - priorAvgGrade;
+
+    // Calculate steps delta
+    let currentSteps = stepsCompleted.filter(s => {
+      const d = parseYmd(s.date_completed);
+      if (selectedId != null && s.student_id !== selectedId) return false;
+      return d >= start && d <= end;
+    });
+    let priorSteps = stepsCompleted.filter(s => {
+      const d = parseYmd(s.date_completed);
+      if (selectedId != null && s.student_id !== selectedId) return false;
+      return d >= priorStart && d <= priorEnd;
+    });
+
+    const currentStepsTotal = currentSteps.reduce((sum, s) => sum + (Number(s.steps_count) || 0), 0);
+    const priorStepsTotal = priorSteps.reduce((sum, s) => sum + (Number(s.steps_count) || 0), 0);
+    const currentStepsStudents = new Set(currentSteps.map(s => s.student_id)).size;
+    const priorStepsStudents = new Set(priorSteps.map(s => s.student_id)).size;
+    
+    const currentAvgSteps = currentStepsStudents > 0 ? currentStepsTotal / currentStepsStudents : 0;
+    const priorAvgSteps = priorStepsStudents > 0 ? priorStepsTotal / priorStepsStudents : 0;
+    const stepsDelta = currentAvgSteps - priorAvgSteps;
+
+    return {
+      gradesDelta: truncateDecimal(gradesDelta, 2),
+      stepsDelta: truncateDecimal(stepsDelta, 2)
+    };
+  };
+
+  const academicDeltas = getAcademicDeltas();
   const progressSnapshot = getProgressSnapshot(stepsSummary, totalCreditsData);
 
   const aiMetricsPayload = useMemo(() => {
     const selectedStudentLabel = selectedStudent === 'all'
       ? 'All Students'
       : (students.find(s => s.id === Number(selectedStudent))?.student_name || 'Unknown Student');
-
-    const incidentOverview = (incidentStats || []).slice(0, 6).map(item => ({
-      type: item.type,
-      count: item.count,
-      percentage: item.percentage
-    }));
 
     const timeSlotHighlights = (timeSlotAnalysis || []).slice(0, 6).map(slot => ({
       period: slot.period,
@@ -1116,13 +1288,8 @@ const exportAllCSVs = async () => {
       overall: {
         averageRating: truncateDecimal(overallMetrics.avgRating ?? 0, 2),
         smileyRate: truncateDecimal(overallMetrics.smileyRate ?? 0, 2),
-        totalIncidents: overallMetrics.totalIncidents ?? 0,
         totalEvaluations: overallMetrics.totalEvaluations ?? 0,
         studentsEvaluated: overallMetrics.studentsEvaluated ?? 0
-      },
-      incidents: {
-        summary: incidentOverview,
-        total: overallMetrics.totalIncidents ?? 0
       },
       credits: {
         totalCredits: totalCreditsData.totalCredits ?? 0,
@@ -1155,10 +1322,8 @@ const exportAllCSVs = async () => {
     students,
     overallMetrics.avgRating,
     overallMetrics.smileyRate,
-    overallMetrics.totalIncidents,
     overallMetrics.totalEvaluations,
     overallMetrics.studentsEvaluated,
-    incidentStats,
     totalCreditsData.totalCredits,
     totalCreditsData.avgCreditsPerStudent,
     totalCreditsData.topStudent,
@@ -1195,13 +1360,6 @@ const exportAllCSVs = async () => {
             : 'Increase positive reinforcement touchpoints to boost 4 ratings and morale.'
       },
       {
-        id: 'incident',
-        title: 'Incident Prevention',
-        message: overallMetrics.totalIncidents === 0
-          ? 'No incidents logged—students are responding well to expectations and supports.'
-          : `${overallMetrics.totalIncidents} incident${overallMetrics.totalIncidents === 1 ? '' : 's'} recorded. Review triggers and tighten handoff plans.`
-      },
-      {
         id: 'data',
         title: 'Data Quality',
         message: overallMetrics.totalEvaluations >= Math.max(1, overallMetrics.studentsEvaluated) * (dateRange === 'all' ? 5 : parseInt(dateRange, 10)) * 0.6
@@ -1214,7 +1372,6 @@ const exportAllCSVs = async () => {
   }, [
     overallMetrics.avgRating,
     overallMetrics.smileyRate,
-    overallMetrics.totalIncidents,
     overallMetrics.totalEvaluations,
     overallMetrics.studentsEvaluated,
     dateRange
@@ -1253,9 +1410,6 @@ const exportAllCSVs = async () => {
     if (overallMetrics.avgRating >= 3.5) {
       items.push('Overall ratings show outstanding engagement—share wins with families.');
     }
-    if (overallMetrics.totalIncidents === 0) {
-      items.push('Zero incidents logged—commend staff for proactive management.');
-    }
     if (progressSnapshot.topStepsStudent) {
       items.push(`${progressSnapshot.topStepsStudent.fullName} completed ${formatTruncated(progressSnapshot.topStepsStudent.steps ?? 0, 2)} steps—spotlight this dedication.`);
     }
@@ -1270,7 +1424,6 @@ const exportAllCSVs = async () => {
     return items;
   }, [
     overallMetrics.avgRating,
-    overallMetrics.totalIncidents,
     progressSnapshot.topStepsStudent,
     totalCreditsData.topStudent
   ]);
@@ -1288,7 +1441,6 @@ const exportAllCSVs = async () => {
 
       if (!KPI_PANEL_STYLES[normalizedId]) {
         if (rawId.includes('recogn')) normalizedId = 'recognition';
-        else if (rawId.includes('incident') || rawId.includes('safety')) normalizedId = 'incident';
         else if (rawId.includes('data') || rawId.includes('quality')) normalizedId = 'data';
         else normalizedId = 'behavior';
       }
@@ -1357,7 +1509,6 @@ const exportAllCSVs = async () => {
       const data = {
         overallMetrics,
         behaviorTrendData,
-        incidentStats,
         ratingDistribution,
         studentComparison,
         timeSlotAnalysis,
@@ -1427,41 +1578,14 @@ const exportAllCSVs = async () => {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
-              
-              {/* Other Export Options Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="h-10 sm:h-auto">
-                    <Download className="w-4 h-4 mr-2" />
-                    <span className="hidden sm:inline">More Exports</span>
-                    <span className="sm:hidden">More</span>
-                    <ChevronDown className="w-4 h-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={exportEnhancedCSVHandler}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export Enhanced CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportKPIData}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export Basic CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportAllCSVs}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export All Data (ZIP)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
               <Button 
-                onClick={() => setShowClearDataDialog(true)} 
+                onClick={() => setShowDataTools(true)} 
                 variant="outline" 
-                className="h-10 sm:h-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                disabled={isLoading}
+                className="h-10 sm:h-auto"
               >
-                <Trash2 className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Clear Data</span>
-                <span className="sm:hidden">Clear</span>
+                <Database className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Data Tools</span>
+                <span className="sm:hidden">Tools</span>
               </Button>
               <Button onClick={handleRefresh} variant="outline" disabled={isLoading} className="h-10 sm:h-auto">
                 <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
@@ -1513,14 +1637,25 @@ const exportAllCSVs = async () => {
         </Card>
 
         {/* Key Metrics Cards */}
+        <TooltipProvider>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Rating</CardTitle>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Average Rating
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3.5 h-3.5 text-slate-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Average of all numeric behavior ratings across time slots in the selected range. Δ compares to the previous equal period.
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{overallMetrics.avgRating}/4</div>
+              <div className="text-2xl font-bold flex items-center">{overallMetrics.avgRating}/4 <Trend delta={priorDelta ? truncateDecimal(priorDelta.delta, 2) : null} /></div>
               <p className="text-xs text-muted-foreground">
                 From {overallMetrics.totalEvaluations} evaluations
               </p>
@@ -1529,7 +1664,17 @@ const exportAllCSVs = async () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">4s Rate</CardTitle>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                4s Rate
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3.5 h-3.5 text-slate-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Percentage of ratings equal to 4 (exceeds expectations) across all time slots in the selected range.
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
               <Star className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -1540,32 +1685,179 @@ const exportAllCSVs = async () => {
             </CardContent>
           </Card>
 
+
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Incidents</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Active Students
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3.5 h-3.5 text-slate-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Count of students marked active in the roster.
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{overallMetrics.totalIncidents}</div>
+              <div className="text-2xl font-bold">{activeStudentsCount}</div>
               <p className="text-xs text-muted-foreground">
-                {overallMetrics.incidentRate} per student avg
+                Currently active students
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Students Tracked / Active</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Coverage Rate
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3.5 h-3.5 text-slate-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Percentage of active students with at least one evaluation in the selected range. Δ compares to the previous equal period.
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{overallMetrics.studentsEvaluated} / {activeStudentsCount}</div>
+              <div className="text-2xl font-bold flex items-center">{coverageRate}% <Trend delta={coverageDelta} /></div>
+              <p className="text-xs text-muted-foreground">Active students with an evaluation</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Consistency Index
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3.5 h-3.5 text-slate-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Standard deviation of per-student average ratings (lower is more consistent across students).
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{consistencyIndex}</div>
+              <p className="text-xs text-muted-foreground">Std dev of student averages</p>
+            </CardContent>
+          </Card>
+        </div>
+        </TooltipProvider>
+
+        {/* Academic Progress KPI Cards */}
+        <TooltipProvider>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Avg Grade %
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3.5 h-3.5 text-slate-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Average grade percentage across all students in the selected period. Δ compares to the previous equal period.
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+              <GraduationCap className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold flex items-center">
+                {gradesSummary.avgGrade || 0}% 
+                {academicDeltas.gradesDelta !== null && <Trend delta={academicDeltas.gradesDelta} />}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Tracked in range / Active total
+                {gradesSummary.totalGrades} grades from {gradesSummary.totalStudents} students
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Steps Leader
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3.5 h-3.5 text-slate-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Student with the highest step completion count in the selected period.
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+              <Trophy className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {stepsSummary.topStudent ? stepsSummary.topStudent.steps : 0}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {stepsSummary.topStudent ? stepsSummary.topStudent.fullName : 'No data'}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Avg Steps/Student
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3.5 h-3.5 text-slate-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Average steps completed per student in the selected period. Δ compares to the previous equal period.
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold flex items-center">
+                {stepsSummary.avgStepsPerStudent || 0}
+                {academicDeltas.stepsDelta !== null && <Trend delta={academicDeltas.stepsDelta} />}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {stepsSummary.totalStudents} students with steps
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Students Meeting Goal
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3.5 h-3.5 text-slate-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Number of students meeting or exceeding their steps goal in the selected period.
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {progressSnapshot.stepsCategories.meets + progressSnapshot.stepsCategories.exceeds}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                of {stepsSummary.totalStudents} students
               </p>
             </CardContent>
           </Card>
         </div>
+        </TooltipProvider>
 
         {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
@@ -1581,15 +1873,98 @@ const exportAllCSVs = async () => {
             </CardContent>
           </Card>
 
-          {/* Incident Types Bar Chart */}
+          {/* AI Spotlight Panel */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base sm:text-lg">Incident Types Distribution</CardTitle>
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Lightbulb className="w-5 h-5 text-amber-500" />
+                AI Spotlight
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
-                <IncidentTypesBar data={incidentStats} />
-              </Suspense>
+              <div className="space-y-4">
+                {/* Top Gains */}
+                {aiMetricsPayload.studentHighlights.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1">
+                      <TrendingUp className="w-4 h-4" />
+                      Top Performers
+                    </h4>
+                    <div className="space-y-1">
+                      {aiMetricsPayload.studentHighlights.slice(0, 3).map((student, idx) => (
+                        <div key={idx} className="text-xs text-slate-600 bg-green-50 p-2 rounded">
+                          <span className="font-medium">{student.name}</span> - {student.avgRating} avg rating
+                          {student.smileyRate > 0 && <span className="text-green-600"> ({student.smileyRate}% 4's)</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Time Slots Needing Support */}
+                {aiMetricsPayload.timeSlots.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      Time Slots Focus
+                    </h4>
+                    <div className="space-y-1">
+                      {aiMetricsPayload.timeSlots
+                        .filter(slot => slot.avgRating < 3)
+                        .slice(0, 2)
+                        .map((slot, idx) => (
+                          <div key={idx} className="text-xs text-slate-600 bg-amber-50 p-2 rounded">
+                            <span className="font-medium">{slot.period}</span> - {slot.avgRating} avg rating
+                            <span className="text-amber-600"> (needs support)</span>
+                          </div>
+                        ))}
+                      {aiMetricsPayload.timeSlots
+                        .filter(slot => slot.avgRating >= 3.5)
+                        .slice(0, 1)
+                        .map((slot, idx) => (
+                          <div key={idx} className="text-xs text-slate-600 bg-green-50 p-2 rounded">
+                            <span className="font-medium">{slot.period}</span> - {slot.avgRating} avg rating
+                            <span className="text-green-600"> (strong period)</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Weekly Momentum */}
+                {aiMetricsPayload.weeklyTrends.length > 1 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-1">
+                      <BarChart3 className="w-4 h-4" />
+                      Recent Momentum
+                    </h4>
+                    <div className="text-xs text-slate-600 bg-blue-50 p-2 rounded">
+                      {(() => {
+                        const recent = aiMetricsPayload.weeklyTrends.slice(-2);
+                        const trend = recent[1].avgRating - recent[0].avgRating;
+                        return trend > 0 
+                          ? `📈 Improving trend: +${trend.toFixed(2)} rating increase`
+                          : trend < 0 
+                          ? `📉 Declining trend: ${trend.toFixed(2)} rating decrease`
+                          : `➡️ Stable trend: consistent performance`;
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* Credits Highlight */}
+                {aiMetricsPayload.credits.topStudent && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-purple-700 mb-2 flex items-center gap-1">
+                      <Star className="w-4 h-4" />
+                      Credits Leader
+                    </h4>
+                    <div className="text-xs text-slate-600 bg-purple-50 p-2 rounded">
+                      <span className="font-medium">{aiMetricsPayload.credits.topStudent.name}</span> leads with {aiMetricsPayload.credits.topStudent.credits} credits
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -1610,11 +1985,8 @@ const exportAllCSVs = async () => {
 
           {/* Student Performance Comparison */}
           <Card>
-            <CardHeader className="pb-3 flex items-center justify-between">
+            <CardHeader className="pb-3">
               <CardTitle className="text-base sm:text-lg">Student Performance Overview</CardTitle>
-              <Button onClick={exportStudentPerformanceCSV} variant="outline" className="h-9">
-                <Download className="w-4 h-4 mr-2" /> CSV
-              </Button>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
               <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading...</div>}>
@@ -1629,7 +2001,10 @@ const exportAllCSVs = async () => {
           {/* Time Slot Performance */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base sm:text-lg">Performance by Time of Day</CardTitle>
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <span>Performance by Time of Day</span>
+                <span className="px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-700 border border-slate-200">Slot coverage: {slotCoverage}%</span>
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
               <Suspense fallback={<div className="h-[250px] flex items-center justify-center text-sm text-slate-500">Loading chart...</div>}>
@@ -1813,20 +2188,13 @@ const exportAllCSVs = async () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
                     <div className="text-xs text-slate-500">Average Steps per Student</div>
                     <div className="text-xl font-semibold text-slate-800">
                       {progressSnapshot.hasStepsData ? formatTruncated(progressSnapshot.avgStepsPerStudent ?? 0, 2) : 'N/A'}
                     </div>
                     <div className="text-xs text-slate-500">Total steps logged: {progressSnapshot.hasStepsData ? formatTruncated(progressSnapshot.totalSteps ?? 0, 2) : '0'}</div>
-                  </div>
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
-                    <div className="text-xs text-slate-500">Average Credits per Student</div>
-                    <div className="text-xl font-semibold text-slate-800">
-                      {progressSnapshot.hasCreditsData ? formatTruncated(progressSnapshot.avgCreditsPerStudent ?? 0, 2) : 'N/A'}
-                    </div>
-                    <div className="text-xs text-slate-500">Total credits awarded: {progressSnapshot.hasCreditsData ? formatTruncated(progressSnapshot.totalCredits ?? 0, 2) : '0'}</div>
                   </div>
                 </div>
 
@@ -1857,53 +2225,139 @@ const exportAllCSVs = async () => {
             </CardContent>
           </Card>
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Additional Insights & Recommendations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {(aiInsightsLoading || aiInsightsError) && (
-              <div className="mb-4 text-xs text-slate-500 flex items-center justify-between">
-                <span>{aiInsightsLoading ? 'Generating AI-powered insights…' : 'AI insights unavailable. Showing data-driven guidance.'}</span>
-                {aiInsightsError && <span className="text-red-500">{aiInsightsError?.message ? 'AI service offline' : ''}</span>}
-              </div>
-            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {panelsToDisplay.map((panel, index) => {
-                const styles = KPI_PANEL_STYLES[panel.id] || KPI_PANEL_STYLES.behavior;
-                return (
-                  <div key={`${panel.id}-${index}`} className={`p-4 rounded-lg ${styles.container}`}>
-                    <h4 className={`font-semibold mb-2 ${styles.title}`}>{panel.title}</h4>
-                    <p className={`text-sm ${styles.body}`}>{panel.message}</p>
+
+        {/* Data Tools Sidebar */}
+        {showDataTools && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end">
+            <div className="bg-white w-80 h-full shadow-xl overflow-y-auto">
+              <div className="p-4 border-b border-slate-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                    <Database className="w-5 h-5" />
+                    Data Tools
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDataTools(false)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <p className="text-sm text-slate-600 mt-1">Export data and manage system operations</p>
+              </div>
+              
+              <div className="p-4 space-y-6">
+                {/* Export Section */}
+                <div>
+                  <h3 className="text-sm font-medium text-slate-900 mb-3 flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Data Exports
+                  </h3>
+                  <div className="space-y-2">
+                    <Button
+                      onClick={exportEnhancedCSVHandler}
+                      variant="outline"
+                      className="w-full justify-start"
+                      size="sm"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Enhanced CSV Export
+                    </Button>
+                    <Button
+                      onClick={exportKPIData}
+                      variant="outline"
+                      className="w-full justify-start"
+                      size="sm"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Basic CSV Export
+                    </Button>
+                    <Button
+                      onClick={exportStudentPerformanceCSV}
+                      variant="outline"
+                      className="w-full justify-start"
+                      size="sm"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Student Performance CSV
+                    </Button>
+                    <Button
+                      onClick={exportAllCSVs}
+                      variant="outline"
+                      className="w-full justify-start"
+                      size="sm"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      All Data (ZIP)
+                    </Button>
                   </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 p-4 bg-slate-100 rounded-lg">
-              <h4 className="font-semibold text-slate-900 mb-3">Recommended Action Items</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h5 className="font-medium text-slate-800 mb-2">🎯 Focus Areas</h5>
-                  <ul className="text-sm text-slate-700 space-y-1">
-                    {focusItems.map((item, idx) => (
-                      <li key={`focus-${idx}`}>• {item}</li>
-                    ))}
-                  </ul>
                 </div>
+
+                {/* System Operations */}
                 <div>
-                  <h5 className="font-medium text-slate-800 mb-2">📈 Celebrate Successes</h5>
-                  <ul className="text-sm text-slate-700 space-y-1">
-                    {celebrateItems.map((item, idx) => (
-                      <li key={`celebrate-${idx}`}>• {item}</li>
-                    ))}
-                  </ul>
+                  <h3 className="text-sm font-medium text-slate-900 mb-3 flex items-center gap-2">
+                    <Settings className="w-4 h-4" />
+                    System Operations
+                  </h3>
+                  <div className="space-y-2">
+                    <Button
+                      onClick={() => {
+                        setShowDataTools(false);
+                        setShowClearDataDialog(true);
+                      }}
+                      variant="outline"
+                      className="w-full justify-start border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                      size="sm"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Clear All Data
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Data Health */}
+                <div>
+                  <h3 className="text-sm font-medium text-slate-900 mb-3 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    Data Health
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Students:</span>
+                      <span className="font-medium">{students.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Evaluations:</span>
+                      <span className="font-medium">{evaluations.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Incidents:</span>
+                      <span className="font-medium">{incidents.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Contact Logs:</span>
+                      <span className="font-medium">{contactLogs.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Credits:</span>
+                      <span className="font-medium">{creditsEarned.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Steps:</span>
+                      <span className="font-medium">{stepsCompleted.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Grades:</span>
+                      <span className="font-medium">{grades.length}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        )}
 
         {/* Clear Data Dialog */}
         <ClearDataDialog

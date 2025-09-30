@@ -122,12 +122,26 @@ export default function PrintDialog({ open, onOpenChange, student, evaluation, s
                 const getValue = (section) => {
                   const raw = data?.[section];
                   if (raw !== undefined && raw !== null && `${raw}`.trim().length > 0) {
-                    const value = `${raw}`;
-                    return value === 'A/B' ? 'AB' : value;
+                    const value = `${raw}`.trim();
+                    // Handle all possible rating values including AB and NS
+                    if (['AB', 'NS', '4', '3', '2', '1'].includes(value)) {
+                      return value;
+                    }
+                    // Handle legacy A/B format
+                    if (value === 'A/B') {
+                      return 'AB';
+                    }
+                    return value;
                   }
+                  // Only fall back to numeric rating if no section-specific value exists
                   return fallback !== '' ? `${fallback}` : '';
                 };
                 const getScoreClass = (value) => {
+                  // Handle special codes
+                  if (value === 'AB' || value === 'NS') {
+                    return 'score-cell score-special';
+                  }
+                  // Handle numeric ratings
                   const num = parseInt(value);
                   if (num === 4) return 'score-cell score-4';
                   if (num === 3) return 'score-cell score-3';

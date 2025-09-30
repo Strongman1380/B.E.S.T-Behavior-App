@@ -68,6 +68,8 @@ export default function PrintGradesDialog({ open, onOpenChange, students, curren
             body { font-family: Arial, sans-serif; font-size: 11px; color: #000; }
             h2 { margin: 0 0 6px 0; }
             .student-block { page-break-after: always; }
+            .header-with-logo { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+            .header-logo { width: 64px; height: 64px; flex-shrink: 0; }
             .student-block:last-child { page-break-after: avoid; }
             table { width: 100%; border-collapse: collapse; margin-top: 8px; }
             th, td { border: 1px solid #000; padding: 6px 8px; font-size: 11px; }
@@ -94,7 +96,10 @@ export default function PrintGradesDialog({ open, onOpenChange, students, curren
     if (rows.length === 0) return null;
     return (
       <div key={sid} className="student-block">
-        <h2>{getName(sid)} - Grade Report</h2>
+        <div className="header-with-logo">
+          <img src="/best-logo.png" alt="BEST Logo" className="header-logo" />
+          <h2>{getName(sid)} - Grade Report</h2>
+        </div>
         <div className="meta">
           {start || end ? (
             <div>Date Range: {start || '—'} to {end || '—'}</div>

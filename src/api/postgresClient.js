@@ -87,5 +87,6 @@ export const BehaviorSummary = new PostgreSQLEntity(null, 'behavior_summaries');
 export const IncidentReport = new PostgreSQLEntity(null, 'incident_reports');
 export const User = new PostgreSQLEntity(null, 'users');
 export const Dashboard = new PostgreSQLEntity(null, 'dashboards');
+export const StepsCompleted = new PostgreSQLEntity(null, 'steps_completed');
 
 export default pool;

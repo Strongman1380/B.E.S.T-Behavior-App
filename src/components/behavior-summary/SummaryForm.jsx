@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Save, Sparkles, Loader2, Printer, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { parseYmd, formatDateRange } from "@/utils";
-import { DailyEvaluation, IncidentReport, ContactLog } from "@/api/entities";
+import { DailyEvaluation } from "@/api/entities";
 import { toast } from 'sonner';
 import { aiService } from '@/services/aiService';
 import { TIME_SLOT_LABELS } from "@/config/timeSlots";
@@ -98,24 +98,54 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
   };
 
   const debouncedSave = useDebounce(async (data) => {
-    if (!studentId) return;
+    if (!studentId) {
+      console.warn('No student ID available for behavior summary auto-save');
+      return;
+    }
+
+    console.log('Auto-saving behavior summary for student ID:', studentId);
 
     try {
+      // Validate that we have meaningful content to save
+      const hasContent = (data.general_behavior_overview && data.general_behavior_overview.trim()) ||
+                        (data.strengths && data.strengths.trim()) ||
+                        (data.improvements_needed && data.improvements_needed.trim()) ||
+                        (data.behavioral_incidents && data.behavioral_incidents.trim()) ||
+                        (data.summary_recommendations && data.summary_recommendations.trim());
+
+      console.log('Behavior summary has content:', hasContent);
+
       // Ensure behavior summaries are saved with proper date range and student ID
       const summaryData = {
         ...data,
         student_id: studentId,
-        summary_data: {
-          general_behavior_overview: data.general_behavior_overview || '',
-          strengths: data.strengths || '',
-          improvements_needed: data.improvements_needed || '',
-          behavioral_incidents: data.behavioral_incidents || '',
-          summary_recommendations: data.summary_recommendations || '',
-          prepared_by: data.prepared_by || ''
-        }
+        date_range_start: format(data.date_range_start, 'yyyy-MM-dd'),
+        date_range_end: format(data.date_range_end, 'yyyy-MM-dd'),
+        // Save fields directly without nested wrapper
+        general_behavior_overview: data.general_behavior_overview || '',
+        strengths: data.strengths || '',
+        improvements_needed: data.improvements_needed || '',
+        behavioral_incidents: data.behavioral_incidents || '',
+        summary_recommendations: data.summary_recommendations || '',
+        prepared_by: data.prepared_by || ''
       };
 
-      await onSave(summaryData, { silent: true });
+      console.log('Saving behavior summary data:', {
+        student_id: summaryData.student_id,
+        date_range: `${summaryData.date_range_start} to ${summaryData.date_range_end}`,
+        hasContent,
+        fieldLengths: {
+          overview: summaryData.general_behavior_overview.length,
+          strengths: summaryData.strengths.length,
+          improvements: summaryData.improvements_needed.length,
+          incidents: summaryData.behavioral_incidents.length,
+          recommendations: summaryData.summary_recommendations.length
+        }
+      });
+
+      const result = await onSave(summaryData, { silent: true });
+      console.log('Behavior summary auto-save result:', result ? 'Success' : 'Unknown');
+
       setHasUnsavedChanges(false);
       setAutoSaveStatus('saved');
       setLastSaved(new Date());
@@ -125,7 +155,13 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
         onUnsavedChanges(false);
       }
     } catch (error) {
-      console.error('Auto-save failed:', error);
+      console.error('Behavior summary auto-save failed:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        studentId,
+        dateRange: data ? `${data.date_range_start} to ${data.date_range_end}` : 'unknown'
+      });
       setAutoSaveStatus('error');
       // Don't show toast for auto-save errors to avoid spam, but keep the error state
     }
@@ -394,74 +430,25 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
 
       console.log(`Fetching data for student ${studentId} from ${startDate} to ${endDate}`);
 
-      // If the user selected a single date (start === end) prefer to use
-      // only that QuickScore DailyEvaluation as the single source of truth
-      // for AI summary generation. This prevents mixing in other incident
-      // or contact records when the intent is to summarize the QuickScore.
-      let evaluations = [];
-      let incidents = [];
-      let contacts = [];
+      // Focus only on QuickScore evaluations - this is the primary data source
+      // for behavior summaries, not incident reports or contact logs
+      const evaluations = await DailyEvaluation.filter({
+        student_id: studentId,
+        date_from: startDate,
+        date_to: endDate
+      });
 
-      if (startDate === endDate) {
-        // Try to fetch a single DailyEvaluation for this student/date
-        const singleEval = await DailyEvaluation.filter({
-          student_id: studentId,
-          date_from: startDate,
-          date_to: endDate
-        });
-        evaluations = singleEval || [];
+      console.log(`Found ${evaluations.length} QuickScore evaluations`);
 
-        // Still fetch incidents/contacts but we'll prefer the single evaluation
-        // for the AI input. Keep them available for fallbacks or incident summaries.
-        [incidents, contacts] = await Promise.all([
-          IncidentReport.filter({
-            student_id: studentId,
-            incident_date_from: startDate,
-            incident_date_to: endDate
-          }),
-          ContactLog.filter({
-            student_id: studentId,
-            contact_date_from: startDate,
-            contact_date_to: endDate
-          })
-        ]);
-      } else {
-        // Multi-day selection - preserve previous behavior and gather all sources
-        [evaluations, incidents, contacts] = await Promise.all([
-          DailyEvaluation.filter({
-            student_id: studentId,
-            date_from: startDate,
-            date_to: endDate
-          }),
-          IncidentReport.filter({
-            student_id: studentId,
-            incident_date_from: startDate,
-            incident_date_to: endDate
-          }),
-          ContactLog.filter({
-            student_id: studentId,
-            contact_date_from: startDate,
-            contact_date_to: endDate
-          })
-        ]);
-      }
-
-  console.log(`Found ${evaluations.length} evaluations, ${incidents.length} incidents, ${contacts.length} contacts`);
-
-      if (evaluations.length === 0 && incidents.length === 0 && contacts.length === 0) {
-        toast.error(`No behavioral data found for the selected date range (${startDate} to ${endDate}). Please verify that evaluations, incidents, or contact logs exist for this student within these dates.`);
+      if (evaluations.length === 0) {
+        toast.error(`No QuickScore evaluations found for the selected date range (${startDate} to ${endDate}). Please verify that evaluations exist for this student within these dates.`);
         return;
       }
 
-      // Build AI input. If a single-day was selected and at least one evaluation
-      // exists, prefer that single evaluation as the primary source with incidents/contacts as secondary.
-      // For multi-day selections, aggregate all sources equally.
+      // Build AI input from QuickScore evaluations only
       let allComments = [];
 
-      if (startDate === endDate && evaluations.length > 0) {
-        // Single day with evaluation data - prioritize the evaluation
-        const evaluation = evaluations[0];
-
+      evaluations.forEach(evaluation => {
         // Add general comments from evaluation
         if (evaluation.general_comments && evaluation.general_comments.trim()) {
           allComments.push({
@@ -490,106 +477,10 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
             }
           });
         }
-
-        // Add incidents and contacts as supplementary information for the same day
-        incidents.forEach(incident => {
-          if (incident.incident_description) {
-            allComments.push({
-              type: 'incident',
-              date: incident.incident_date,
-              content: incident.incident_description,
-              context: `Incident Report - ${incident.incident_type || 'General Incident'}`,
-              source: 'incident_report'
-            });
-          }
-        });
-
-        contacts.forEach(contact => {
-          if (contact.outcome_of_contact) {
-            allComments.push({
-              type: 'contact',
-              date: contact.contact_date,
-              content: contact.outcome_of_contact,
-              context: `Contact with ${contact.contact_person_name} - ${contact.contact_category}`,
-              source: 'contact_log'
-            });
-          }
-          if (contact.purpose_of_contact) {
-            allComments.push({
-              type: 'contact_purpose',
-              date: contact.contact_date,
-              content: contact.purpose_of_contact,
-              context: `Contact purpose with ${contact.contact_person_name}`,
-              source: 'contact_log'
-            });
-          }
-        });
-      } else {
-        // Multi-day aggregation - include all sources equally
-        evaluations.forEach(evaluation => {
-          if (evaluation.general_comments && evaluation.general_comments.trim()) {
-            allComments.push({
-              type: 'general',
-              date: evaluation.date,
-              content: evaluation.general_comments.trim(),
-              context: 'Overall daily evaluation summary',
-              source: 'daily_evaluation'
-            });
-          }
-          if (evaluation.time_slots) {
-            Object.entries(evaluation.time_slots).forEach(([slot, data]) => {
-              if (data && data.comment && data.comment.trim()) {
-                allComments.push({
-                  type: 'time_slot',
-                  date: evaluation.date,
-                  slot: slot,
-                  slotLabel: TIME_SLOT_LABELS[slot] || slot,
-                  rating: data.rating,
-                  content: data.comment.trim(),
-                  context: `Time slot: ${TIME_SLOT_LABELS[slot] || slot}`,
-                  source: 'daily_evaluation'
-                });
-              }
-            });
-          }
-        });
-
-        incidents.forEach(incident => {
-          if (incident.incident_description) {
-            allComments.push({
-              type: 'incident',
-              date: incident.incident_date,
-              content: incident.incident_description,
-              context: `Incident Report - ${incident.incident_type || 'General Incident'}`,
-              source: 'incident_report'
-            });
-          }
-        });
-
-        contacts.forEach(contact => {
-          if (contact.outcome_of_contact) {
-            allComments.push({
-              type: 'contact',
-              date: contact.contact_date,
-              content: contact.outcome_of_contact,
-              context: `Contact with ${contact.contact_person_name} - ${contact.contact_category}`,
-              source: 'contact_log'
-            });
-          }
-          if (contact.purpose_of_contact) {
-            allComments.push({
-              type: 'contact_purpose',
-              date: contact.contact_date,
-              content: contact.purpose_of_contact,
-              context: `Contact purpose with ${contact.contact_person_name}`,
-              source: 'contact_log'
-            });
-          }
-        });
-      }
+      });
 
       if (allComments.length === 0) {
-        toast.error('No behavioral information found in evaluations, incidents, or contacts for the selected date range');
+        toast.error('No behavioral comments or ratings found in QuickScore evaluations for the selected date range');
         return;
       }
 
@@ -611,6 +502,17 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       });
 
       // Generate AI summary with student-specific data (force refresh to ensure latest data)
+      console.log('🤖 Generating AI behavior summary...');
+      console.log('📊 Comments data:', allComments.length, 'comments');
+      console.log('📅 Date range:', { startDate, endDate });
+      console.log('👤 Student info:', {
+        studentId,
+        studentName: student?.student_name,
+        gradeLevel: student?.grade_level,
+        schoolName: settings?.school_name,
+        teacherName: settings?.teacher_name
+      });
+      
       const analysis = await aiService.generateBehaviorSummary(
         allComments,
         { startDate, endDate },
@@ -623,14 +525,16 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
           forceRefresh: true
         }
       );
+      
+      console.log('✅ AI analysis result:', analysis);
 
       // Ensure all fields have content with fallbacks
       const updatedData = {
-        general_behavior_overview: analysis.general_overview || 'Based on available data, behavioral observations will be documented.',
-        strengths: analysis.strengths || 'Student strengths will be identified based on evaluation data.',
+        general_behavior_overview: analysis.general_overview || 'Based on available QuickScore data, behavioral observations will be documented.',
+        strengths: analysis.strengths || 'Student strengths will be identified based on QuickScore evaluation data.',
         improvements_needed: analysis.improvements || 'Areas for improvement will be assessed based on behavioral observations.',
-        behavioral_incidents: analysis.incidents || (incidents.length > 0 ? `${incidents.length} incident(s) occurred during this period.` : ''),
-        summary_recommendations: analysis.recommendations || 'Recommendations will be developed based on behavioral patterns and observations.'
+        behavioral_incidents: analysis.incidents || 'No specific behavioral incidents noted in QuickScore evaluations for this period.',
+        summary_recommendations: analysis.recommendations || 'Recommendations will be developed based on behavioral patterns observed in QuickScore data.'
       };
 
       // Update form data with AI-generated content
@@ -660,8 +564,23 @@ export default function SummaryForm({ summary, settings, onSave, isSaving, stude
       toast.success(`AI summary generated from ${allComments.length} behavioral records for ${dateRangeText}!`);
 
     } catch (error) {
-      console.error('Error generating AI summary:', error);
-      toast.error('Failed to generate AI summary. Please check your OpenAI API key.');
+      console.error('❌ Error generating AI summary:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
+      // Check if it's an AI service initialization issue
+      if (error.message?.includes('AI service not initialized')) {
+        toast.error('AI service initialization failed. Please check your OpenAI API key in settings.');
+      } else if (error.message?.includes('quota')) {
+        toast.error('OpenAI API quota exceeded. Please check your usage limits.');
+      } else if (error.message?.includes('API key')) {
+        toast.error('OpenAI API key issue. Please verify your API key configuration.');
+      } else {
+        toast.error(`Failed to generate AI summary: ${error.message}`);
+      }
     } finally {
       setIsGenerating(false);
     }

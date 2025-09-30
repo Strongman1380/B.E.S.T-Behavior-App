@@ -17,7 +17,7 @@ const toLetterGrade = (value) => {
   return 'F';
 };
 
-export default function GradesEntryCard({ students = [] }) {
+export default function GradesEntryCard({ students = [], onSaved }) {
   const [selectedStudent, setSelectedStudent] = useState("");
   const [courseName, setCourseName] = useState("");
   const [grade, setGrade] = useState("");
@@ -51,6 +51,9 @@ export default function GradesEntryCard({ students = [] }) {
       setSelectedStudent("");
       setCourseName("");
       setGrade("");
+      if (typeof onSaved === 'function') {
+        onSaved();
+      }
     } catch (error) {
       console.error("Error recording grade:", error);
       toast.error("Failed to record grade");

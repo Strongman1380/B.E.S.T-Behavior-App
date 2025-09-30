@@ -2,12 +2,13 @@
 import { 
   Student as PostgresStudent, 
   DailyEvaluation as PostgresDailyEvaluation, 
-  Settings as PostgresSettings, 
-  ContactLog as PostgresContactLog, 
+  Settings as PostgresSettings,
+  ContactLog as PostgresContactLog,
   BehaviorSummary as PostgresBehaviorSummary,
   IncidentReport as PostgresIncidentReport,
   User as PostgresUser,
   Dashboard as PostgresDashboard,
+  StepsCompleted as PostgresStepsCompleted,
   isPostgresAvailable
 } from './postgresClient.js';
 
@@ -21,6 +22,7 @@ import {
   IncidentReport as SupabaseIncidentReport,
   User as SupabaseUser,
   Dashboard as SupabaseDashboard,
+  StepsCompleted as SupabaseStepsCompleted,
   getStorageType as getSupabaseStorageType
 } from './supabaseStorage.js';
 
@@ -275,6 +277,7 @@ export const BehaviorSummary = isBrowser ? SupabaseBehaviorSummary : new Postgre
 export const IncidentReport = isBrowser ? SupabaseIncidentReport : new PostgreSQLEntity(PostgresIncidentReport, 'incident_reports');
 export const User = isBrowser ? SupabaseUser : new PostgreSQLEntity(PostgresUser, 'users');
 export const Dashboard = isBrowser ? SupabaseDashboard : new PostgreSQLEntity(PostgresDashboard, 'dashboards');
+export const StepsCompleted = isBrowser ? SupabaseStepsCompleted : new PostgreSQLEntity(PostgresStepsCompleted, 'steps_completed');
 
 // Utility function to check storage type
 export const getStorageType = async () => {

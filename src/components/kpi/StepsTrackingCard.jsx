@@ -3,11 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Student } from "@/api/entities";
+import { StepsCompleted } from "@/api/entities";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
-export default function StepsTrackingCard({ students }) {
+export default function StepsTrackingCard({ students, onSaved }) {
   const [selectedStudent, setSelectedStudent] = useState("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [stepsCount, setStepsCount] = useState("");
@@ -19,19 +19,26 @@ export default function StepsTrackingCard({ students }) {
     }
 
     try {
-      // TODO: Implement StepsCompleted entity
-      // await StepsCompleted.create({
-      //   student_id: parseInt(selectedStudent),
-      //   date_completed: date,
-      //   steps_count: parseInt(stepsCount)
-      // });
+      await StepsCompleted.create({
+        student_id: Number(selectedStudent),
+        date_completed: date,
+        steps_count: Number(stepsCount)
+      });
 
       toast.success("Steps recorded successfully!");
       setSelectedStudent("");
       setStepsCount("");
+      if (typeof onSaved === 'function') {
+        onSaved();
+      }
     } catch (error) {
       console.error("Error recording steps:", error);
-      toast.error("Failed to record steps");
+      const message = typeof error?.message === 'string' ? error.message : '';
+      if (message.includes('Could not find the table')) {
+        toast.error('Steps tracking table is missing. Run the steps_completed SQL migration to enable this feature.');
+      } else {
+        toast.error("Failed to record steps");
+      }
     }
   };
 
